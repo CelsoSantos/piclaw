@@ -1,0 +1,31 @@
+.git
+.gitignore
+.gitattributes
+README.md
+docs/
+.dockerignore
+docker-compose*.yml
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.log
+tmp/
+temp/
+node_modules/
+__pycache__/
+*.bak
+*.backup
+home/
+workspaces/
+
+# Include the skeleton
+!skel/
+!skel/**
+
+# Include piclaw
+!piclaw/
+!piclaw/**

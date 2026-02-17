@@ -1,0 +1,161 @@
+import { mkdirSync } from "fs";
+import { join } from "path";
+
+import makeWASocket, {
+  Browsers,
+  DisconnectReason,
+  type WASocket,
+  makeCacheableSignalKeyStore,
+  useMultiFileAuthState,
+} from "@whiskeysockets/baileys";
+
+import { ASSISTANT_NAME, STORE_DIR } from "../config.js";
+import type { NewMessage, OnChatMetadata, OnInboundMessage } from "../types.js";
+
+// Minimal pino-compatible logger for baileys (it requires one)
+const silentLogger = {
+  level: "silent",
+  child: () => silentLogger,
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  fatal: () => {},
+} as any;
+
+export interface WhatsAppChannelOpts {
+  onMessage: OnInboundMessage;
+  onChatMetadata: OnChatMetadata;
+  chatJids: () => Set<string>;
+}
+
+export class WhatsAppChannel {
+  private sock!: WASocket;
+  private connected = false;
+  private outgoingQueue: Array<{ jid: string; text: string }> = [];
+  private flushing = false;
+  private opts: WhatsAppChannelOpts;
+
+  constructor(opts: WhatsAppChannelOpts) {
+    this.opts = opts;
+  }
+
+  async connect(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.connectInternal(resolve).catch(reject);
+    });
+  }
+
+  private async connectInternal(onFirstOpen?: () => void): Promise<void> {
+    const authDir = join(STORE_DIR, "auth");
+    mkdirSync(authDir, { recursive: true });
+    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+
+    this.sock = makeWASocket({
+      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, silentLogger) },
+      printQRInTerminal: true,
+      logger: silentLogger,
+      browser: Browsers.macOS("Chrome"),
+    });
+
+    this.sock.ev.on("connection.update", (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        console.log("[whatsapp] Scan the QR code above to authenticate");
+      }
+
+      if (connection === "close") {
+        this.connected = false;
+        const reason = (lastDisconnect?.error as any)?.output?.statusCode;
+        const shouldReconnect = reason !== DisconnectReason.loggedOut;
+        if (shouldReconnect) {
+          console.log("[whatsapp] Disconnected, reconnecting...");
+          this.connectInternal().catch((err) => {
+            console.error("[whatsapp] Reconnect failed, retrying in 5s:", err);
+            setTimeout(() => this.connectInternal().catch(console.error), 5000);
+          });
+        } else {
+          console.log("[whatsapp] Logged out. Re-authenticate to continue.");
+          process.exit(0);
+        }
+      } else if (connection === "open") {
+        this.connected = true;
+        console.log("[whatsapp] Connected");
+        this.sock.sendPresenceUpdate("available").catch(() => {});
+        this.flushOutgoingQueue().catch(console.error);
+        if (onFirstOpen) { onFirstOpen(); onFirstOpen = undefined; }
+      }
+    });
+
+    this.sock.ev.on("creds.update", saveCreds);
+
+    this.sock.ev.on("messages.upsert", async ({ messages }) => {
+      for (const msg of messages) {
+        if (!msg.message) continue;
+        const chatJid = msg.key.remoteJid;
+        if (!chatJid || chatJid === "status@broadcast") continue;
+
+        const timestamp = new Date(Number(msg.messageTimestamp) * 1000).toISOString();
+        const content = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || "";
+        const sender = msg.key.participant || msg.key.remoteJid || "";
+        const senderName = msg.pushName || sender.split("@")[0];
+        const fromMe = msg.key.fromMe || false;
+        const isBotMessage = content.startsWith(`${ASSISTANT_NAME}:`);
+
+        this.opts.onChatMetadata(chatJid, timestamp);
+
+        // Store messages from monitored chats (or any from-me message for auto-registration)
+        const jids = this.opts.chatJids();
+        if (jids.has(chatJid) || fromMe) {
+          this.opts.onMessage(chatJid, {
+            id: msg.key.id || "",
+            chat_jid: chatJid,
+            sender,
+            sender_name: senderName,
+            content,
+            timestamp,
+            is_from_me: fromMe,
+            is_bot_message: isBotMessage,
+          });
+        }
+      }
+    });
+  }
+
+  async sendMessage(jid: string, text: string): Promise<void> {
+    const prefixed = `${ASSISTANT_NAME}: ${text}`;
+    if (!this.connected) {
+      this.outgoingQueue.push({ jid, text: prefixed });
+      return;
+    }
+    try {
+      await this.sock.sendMessage(jid, { text: prefixed });
+    } catch {
+      this.outgoingQueue.push({ jid, text: prefixed });
+    }
+  }
+
+  isConnected(): boolean { return this.connected; }
+
+  async disconnect(): Promise<void> {
+    this.connected = false;
+    this.sock?.end(undefined);
+  }
+
+  async setTyping(jid: string, isTyping: boolean): Promise<void> {
+    try { await this.sock.sendPresenceUpdate(isTyping ? "composing" : "paused", jid); } catch {}
+  }
+
+  private async flushOutgoingQueue(): Promise<void> {
+    if (this.flushing || this.outgoingQueue.length === 0) return;
+    this.flushing = true;
+    try {
+      while (this.outgoingQueue.length > 0) {
+        const item = this.outgoingQueue.shift()!;
+        await this.sock.sendMessage(item.jid, { text: item.text });
+      }
+    } finally { this.flushing = false; }
+  }
+}
