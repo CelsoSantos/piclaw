@@ -1,14 +1,15 @@
 #!/usr/bin/env bun
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { ASSISTANT_NAME, DATA_DIR, POLL_INTERVAL, STORE_DIR, TRIGGER_PATTERN, WORKSPACE_DIR } from "./config.js";
+import { ASSISTANT_NAME, DATA_DIR, POLL_INTERVAL, PUSHOVER_APP_TOKEN, PUSHOVER_DEVICE, PUSHOVER_PRIORITY, PUSHOVER_SOUND, PUSHOVER_USER_KEY, STORE_DIR, TRIGGER_PATTERN, WORKSPACE_DIR } from "./config.js";
 import { initDatabase, getMessagesSince, getNewMessages, getRouterState, setRouterState, storeMessage, storeChatMetadata } from "./db.js";
-import { runAgent } from "./agent-runner.js";
+import { AgentPool } from "./agent-pool.js";
 import { AgentQueue } from "./queue.js";
 import { startIpcWatcher } from "./ipc.js";
 import { startSchedulerLoop } from "./task-scheduler.js";
 import { WhatsAppChannel } from "./channels/whatsapp.js";
 import { WebChannel } from "./channels/web.js";
+import { PushoverChannel } from "./channels/pushover.js";
 import { formatMessages, formatOutbound } from "./router.js";
 const HELP_TEXT = `piclaw - Pi Coding Agent Assistant
 
@@ -47,8 +48,10 @@ handleCliOptions();
 let lastTimestamp = "";
 let lastAgentTimestamp = {};
 const queue = new AgentQueue();
+const agentPool = new AgentPool();
 let whatsapp;
 let web;
+let pushover = null;
 // Chat JIDs we listen on — loaded from data/chats.json
 let chatJids = new Set();
 function loadChats() {
@@ -92,7 +95,7 @@ async function processMessages(chatJid) {
     saveState();
     console.log(`[piclaw] Processing ${messages.length} messages from ${chatJid}`);
     await whatsapp.setTyping(chatJid, true);
-    const output = await runAgent(prompt, chatJid);
+    const output = await agentPool.runAgent(prompt, chatJid);
     await whatsapp.setTyping(chatJid, false);
     if (output.status === "error") {
         lastAgentTimestamp[chatJid] = prevCursor;
@@ -148,14 +151,26 @@ async function main() {
     const shutdown = async (signal) => {
         console.log(`[piclaw] ${signal} received, shutting down...`);
         await queue.shutdown(5000);
+        await agentPool.shutdown();
         await whatsapp.disconnect();
         await web?.stop();
+        await pushover?.stop();
         process.exit(0);
     };
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
-    web = new WebChannel({ queue });
+    web = new WebChannel({ queue, agentPool });
     await web.start();
+    if (PUSHOVER_APP_TOKEN && PUSHOVER_USER_KEY) {
+        pushover = new PushoverChannel({
+            appToken: PUSHOVER_APP_TOKEN,
+            userKey: PUSHOVER_USER_KEY,
+            device: PUSHOVER_DEVICE || undefined,
+            priority: PUSHOVER_PRIORITY,
+            sound: PUSHOVER_SOUND || undefined,
+        });
+        await pushover.start();
+    }
     whatsapp = new WhatsAppChannel({
         chatJids: () => chatJids,
         onMessage: (chatJid, msg) => {
@@ -176,12 +191,20 @@ async function main() {
         }
         await whatsapp.sendMessage(jid, text);
     };
+    const sendNudge = pushover
+        ? async (text) => {
+            await pushover.sendMessage("", text).catch((err) => console.error("[pushover] Failed to send nudge:", err));
+        }
+        : undefined;
     startIpcWatcher({
         sendMessage,
+        sendNudge,
     });
     startSchedulerLoop({
         queue,
+        agentPool,
         sendMessage,
+        sendNudge,
     });
     messageLoop();
 }

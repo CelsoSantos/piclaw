@@ -1,12 +1,12 @@
 import { extname, resolve } from "path";
 import { ASSISTANT_NAME, WEB_HOST, WEB_IDLE_TIMEOUT, WEB_PORT } from "../config.js";
 import { attachMediaToMessage, createMedia, deleteMessageByRowId, getMediaById, getMediaInfoById, getMessageByRowId, getMessagesByHashtag, getMessagesSince, getRouterState, getTimeline, hasOlderMessages, searchMessages, setRouterState, storeChatMetadata, storeMessage, } from "../db.js";
-import { runAgent } from "../agent-runner.js";
 import { formatMessages, formatOutbound } from "../router.js";
 const DEFAULT_CHAT_JID = "web:default";
 const DEFAULT_AGENT_ID = "default";
 const STATE_KEY = "last_agent_timestamp_web";
 const STATIC_DIR = resolve(import.meta.dir, "..", "..", "web", "static");
+const DOCS_DIR = resolve(import.meta.dir, "..", "..", "docs");
 const encoder = new TextEncoder();
 const MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -22,11 +22,13 @@ const MIME_TYPES = {
 };
 export class WebChannel {
     queue;
+    agentPool;
     server = null;
     lastAgentTimestamp = {};
     clients = new Set();
     constructor(opts) {
         this.queue = opts.queue;
+        this.agentPool = opts.agentPool;
     }
     async start() {
         this.loadState();
@@ -77,6 +79,10 @@ export class WebChannel {
         if (pathname.startsWith("/static/")) {
             const rel = pathname.replace("/static/", "");
             return this.serveStatic(rel);
+        }
+        if (pathname.startsWith("/docs/")) {
+            const rel = pathname.replace("/docs/", "");
+            return this.serveDocsStatic(rel);
         }
         if (pathname === "/sse/stream") {
             return this.handleSse();
@@ -283,7 +289,7 @@ export class WebChannel {
             type: "thinking",
             title: "Thinking...",
         });
-        const output = await runAgent(prompt, chatJid);
+        const output = await this.agentPool.runAgent(prompt, chatJid);
         if (output.status === "error") {
             this.lastAgentTimestamp[chatJid] = prevCursor;
             this.saveState();
@@ -383,6 +389,20 @@ export class WebChannel {
     async serveStatic(relPath) {
         const filePath = resolve(STATIC_DIR, relPath);
         if (!filePath.startsWith(STATIC_DIR))
+            return this.json({ error: "Not found" }, 404);
+        const file = Bun.file(filePath);
+        if (!(await file.exists()))
+            return this.json({ error: "Not found" }, 404);
+        const contentType = MIME_TYPES[extname(filePath)] || "application/octet-stream";
+        return new Response(file, {
+            headers: {
+                "Content-Type": contentType,
+            },
+        });
+    }
+    async serveDocsStatic(relPath) {
+        const filePath = resolve(DOCS_DIR, relPath);
+        if (!filePath.startsWith(DOCS_DIR))
             return this.json({ error: "Not found" }, 404);
         const file = Bun.file(filePath);
         if (!(await file.exists()))

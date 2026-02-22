@@ -1,6 +1,5 @@
 import { CronExpressionParser } from "cron-parser";
 import { SCHEDULER_POLL_INTERVAL, TIMEZONE } from "./config.js";
-import { runAgent } from "./agent-runner.js";
 import { getDueTasks, getTaskById, logTaskRun, updateTaskAfterRun } from "./db.js";
 import { formatOutbound } from "./router.js";
 async function executeTask(task, deps) {
@@ -12,15 +11,17 @@ async function executeTask(task, deps) {
     let result = null;
     let error = null;
     try {
-        const out = await runAgent(task.prompt, task.chat_jid);
+        const out = await deps.agentPool.runAgent(task.prompt, task.chat_jid);
         if (out.status === "error") {
             error = out.error || "Unknown";
         }
         else if (out.result) {
             result = out.result;
             const t = formatOutbound(result);
-            if (t)
+            if (t) {
                 await deps.sendMessage(task.chat_jid, t);
+                await deps.sendNudge?.(t);
+            }
         }
     }
     catch (e) {
