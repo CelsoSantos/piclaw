@@ -2,6 +2,7 @@ import { extname, resolve } from "path";
 
 import { AgentQueue } from "../queue.js";
 import type { AgentPool } from "../agent-pool.js";
+import type { AgentSessionEvent } from "@mariozechner/pi-coding-agent";
 import { ASSISTANT_NAME, WEB_HOST, WEB_IDLE_TIMEOUT, WEB_PORT } from "../config.js";
 import {
   attachMediaToMessage,
@@ -343,20 +344,98 @@ export class WebChannel {
     this.lastAgentTimestamp[chatJid] = messages[messages.length - 1].timestamp;
     this.saveState();
 
+    const threadId = messages[messages.length - 1].timestamp;
+    let thoughtBuffer = "";
+    let draftBuffer = "";
+
     this.broadcastEvent("agent_status", {
-      thread_id: messages[messages.length - 1].timestamp,
+      thread_id: threadId,
       agent_id: agentId,
       type: "thinking",
       title: "Thinking...",
     });
 
-    const output = await this.agentPool.runAgent(prompt, chatJid);
+    const output = await this.agentPool.runAgent(prompt, chatJid, {
+      onEvent: (event: AgentSessionEvent) => {
+        if (event.type === "message_update") {
+          const messageEvent = event.assistantMessageEvent;
+          if (messageEvent.type === "thinking_start") {
+            thoughtBuffer = "";
+          }
+          if (messageEvent.type === "thinking_delta") {
+            thoughtBuffer += messageEvent.delta;
+            this.broadcastEvent("agent_thought", {
+              thread_id: threadId,
+              agent_id: agentId,
+              text: thoughtBuffer,
+            });
+          }
+          if (messageEvent.type === "thinking_end") {
+            thoughtBuffer = messageEvent.content || thoughtBuffer;
+            this.broadcastEvent("agent_thought", {
+              thread_id: threadId,
+              agent_id: agentId,
+              text: thoughtBuffer,
+            });
+          }
+          if (messageEvent.type === "text_start") {
+            draftBuffer = "";
+            this.broadcastEvent("agent_draft", {
+              thread_id: threadId,
+              agent_id: agentId,
+              text: "",
+              kind: "draft",
+              mode: "replace",
+            });
+          }
+          if (messageEvent.type === "text_delta") {
+            draftBuffer += messageEvent.delta;
+            this.broadcastEvent("agent_draft", {
+              thread_id: threadId,
+              agent_id: agentId,
+              text: messageEvent.delta,
+              kind: "draft",
+              mode: "append",
+            });
+          }
+        }
+
+        if (event.type === "tool_execution_start") {
+          this.broadcastEvent("agent_status", {
+            thread_id: threadId,
+            agent_id: agentId,
+            type: "tool_call",
+            title: event.toolName,
+          });
+        }
+
+        if (event.type === "tool_execution_update") {
+          this.broadcastEvent("agent_status", {
+            thread_id: threadId,
+            agent_id: agentId,
+            type: "tool_status",
+            title: event.toolName,
+            status: "Working...",
+          });
+        }
+
+        if (event.type === "tool_execution_end") {
+          this.broadcastEvent("agent_status", {
+            thread_id: threadId,
+            agent_id: agentId,
+            type: "tool_status",
+            title: event.toolName,
+            status: event.isError ? "Failed" : "Done",
+          });
+        }
+      },
+    });
 
     if (output.status === "error") {
       this.lastAgentTimestamp[chatJid] = prevCursor;
       this.saveState();
       this.broadcastEvent("agent_status", {
-        thread_id: messages[messages.length - 1].timestamp,
+        thread_id: threadId,
         agent_id: agentId,
         type: "error",
         title: output.error || "Agent error",
@@ -375,7 +454,7 @@ export class WebChannel {
     }
 
     this.broadcastEvent("agent_status", {
-      thread_id: messages[messages.length - 1].timestamp,
+      thread_id: threadId,
       agent_id: agentId,
       type: "done",
     });

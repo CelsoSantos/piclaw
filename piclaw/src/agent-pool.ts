@@ -19,6 +19,10 @@ export interface AgentOutput {
   error?: string;
 }
 
+export interface RunAgentOptions {
+  onEvent?: (event: AgentSessionEvent) => void;
+}
+
 interface PoolEntry {
   session: AgentSession;
   lastUsed: number;
@@ -52,7 +56,7 @@ export class AgentPool {
   }
 
   /** Run a prompt against the persistent session for `chatJid`. */
-  async runAgent(prompt: string, chatJid: string): Promise<AgentOutput> {
+  async runAgent(prompt: string, chatJid: string, options: RunAgentOptions = {}): Promise<AgentOutput> {
     const startTime = Date.now();
 
     try {
@@ -61,7 +65,15 @@ export class AgentPool {
 
       // Collect the assistant's final text from streaming events
       let result = "";
+      const onEvent = options.onEvent;
       const unsub = session.subscribe((event: AgentSessionEvent) => {
+        if (onEvent) {
+          try {
+            onEvent(event);
+          } catch (err) {
+            console.warn("[agent-pool] Event handler error:", err);
+          }
+        }
         if (
           event.type === "message_update" &&
           event.assistantMessageEvent.type === "text_delta"
