@@ -6,6 +6,7 @@ import { createTask, deleteTask, getTaskById, updateTask } from "./db.js";
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
+  sendNudge?: (text: string) => Promise<void>;
 }
 
 let running = false;
@@ -30,6 +31,7 @@ export function startIpcWatcher(deps: IpcDeps): void {
             const data = JSON.parse(readFileSync(fp, "utf-8"));
             if (data.type === "message" && data.chatJid && data.text) {
               await deps.sendMessage(data.chatJid, data.text);
+              await deps.sendNudge?.(data.text);
             }
             unlinkSync(fp);
           } catch (e) { console.error(`[ipc] Error processing message ${file}:`, e); try { renameSync(fp, join(ipcDir, `error-${file}`)); } catch {} }

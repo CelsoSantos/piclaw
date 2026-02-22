@@ -120,6 +120,26 @@ Pi can interact with piclaw while running via IPC files:
 - `/skill:send-message` — Send a message to the chat immediately (progress updates)
 - `/skill:schedule` — Create/manage scheduled tasks (cron, interval, one-shot)
 
+### Pushover Notifications
+
+Piclaw can send push notifications via [Pushover](https://pushover.net/) for proactive
+nudges — scheduled task results and IPC messages (e.g. reminders, progress updates).
+Regular conversation responses are **not** sent to Pushover; only agent-initiated
+notifications are.
+
+Set these in your `.env` or as environment variables:
+
+```bash
+PUSHOVER_APP_TOKEN=your-app-token    # Required — from pushover.net/apps
+PUSHOVER_USER_KEY=your-user-key      # Required — from pushover.net
+PUSHOVER_DEVICE=myphone              # Optional — target a specific device
+PUSHOVER_PRIORITY=0                  # Optional — -2 (silent) to 2 (emergency)
+PUSHOVER_SOUND=pushover              # Optional — notification sound
+```
+
+When both `PUSHOVER_APP_TOKEN` and `PUSHOVER_USER_KEY` are set, the channel activates
+automatically. Messages longer than 1024 characters are truncated (Pushover API limit).
+
 ## Agent Configuration
 
 Pi uses `AGENTS.md` for project context and `.pi/` for configuration. LLM provider

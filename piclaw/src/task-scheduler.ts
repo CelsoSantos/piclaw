@@ -9,6 +9,7 @@ import type { ScheduledTask } from "./types.js";
 export interface SchedulerDeps {
   queue: AgentQueue;
   sendMessage: (jid: string, text: string) => Promise<void>;
+  sendNudge?: (text: string) => Promise<void>;
 }
 
 async function executeTask(task: ScheduledTask, deps: SchedulerDeps): Promise<void> {
@@ -22,7 +23,7 @@ async function executeTask(task: ScheduledTask, deps: SchedulerDeps): Promise<vo
   try {
     const out = await runAgent(task.prompt, task.chat_jid);
     if (out.status === "error") { error = out.error || "Unknown"; }
-    else if (out.result) { result = out.result; const t = formatOutbound(result); if (t) await deps.sendMessage(task.chat_jid, t); }
+    else if (out.result) { result = out.result; const t = formatOutbound(result); if (t) { await deps.sendMessage(task.chat_jid, t); await deps.sendNudge?.(t); } }
   } catch (e) { error = e instanceof Error ? e.message : String(e); }
 
   logTaskRun({ task_id: task.id, run_at: new Date().toISOString(), duration_ms: Date.now() - start, status: error ? "error" : "success", result, error });

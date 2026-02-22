@@ -207,21 +207,25 @@ async function main(): Promise<void> {
       return;
     }
     await whatsapp.sendMessage(jid, text);
-    // Mirror to Pushover if configured
-    if (pushover) {
-      await pushover.sendMessage(jid, text).catch((err) =>
-        console.error("[pushover] Failed to mirror message:", err)
-      );
-    }
   };
+
+  const sendNudge = pushover
+    ? async (text: string) => {
+        await pushover!.sendMessage("", text).catch((err) =>
+          console.error("[pushover] Failed to send nudge:", err)
+        );
+      }
+    : undefined;
 
   startIpcWatcher({
     sendMessage,
+    sendNudge,
   });
 
   startSchedulerLoop({
     queue,
     sendMessage,
+    sendNudge,
   });
 
   messageLoop();
