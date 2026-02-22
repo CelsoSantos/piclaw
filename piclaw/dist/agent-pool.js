@@ -26,14 +26,23 @@ export class AgentPool {
         this.cleanupTimer = setInterval(() => this.evictIdle(), CLEANUP_INTERVAL);
     }
     /** Run a prompt against the persistent session for `chatJid`. */
-    async runAgent(prompt, chatJid) {
+    async runAgent(prompt, chatJid, options = {}) {
         const startTime = Date.now();
         try {
             const session = await this.getOrCreate(chatJid);
             console.log(`[agent-pool] Prompting session ${chatJid} (${prompt.length} chars)`);
             // Collect the assistant's final text from streaming events
             let result = "";
+            const onEvent = options.onEvent;
             const unsub = session.subscribe((event) => {
+                if (onEvent) {
+                    try {
+                        onEvent(event);
+                    }
+                    catch (err) {
+                        console.warn("[agent-pool] Event handler error:", err);
+                    }
+                }
                 if (event.type === "message_update" &&
                     event.assistantMessageEvent.type === "text_delta") {
                     result += event.assistantMessageEvent.delta;

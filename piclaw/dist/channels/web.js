@@ -283,18 +283,172 @@ export class WebChannel {
         const prevCursor = this.lastAgentTimestamp[chatJid] || "";
         this.lastAgentTimestamp[chatJid] = messages[messages.length - 1].timestamp;
         this.saveState();
+        const threadId = messages[messages.length - 1].timestamp;
+        let thoughtBuffer = "";
+        let draftBuffer = "";
+        const toolTitles = new Map();
+        const extractToolArgs = (args) => {
+            if (!args)
+                return null;
+            if (typeof args === "string") {
+                try {
+                    const parsed = JSON.parse(args);
+                    if (parsed && typeof parsed === "object")
+                        return parsed;
+                }
+                catch {
+                    return null;
+                }
+            }
+            if (typeof args === "object") {
+                const record = args;
+                const nested = record.arguments ||
+                    record.input ||
+                    record.params ||
+                    record.parameters ||
+                    record.args ||
+                    record.payload;
+                return nested ?? record;
+            }
+            return null;
+        };
+        const formatToolTitle = (toolName, args) => {
+            const record = extractToolArgs(args);
+            if (!record)
+                return toolName;
+            let detail = null;
+            const command = record.command;
+            if (typeof command === "string")
+                detail = command;
+            if (!detail && Array.isArray(record.commands)) {
+                detail = record.commands.filter((item) => typeof item === "string").join(" && ");
+            }
+            const path = record.path || record.filePath || record.target;
+            if (!detail && typeof path === "string")
+                detail = path;
+            if (!detail && Array.isArray(record.paths)) {
+                detail = record.paths.filter((item) => typeof item === "string").join(", ");
+            }
+            const filename = record.fileName || record.filename || record.file;
+            if (!detail && typeof filename === "string")
+                detail = filename;
+            const url = record.url;
+            if (!detail && typeof url === "string")
+                detail = url;
+            const query = record.query;
+            if (!detail && typeof query === "string")
+                detail = query;
+            if (!detail)
+                return toolName;
+            const normalized = detail.replace(/\s+/g, " ").trim();
+            const maxLen = 120;
+            const clipped = normalized.length > maxLen ? `${normalized.slice(0, maxLen)}…` : normalized;
+            return `${toolName}: ${clipped}`;
+        };
+        const rememberToolTitle = (toolCallId, toolName, args) => {
+            const title = formatToolTitle(toolName, args);
+            toolTitles.set(toolCallId, title);
+            return title;
+        };
+        const lookupToolTitle = (toolCallId, toolName, args) => {
+            return toolTitles.get(toolCallId) ?? formatToolTitle(toolName, args);
+        };
         this.broadcastEvent("agent_status", {
-            thread_id: messages[messages.length - 1].timestamp,
+            thread_id: threadId,
             agent_id: agentId,
             type: "thinking",
             title: "Thinking...",
         });
-        const output = await this.agentPool.runAgent(prompt, chatJid);
+        const output = await this.agentPool.runAgent(prompt, chatJid, {
+            onEvent: (event) => {
+                if (event.type === "message_update") {
+                    const messageEvent = event.assistantMessageEvent;
+                    if (messageEvent.type === "thinking_start") {
+                        thoughtBuffer = "";
+                    }
+                    if (messageEvent.type === "thinking_delta") {
+                        thoughtBuffer += messageEvent.delta;
+                        this.broadcastEvent("agent_thought", {
+                            thread_id: threadId,
+                            agent_id: agentId,
+                            text: thoughtBuffer,
+                        });
+                    }
+                    if (messageEvent.type === "thinking_end") {
+                        thoughtBuffer = messageEvent.content || thoughtBuffer;
+                        this.broadcastEvent("agent_thought", {
+                            thread_id: threadId,
+                            agent_id: agentId,
+                            text: thoughtBuffer,
+                        });
+                    }
+                    if (messageEvent.type === "toolcall_end") {
+                        const title = rememberToolTitle(messageEvent.toolCall.id, messageEvent.toolCall.name, messageEvent.toolCall.arguments);
+                        this.broadcastEvent("agent_status", {
+                            thread_id: threadId,
+                            agent_id: agentId,
+                            type: "tool_call",
+                            title,
+                        });
+                    }
+                    if (messageEvent.type === "text_start") {
+                        draftBuffer = "";
+                        this.broadcastEvent("agent_draft", {
+                            thread_id: threadId,
+                            agent_id: agentId,
+                            text: "",
+                            kind: "draft",
+                            mode: "replace",
+                        });
+                    }
+                    if (messageEvent.type === "text_delta") {
+                        draftBuffer += messageEvent.delta;
+                        this.broadcastEvent("agent_draft", {
+                            thread_id: threadId,
+                            agent_id: agentId,
+                            text: messageEvent.delta,
+                            kind: "draft",
+                            mode: "append",
+                        });
+                    }
+                }
+                if (event.type === "tool_execution_start") {
+                    const title = rememberToolTitle(event.toolCallId, event.toolName, event.args);
+                    this.broadcastEvent("agent_status", {
+                        thread_id: threadId,
+                        agent_id: agentId,
+                        type: "tool_call",
+                        title,
+                    });
+                }
+                if (event.type === "tool_execution_update") {
+                    const title = lookupToolTitle(event.toolCallId, event.toolName, event.args);
+                    this.broadcastEvent("agent_status", {
+                        thread_id: threadId,
+                        agent_id: agentId,
+                        type: "tool_status",
+                        title,
+                        status: "Working...",
+                    });
+                }
+                if (event.type === "tool_execution_end") {
+                    const title = lookupToolTitle(event.toolCallId, event.toolName, event.args);
+                    toolTitles.delete(event.toolCallId);
+                    this.broadcastEvent("agent_status", {
+                        thread_id: threadId,
+                        agent_id: agentId,
+                        type: "tool_status",
+                        title,
+                        status: event.isError ? "Failed" : "Done",
+                    });
+                }
+            },
+        });
         if (output.status === "error") {
             this.lastAgentTimestamp[chatJid] = prevCursor;
             this.saveState();
             this.broadcastEvent("agent_status", {
-                thread_id: messages[messages.length - 1].timestamp,
+                thread_id: threadId,
                 agent_id: agentId,
                 type: "error",
                 title: output.error || "Agent error",
@@ -311,7 +465,7 @@ export class WebChannel {
             }
         }
         this.broadcastEvent("agent_status", {
-            thread_id: messages[messages.length - 1].timestamp,
+            thread_id: threadId,
             agent_id: agentId,
             type: "done",
         });
