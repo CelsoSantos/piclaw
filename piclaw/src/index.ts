@@ -201,8 +201,6 @@ async function main(): Promise<void> {
     onChatMetadata: (chatJid, timestamp) => storeChatMetadata(chatJid, timestamp),
   });
 
-  await whatsapp.connect();
-
   const sendMessage = async (jid: string, text: string) => {
     if (jid.startsWith("web:")) {
       await web.sendMessage(jid, text);
@@ -230,6 +228,8 @@ async function main(): Promise<void> {
     sendMessage,
     sendNudge,
   });
+
+  await whatsapp.connect();
 
   messageLoop();
 }
