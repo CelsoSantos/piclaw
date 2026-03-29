@@ -206,6 +206,36 @@ Approximate ranges are intentional; exact cut points should follow section comme
 ## Updates
 
 ### 2026-03-29
+- Began the first implementation tranche on branch `feature/split-web-styles-monolith` using the ordered-manifest approach.
+- Converted `runtime/web/static/css/styles.css` into a thin ordered manifest importing:
+  - `base.css`
+  - `shell.css`
+  - `workspace.css`
+  - `editor.css`
+  - `chat.css`
+  - `content.css`
+  - `agent.css`
+  - `overlays.css`
+  - `responsive.css`
+- Performed a move-first extraction of the existing rules into those partials without renaming selectors or changing the bundle entrypoint (`runtime/web/src/styles/app.css` remains unchanged).
+- Current stylesheet sizes after the split:
+  - `styles.css` → 16 lines
+  - `base.css` → 177 lines
+  - `shell.css` → 128 lines
+  - `workspace.css` → 944 lines
+  - `editor.css` → 1020 lines
+  - `chat.css` → 1152 lines
+  - `content.css` → 1558 lines
+  - `agent.css` → 1138 lines
+  - `overlays.css` → 327 lines
+  - `responsive.css` → 274 lines
+- Validation so far:
+  - `bun run build:web`
+  - `bun run check:stale-dist`
+- Manual/browser smoke verification is still pending before this ticket can move forward.
+- Quality: ★★★★☆ 8/10 (problem: 2, scope: 2, test: 1, deps: 1, risk: 2)
+
+### 2026-03-29
 - Performed a fresh split assessment before coding the refactor.
 - Confirmed the current monolith is about `6663` lines and already has natural section boundaries that map cleanly to a manifest-driven extraction plan.
 - Confirmed the safest contract is to keep `runtime/web/src/styles/app.css` and `/static/dist/app.bundle.css` unchanged, and split under `runtime/web/static/css/` instead.

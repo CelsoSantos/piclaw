@@ -1,0 +1,128 @@
+/*
+ * shell.css - Extracted from styles.css during the layered stylesheet split.
+ * Ownership: Top-level app shell layout and shared chat-window chrome.
+ * Keep selector names/order stable in this first move-only tranche.
+ */
+
+/* Layout */
+.app-shell {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.app-shell.chat-only {
+    justify-content: center;
+}
+
+.app-shell.chat-only .container {
+    width: 100%;
+    max-width: min(100%, 980px);
+    margin: 0 auto;
+}
+
+.chat-window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.chat-window-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 0;
+}
+
+.chat-window-header-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+}
+
+.chat-window-header-title {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-window-header-subtitle {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-window-header-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.chat-window-header-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.chat-window-header-button:hover {
+    background: var(--bg-hover);
+}
+
+.chat-window-header-button:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.chat-window-branch-picker-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.chat-window-branch-picker-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.chat-window-branch-picker {
+    min-width: 180px;
+    max-width: min(38vw, 340px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font: inherit;
+}
+
