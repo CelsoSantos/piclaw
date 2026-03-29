@@ -21,7 +21,6 @@ import {
     useTimestampRefresh,
 } from './ui/app-helpers.js';
 import { handleAgentPanelToggle } from './ui/app-agent-panel-toggle.js';
-import { resolveFilePillOpenAction } from './ui/file-pill-open.js';
 import {
     isStandaloneWebAppMode,
 } from './ui/chat-window.js';
@@ -36,6 +35,9 @@ import {
 import {
     useSidepanelOrchestration,
 } from './ui/app-sidepanel-orchestration.js';
+import {
+    useComposeReferenceOrchestration,
+} from './ui/app-compose-reference-orchestration.js';
 import { installStandaloneMobileViewportFix } from './ui/mobile-viewport.js';
 import { resolveOptionalApi } from './ui/optional-api.js';
 import { watchReturnToApp, watchStandaloneWebAppMode } from './ui/app-resume.js';
@@ -116,15 +118,9 @@ import {
     runTimelineLoadFlow,
 } from './ui/app-boot-load-orchestration.js';
 import {
-    appendUniqueStringRef,
-    normalizeComposeRefs,
-    removeStringRef,
-} from './ui/app-shell-ref-utils.js';
-import {
     backToTimeline,
     deleteTimelinePost,
     loadHashtagTimeline,
-    scrollToTimelineMessage,
     searchTimeline,
 } from './ui/app-timeline-actions.js';
 
@@ -533,14 +529,6 @@ function MainApp({ locationParams, navigate }) {
     );
     const renameBranchNameInputRef = useRef(null);
 
-    const clearIntentToast = useCallback(() => {
-        if (intentToastTimerRef.current) {
-            clearTimeout(intentToastTimerRef.current);
-            intentToastTimerRef.current = null;
-        }
-        setIntentToast(null);
-    }, []);
-
     useTimestampRefresh(30000);
 
     useEffect(() => {
@@ -568,12 +556,6 @@ function MainApp({ locationParams, navigate }) {
     useEffect(() => {
         return installStandaloneMobileViewportFix();
     }, []);
-
-    useEffect(() => {
-        return () => {
-            clearIntentToast();
-        };
-    }, [clearIntentToast]);
 
     useEffect(() => {
         if (!btwSession) {
@@ -625,84 +607,35 @@ function MainApp({ locationParams, navigate }) {
         }
     }, []);
 
-    const addFileRef = useCallback((path) => {
-        setFileRefs((prev) => appendUniqueStringRef(prev, path));
-    }, []);
+    const {
+        addFileRef,
+        removeFileRef,
+        clearFileRefs,
+        setFileRefsFromCompose,
+        showIntentToast,
+        openFileFromPill,
+        attachActiveEditorFile,
+        addMessageRef,
+        scrollToMessage,
+        removeMessageRef,
+        clearMessageRefs,
+        setMessageRefsFromCompose,
+        handleComposeSubmitError,
+    } = useComposeReferenceOrchestration({
+        setIntentToast,
+        intentToastTimerRef,
+        editorOpen,
+        openEditor,
+        resolvePane: (context) => paneRegistry.resolve(context),
+        tabStripActiveId,
+        setFileRefs,
+        setMessageRefs,
+        currentChatJid,
+        getThread: api.getThread,
+        setPosts,
+    });
 
-    const removeFileRef = useCallback((path) => {
-        setFileRefs((prev) => removeStringRef(prev, path));
-    }, []);
     removeFileRefRef.current = removeFileRef;
-
-    const clearFileRefs = useCallback(() => {
-        setFileRefs([]);
-    }, []);
-
-    const setFileRefsFromCompose = useCallback((next) => {
-        setFileRefs(normalizeComposeRefs(next));
-    }, []);
-
-
-    const showIntentToast = useCallback((title, detail = null, kind = 'info', durationMs = 3000) => {
-        clearIntentToast();
-        setIntentToast({ title, detail: detail || null, kind: kind || 'info' });
-        intentToastTimerRef.current = setTimeout(() => {
-            setIntentToast((current) => (current?.title === title ? null : current));
-        }, durationMs);
-    }, [clearIntentToast]);
-
-    const openFileFromPill = useCallback((rawPath) => {
-        const result = resolveFilePillOpenAction(rawPath, {
-            editorOpen,
-            resolvePane: (context) => paneRegistry.resolve(context),
-        });
-
-        if (result.kind === 'open') {
-            openEditor(result.path);
-            return;
-        }
-
-        if (result.kind === 'toast') {
-            showIntentToast(result.title, result.detail, result.level);
-        }
-    }, [editorOpen, openEditor, showIntentToast]);
-
-    const attachActiveEditorFile = useCallback(() => {
-        const activeId = tabStripActiveId;
-        if (activeId) addFileRef(activeId);
-    }, [tabStripActiveId, addFileRef]);
-
-    const addMessageRef = useCallback((id) => {
-        setMessageRefs((prev) => appendUniqueStringRef(prev, id));
-    }, []);
-
-    /** Scroll to a message by ID; fetch and inject if not in current timeline. */
-    const scrollToMessage = useCallback(async (id, targetChatJid = null) => {
-        await scrollToTimelineMessage({
-            id,
-            targetChatJid,
-            currentChatJid,
-            getThread: api.getThread,
-            setPosts,
-        });
-    }, [currentChatJid, setPosts]);
-
-    const removeMessageRef = useCallback((id) => {
-        setMessageRefs((prev) => removeStringRef(prev, id));
-    }, []);
-
-    const clearMessageRefs = useCallback(() => {
-        setMessageRefs([]);
-    }, []);
-
-    const setMessageRefsFromCompose = useCallback((next) => {
-        setMessageRefs(normalizeComposeRefs(next));
-    }, []);
-
-    const handleComposeSubmitError = useCallback((message) => {
-        const detail = typeof message === 'string' && message.trim() ? message.trim() : 'Could not send your message.';
-        showIntentToast('Compose failed', detail, 'error', 5000);
-    }, [showIntentToast]);
 
     const noteAgentActivity = useCallback((options = {}) => {
         const now = Date.now();
