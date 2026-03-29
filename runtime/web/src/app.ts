@@ -22,7 +22,6 @@ import {
 } from './ui/app-helpers.js';
 import { handleAgentPanelToggle } from './ui/app-agent-panel-toggle.js';
 import { resolveFilePillOpenAction } from './ui/file-pill-open.js';
-import { parseBtwCommand, buildBtwInjectionText, resolveBtwChatJid } from './ui/btw.js';
 import {
     isStandaloneWebAppMode,
 } from './ui/chat-window.js';
@@ -34,6 +33,9 @@ import {
 import {
     useChatRefreshLifecycle,
 } from './ui/app-chat-refresh-lifecycle.js';
+import {
+    useSidepanelOrchestration,
+} from './ui/app-sidepanel-orchestration.js';
 import { installStandaloneMobileViewportFix } from './ui/mobile-viewport.js';
 import { resolveOptionalApi } from './ui/optional-api.js';
 import { watchReturnToApp, watchStandaloneWebAppMode } from './ui/app-resume.js';
@@ -80,24 +82,14 @@ import {
     captureChatPaneStateSnapshot,
 } from './ui/app-chat-pane-state.js';
 import {
-    addPendingPanelAction,
-    createPendingPanelActionKey,
-    removePendingPanelAction,
-    runExtensionStatusPanelAction,
-} from './ui/app-extension-status.js';
-import {
     filterQueuedTimelinePosts,
 } from './ui/app-followup-queue.js';
 import {
     applyLiveFloatingWidgetUpdate,
 } from './ui/app-floating-widget.js';
 import {
-    buildFloatingWidgetDashboardData,
-    closeFloatingWidgetFromHost,
-    handleFloatingWidgetEventFromHost,
     handleInjectQueuedFollowupAction,
     handleRemoveQueuedFollowupAction,
-    openFloatingWidgetFromHost,
 } from './ui/app-floating-widget-followup.js';
 import {
     renderBranchLoaderMode,
@@ -135,12 +127,6 @@ import {
     scrollToTimelineMessage,
     searchTimeline,
 } from './ui/app-timeline-actions.js';
-import {
-    closeBtwPanelSession,
-    handleBtwInterceptCommand,
-    injectBtwSession,
-    runBtwPromptSession,
-} from './ui/app-btw-orchestration.js';
 
 const CURRENT_APP_ASSET_VERSION = getCurrentAppAssetVersion();
 
@@ -1339,104 +1325,49 @@ function MainApp({ locationParams, navigate }) {
         });
     }, [refreshActiveChatAgents, refreshAutoresearchStatus, refreshCurrentChatBranches, refreshContextUsage, refreshQueueState]);
 
-    const handleExtensionPanelAction = useCallback(async (panel, action) => {
-        const panelKey = typeof panel?.key === 'string' ? panel.key : '';
-        const actionKey = typeof action?.key === 'string' ? action.key : '';
-        const pendingKey = createPendingPanelActionKey(panelKey, actionKey);
-        if (!panelKey || !actionKey) return;
-        setPendingExtensionPanelActions((prev) => addPendingPanelAction(prev, panelKey, actionKey));
-        try {
-            const result = await runExtensionStatusPanelAction({
-                panel,
-                action,
-                currentChatJid,
-                stopAutoresearch,
-                dismissAutoresearch,
-                writeClipboard: (text) => navigator.clipboard.writeText(text),
-            });
-            if (result.refreshAutoresearchStatus) {
-                void refreshAutoresearchStatus();
-            }
-            if (result.toast) {
-                showIntentToast(result.toast.title, result.toast.detail, result.toast.kind, result.toast.durationMs);
-            }
-        } catch (error) {
-            showIntentToast('Panel action failed', error?.message || 'Could not complete that action.', 'warning');
-        } finally {
-            setPendingExtensionPanelActions((prev) => removePendingPanelAction(prev, pendingKey));
-        }
-    }, [currentChatJid, refreshAutoresearchStatus, showIntentToast]);
-
-    const closeBtwPanel = useCallback(() => {
-        closeBtwPanelSession({
-            btwAbortRef,
-            setBtwSession,
-        });
-    }, []);
-
-    const runBtwPrompt = useCallback(async (question) => {
-        return await runBtwPromptSession({
-            question,
-            currentChatJid,
-            streamSidePrompt,
-            resolveBtwChatJid,
-            showIntentToast,
-            btwAbortRef,
-            setBtwSession,
-        });
-    }, [currentChatJid, showIntentToast]);
-
-    const handleBtwIntercept = useCallback(async ({ content }) => {
-        return await handleBtwInterceptCommand({
-            content,
-            parseBtwCommand,
-            closeBtwPanel,
-            runBtwPrompt,
-            showIntentToast,
-        });
-    }, [closeBtwPanel, runBtwPrompt, showIntentToast]);
-
-    const handleBtwRetry = useCallback(() => {
-        if (btwSession?.question) {
-            void runBtwPrompt(btwSession.question);
-        }
-    }, [btwSession, runBtwPrompt]);
-
-    const handleBtwInject = useCallback(async () => {
-        await injectBtwSession({
-            btwSession,
-            buildBtwInjectionText,
-            isComposeBoxAgentActive,
-            currentChatJid,
-            sendAgentMessage: api.sendAgentMessage,
-            handleMessageResponse,
-            showIntentToast,
-        });
-    }, [btwSession, currentChatJid, handleMessageResponse, isComposeBoxAgentActive, showIntentToast]);
-
-    const buildFloatingWidgetDashboardSnapshot = useCallback(async (requestPayload = null) => {
-        return buildFloatingWidgetDashboardData({
-            requestPayload,
-            currentChatJid,
-            currentRootChatJid,
-            getAgentStatus,
-            getAgentContext,
-            getAgentQueueState,
-            getAgentModels,
-            getActiveChatAgents,
-            getChatBranches,
-            getTimeline: api.getTimeline,
-            rawPosts,
-            activeChatAgents,
-            currentChatBranches,
-            contextUsage,
-            followupQueueItems: followupQueueItemsRef.current,
-            activeModel,
-            activeThinkingLevel,
-            supportsThinking,
-            isAgentTurnActive,
-        });
-    }, [activeChatAgents, activeModel, activeThinkingLevel, contextUsage, currentChatBranches, currentChatJid, currentRootChatJid, isAgentTurnActive, rawPosts, supportsThinking]);
+    const {
+        handleExtensionPanelAction,
+        closeBtwPanel,
+        handleBtwIntercept,
+        handleBtwRetry,
+        handleBtwInject,
+        handleOpenFloatingWidget,
+        handleCloseFloatingWidget,
+        handleFloatingWidgetEvent,
+    } = useSidepanelOrchestration({
+        currentChatJid,
+        currentRootChatJid,
+        isComposeBoxAgentActive,
+        showIntentToast,
+        setPendingExtensionPanelActions,
+        refreshAutoresearchStatus,
+        stopAutoresearch,
+        dismissAutoresearch,
+        streamSidePrompt,
+        btwAbortRef,
+        btwSession,
+        setBtwSession,
+        sendAgentMessage: api.sendAgentMessage,
+        handleMessageResponse,
+        dismissedLiveWidgetKeysRef,
+        setFloatingWidget,
+        getAgentStatus,
+        getAgentContext,
+        getAgentQueueState,
+        getAgentModels,
+        getActiveChatAgents,
+        getChatBranches,
+        getTimeline: api.getTimeline,
+        rawPosts,
+        activeChatAgents,
+        currentChatBranches,
+        contextUsage,
+        followupQueueItemsRef,
+        activeModel,
+        activeThinkingLevel,
+        supportsThinking,
+        isAgentTurnActive,
+    });
 
     useEffect(() => {
         setExtensionStatusPanels(new Map());
@@ -1742,41 +1673,6 @@ function MainApp({ locationParams, navigate }) {
         setBranchLoaderState,
         navigate,
     }), [branchLoaderMode, branchLoaderSourceChatJid, navigate]);
-
-    const handleOpenFloatingWidget = useCallback((widget) => {
-        openFloatingWidgetFromHost({
-            widget,
-            dismissedLiveWidgetKeysRef,
-            setFloatingWidget,
-        });
-    }, []);
-
-    const handleCloseFloatingWidget = useCallback(() => {
-        closeFloatingWidgetFromHost({
-            dismissedLiveWidgetKeysRef,
-            setFloatingWidget,
-        });
-    }, []);
-
-    const handleFloatingWidgetEvent = useCallback((event, widget) => {
-        handleFloatingWidgetEventFromHost({
-            event,
-            widget,
-            currentChatJid,
-            isComposeBoxAgentActive,
-            setFloatingWidget,
-            handleCloseFloatingWidget,
-            handleMessageResponse,
-            showIntentToast,
-            sendAgentMessage: api.sendAgentMessage,
-            buildFloatingWidgetDashboardSnapshot,
-        });
-    }, [buildFloatingWidgetDashboardSnapshot, currentChatJid, handleCloseFloatingWidget, handleMessageResponse, isComposeBoxAgentActive, showIntentToast]);
-
-    useEffect(() => {
-        dismissedLiveWidgetKeysRef.current.clear();
-        setFloatingWidget(null);
-    }, [currentChatJid]);
 
     const handleCreateSessionFromCompose = useCallback(async () => {
         await createSessionFromComposeAction({
