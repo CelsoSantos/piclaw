@@ -58,6 +58,25 @@ Split the shell into a few larger render/event/controller seams rather than many
 ## Updates
 
 ### 2026-03-29
+- Merged back autoresearch branch `autoresearch/exp-mnbz6zwp-ccqw` into `main` after a more modular tranche focused on functional groupings instead of a single replacement module.
+- New typed seams landed in this tranche:
+  - `runtime/web/src/ui/app-boot-load-orchestration.ts`
+  - `runtime/web/src/ui/app-branch-pane-orchestration.ts`
+  - `runtime/web/src/ui/app-agent-status-orchestration.ts`
+  - `runtime/web/src/ui/app-timeline-actions.ts`
+  - `runtime/web/src/ui/app-btw-orchestration.ts`
+  - `runtime/web/src/ui/app-shell-ref-utils.ts`
+- Current size reduction in this ticket after the latest merge-back: `runtime/web/src/app.ts` `2420 → 2160` lines.
+- Validation for the merged branch state:
+  - focused web tests → `151 pass, 0 fail`
+  - `bun run build:web`
+  - `bun run lint`
+  - `bun run typecheck`
+  - `bun run check:stale-dist`
+- Largest new modules in this tranche remained bounded (`app-agent-status-orchestration.ts` 338 lines, `app-timeline-actions.ts` 243 lines, `app-btw-orchestration.ts` 213 lines), avoiding the earlier mega-module failure mode.
+- Quality: ★★★★☆ 8/10 (problem: 2, scope: 2, test: 2, deps: 1, risk: 1)
+
+### 2026-03-29
 - Created immediately after `workitems/50-done/continue-decompose-web-app-shell-below-2500-lines.md` landed a larger tranche and reduced `runtime/web/src/app.ts` to about `2420` lines.
 - The true target for future passes is now explicit: drive `runtime/web/src/app.ts` toward roughly `500` lines, not just the next nearby threshold.
 - Starting point already includes the latest typed seams:
