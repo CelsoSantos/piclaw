@@ -136,12 +136,24 @@ const ALLOWED_UNUSED_EXPORTS = new Set([
   "src/remote/limits.ts:19 - DEFAULT_MAX_EXECUTION_SEC_FULL",
   "src/remote/signature.ts:48 - signRequest",
   "src/agent-pool/provider-usage.ts:254 - clearProviderUsageCache",
+  "src/agent-pool.ts:61 - TurnOutput",
   "src/task-scheduler.ts:78 - getSchedulerMetrics",
   "src/task-scheduler.ts:83 - resetSchedulerMetricsForTests",
   "src/types.ts:15 - ChatConfig",
   "src/utils/ids.ts:20 - createId",
   "src/utils/process-tracker.ts:37 - listTrackedProcesses",
 ]);
+
+export function normalizeUnusedExportEntry(entry: string): string {
+  const match = entry.match(/^(.*?):\d+\s+-\s+(.*)$/);
+  if (!match) return entry;
+  const [, filePath, exportName] = match;
+  return `${filePath} - ${exportName}`;
+}
+
+const NORMALIZED_ALLOWED_UNUSED_EXPORTS = new Set(
+  Array.from(ALLOWED_UNUSED_EXPORTS, (entry) => normalizeUnusedExportEntry(entry))
+);
 
 export function parseUnusedExports(tsPruneOutput: string): string[] {
   return tsPruneOutput
@@ -153,7 +165,9 @@ export function parseUnusedExports(tsPruneOutput: string): string[] {
 }
 
 export function findUnexpectedUnusedExports(entries: string[]): string[] {
-  return entries.filter((entry) => !ALLOWED_UNUSED_EXPORTS.has(entry)).sort();
+  return entries
+    .filter((entry) => !NORMALIZED_ALLOWED_UNUSED_EXPORTS.has(normalizeUnusedExportEntry(entry)))
+    .sort();
 }
 
 if (import.meta.main) {
