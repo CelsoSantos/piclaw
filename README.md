@@ -111,21 +111,6 @@ See [docs/install-from-repo.md](docs/install-from-repo.md) for scope and caveats
 > [!NOTE]
 > Source builds are primarily for development and local testing.
 
-### Packaged operator helper scripts
-
-The repo now includes packaged Bun helper scripts under `runtime/scripts/` for
-operator-style tasks. For example, the Proxmox helper can be invoked from the
-repo with:
-
-```bash
-bun run proxmox -- vm status --vmid 117
-bun run proxmox -- vm resume --vmid 117
-bun run proxmox -- vm restart --vmid 117
-```
-
-These scripts are included in the packaged artifact because `runtime/scripts/`
-is part of the published file set.
-
 ```bash
 make build
 make up
@@ -143,6 +128,16 @@ The default compose container name is `pibox`:
 docker exec -u agent -it pibox bash
 cd /workspace && pi
 ```
+
+## Volumes
+
+| Mount | Container path | Contents |
+|---|---|---|
+| Home | `/config` | Agent home (`.pi/`, `.gitconfig`, `.bashrc`) |
+| Workspace | `/workspace` | Projects, notes, and piclaw state |
+
+> [!WARNING]
+> Never delete `/workspace/.piclaw/store/messages.db`. It contains chat history, media, and task state.
 
 ## Configure models
 
@@ -265,16 +260,6 @@ These tools no-op on non-Windows platforms. Not officially supported. Works anyw
 - **Mindmaps** — `*.mindmap.yaml` files open in a D3/SVG visual editor
 - **VNC remote display** — connect to remote machines from a tab (experimental)
 
-## Volumes
-
-| Mount | Container path | Contents |
-|---|---|---|
-| Home | `/config` | Agent home (`.pi/`, `.gitconfig`, `.bashrc`) |
-| Workspace | `/workspace` | Projects, notes, and piclaw state |
-
-> [!WARNING]
-> Never delete `/workspace/.piclaw/store/messages.db`. It contains chat history, media, and task state.
-
 ## Configuration
 
 Key environment variables:
@@ -307,6 +292,22 @@ PICLAW_TRUST_PROXY=1
 ```
 
 See [docs/reverse-proxy.md](docs/reverse-proxy.md) for forwarded-header requirements, examples, and troubleshooting.
+
+
+### Packaged operator helper scripts
+
+The repo now includes packaged Bun helper scripts under `runtime/scripts/` for
+operator-style tasks. For example, the Proxmox helper can be invoked from the
+repo with:
+
+```bash
+bun run proxmox -- vm status --vmid 117
+bun run proxmox -- vm resume --vmid 117
+bun run proxmox -- vm restart --vmid 117
+```
+
+These scripts are included in the packaged artifact because `runtime/scripts/`
+is part of the published file set.
 
 ## Development
 
@@ -359,7 +360,6 @@ PiClaw works with any OCI-compliant runtime.
 - [Tools and skills](docs/tools-and-skills.md)
 - [Keychain](docs/keychain.md)
 - [WhatsApp](docs/whatsapp.md)
-- [Turn mechanism audit](docs/turn-mechanism-audit.md)
 - [Cross-instance interop](docs/cross-instance-ipc.md)
 
 ## Credits
