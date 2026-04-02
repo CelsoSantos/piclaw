@@ -49,10 +49,14 @@ function ensureScript(src: string): Promise<void> {
 }
 
 function ensureStylesheet(href: string): void {
-    if (document.querySelector(`link[href="${href}"]`)) return;
+    const baseHref = href.split('?')[0];
+    const existing = document.querySelector(`link[data-href="${baseHref}"]`);
+    if (existing && (existing as HTMLLinkElement).href.endsWith(href)) return;
+    document.querySelectorAll(`link[data-href="${baseHref}"], link[href="${baseHref}"]`).forEach((stale) => stale.remove());
     const el = document.createElement('link');
     el.rel = 'stylesheet';
     el.href = href;
+    el.dataset.href = baseHref;
     document.head.appendChild(el);
 }
 
@@ -175,7 +179,7 @@ class MindmapEditorInstance implements PaneInstance {
         const initialContent = await this.resolveInitialContent(initialContentMaybe);
         if (this.disposed) return;
         this.lastContent = initialContent;
-        ensureStylesheet('/static/css/mindmap.css');
+        ensureStylesheet('/static/css/mindmap.css?v=' + VENDOR_CACHE_BUST);
 
         // Load vendor deps
         await Promise.all([

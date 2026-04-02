@@ -3,9 +3,11 @@
 :root {
   --node-bg: var(--bg-primary, #1e1e1e);
   --node-fg: var(--text-primary, #d4d4d4);
-  --node-border: var(--accent-color, #007acc);
-  --node-selected-bg: var(--accent-soft, #094771);
-  --link-color: var(--text-secondary, #858585);
+  --node-border: color-mix(in srgb, var(--accent-color, #1d9bf0) 75%, var(--bg-primary, #1e1e1e));
+  --node-selected-bg: #123b5d;
+  --node-selected-fg: #ffffff;
+  --node-selected-border: var(--accent-color, #1d9bf0);
+  --link-color: color-mix(in srgb, var(--text-secondary, #858585) 78%, transparent);
   --crosslink-color: var(--accent-color, #4fc1ff);
   --toolbar-bg: var(--bg-secondary, #252526);
   --toolbar-fg: var(--text-primary, #cccccc);
@@ -35,15 +37,29 @@
 .node rect {
   fill: var(--node-bg);
   stroke: var(--node-border);
-  stroke-width: 1.5px;
-  rx: 6px;
-  ry: 6px;
-  transition: fill 0.15s, stroke 0.15s;
+  stroke-width: 1.25px;
+  rx: 8px;
+  ry: 8px;
+  transition: fill 0.15s, stroke 0.15s, box-shadow 0.15s;
 }
 
 .node.selected rect {
   fill: var(--node-selected-bg);
+  stroke: var(--node-selected-border);
   stroke-width: 2px;
+}
+
+.node.selected .node-text,
+.node.selected .node-text * {
+  color: var(--node-selected-fg) !important;
+}
+
+.node.selected .node-text code {
+  background: color-mix(in srgb, var(--node-selected-fg) 16%, transparent);
+}
+
+.node.selected .node-text .image-placeholder {
+  opacity: 0.9;
 }
 
 .node.editing rect { stroke-dasharray: 4 2; }
@@ -126,40 +142,48 @@ body.creating-link, body.creating-link .node { cursor: crosshair; }
 #toolbar,
 .mindmap-toolbar {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 0;
+  right: 0;
   display: flex;
-  gap: 6px;
-  padding: 6px;
-  background: color-mix(in srgb, var(--toolbar-bg) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-color, #45494e) 88%, transparent);
-  border-radius: 999px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  gap: 4px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--toolbar-bg) 94%, transparent);
+  border-bottom-left-radius: 6px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  flex-wrap: wrap;
+  max-width: min(92vw, 920px);
   z-index: 10;
 }
 
 #toolbar button, #toolbar select,
 .mindmap-toolbar button, .mindmap-toolbar select {
-  min-height: 34px;
-  padding: 8px 12px;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--toolbar-fg);
-  border: 1px solid transparent;
-  border-radius: 999px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
 }
 #toolbar button:hover, #toolbar select:hover,
 .mindmap-toolbar button:hover, .mindmap-toolbar select:hover {
-  background: color-mix(in srgb, var(--bg-hover, #3a3d41) 88%, transparent);
-  border-color: color-mix(in srgb, var(--node-border) 36%, var(--border-color, #45494e));
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
-#toolbar select, .mindmap-toolbar select { min-width: 132px; }
+#toolbar select, .mindmap-toolbar select {
+  min-width: 148px;
+  justify-content: flex-start;
+}
 
 #help-panel {
   position: absolute;
@@ -187,9 +211,13 @@ body.creating-link, body.creating-link .node { cursor: crosshair; }
 /* Light theme */
 #mindmap-container.light {
   --node-bg: #ffffff;
-  --node-fg: #333333;
-  --link-color: #999999;
-  --toolbar-bg: #f3f3f3;
+  --node-fg: #1f2937;
+  --node-border: #8fbfe8;
+  --node-selected-bg: #e8f3ff;
+  --node-selected-fg: #102a43;
+  --node-selected-border: #2893e1;
+  --link-color: #b8c2cc;
+  --toolbar-bg: #f6f8fb;
 }
 
 #mindmap-svg g.zoom-container { transition: transform 0.2s ease-out; }

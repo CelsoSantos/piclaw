@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-test('mindmap pane chrome includes undo/redo buttons', () => {
+test('mindmap pane chrome includes undo/redo buttons and cache-busted stylesheet loading', () => {
   const source = readFileSync(
     join(process.cwd(), 'runtime', 'web', 'src', 'panes', 'mindmap-pane.ts'),
     'utf8',
@@ -10,6 +10,8 @@ test('mindmap pane chrome includes undo/redo buttons', () => {
 
   expect(source).toContain('id="mindmap-undo"');
   expect(source).toContain('id="mindmap-redo"');
+  expect(source).toContain("const baseHref = href.split('?')[0];");
+  expect(source).toContain("ensureStylesheet('/static/css/mindmap.css?v=' + VENDOR_CACHE_BUST);");
 });
 
 test('mindmap editor source wires undo/redo controls and shortcuts', () => {
@@ -20,6 +22,12 @@ test('mindmap editor source wires undo/redo controls and shortcuts', () => {
 
   expect(source).toContain("document.getElementById('mindmap-undo')?.addEventListener('click', applyUndo);");
   expect(source).toContain("document.getElementById('mindmap-redo')?.addEventListener('click', applyRedo);");
+  expect(source).toContain("const nextLayout = layoutSelect.value as MindmapDocument['layout'];");
+  expect(source).toContain("mindmapData.layout = nextLayout;");
+  expect(source).toContain("clearStoredNodePositions(mindmapData.root);");
+  expect(source).toContain("updateHistoryControls();");
+  expect(source).toContain("setTimeout(fitToView, 0);");
+  expect(source).toContain("nodeData.id === selectedNodeId ? 'var(--node-selected-fg)' : 'var(--node-fg)'");
   expect(source).toContain("case 'z':");
   expect(source).toContain("case 'y':");
 });

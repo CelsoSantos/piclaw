@@ -13,6 +13,7 @@ import {
   undoMindmapHistory,
   type MindmapHistoryEntry,
 } from './mindmap-history.js';
+import { clearStoredNodePositions } from './mindmap-layout-utils.js';
 
 // Declare globals provided by vendored scripts
 declare const d3: any;
@@ -423,9 +424,13 @@ function setupToolbar() {
   const layoutSelect = document.getElementById('layout-select') as HTMLSelectElement;
   layoutSelect?.addEventListener('change', () => {
     if (mindmapData && mindmapData.layout !== layoutSelect.value) {
-      recordHistorySnapshot(`Changed layout to ${layoutSelect.value}`);
-      mindmapData.layout = layoutSelect.value as MindmapDocument['layout'];
+      const nextLayout = layoutSelect.value as MindmapDocument['layout'];
+      recordHistorySnapshot(`Changed layout to ${nextLayout}`);
+      mindmapData.layout = nextLayout;
+      clearStoredNodePositions(mindmapData.root);
       saveAndRender();
+      updateHistoryControls();
+      setTimeout(fitToView, 0);
     }
   });
 
@@ -1293,7 +1298,7 @@ function renderNodes(root: any) {
       .style('white-space', 'pre-wrap')
       .style('word-break', 'break-word')
       .style('text-align', 'center')
-      .style('color', 'var(--node-fg)')
+      .style('color', nodeData.id === selectedNodeId ? 'var(--node-selected-fg)' : 'var(--node-fg)')
       .style('font-size', '13px')
       .style('line-height', '18px')
       .style('outline', 'none')
