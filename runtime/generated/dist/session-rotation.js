@@ -7,6 +7,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { basename, dirname, extname, join } from "path";
 import { formatBytes } from "./agent-control/agent-control-helpers.js";
+import { getLegacyRuntimeSession, resolveActiveRuntimeSession } from "./agent-pool/session-runtime-compat.js";
 /** Default compaction prompt used before a rotation handoff. */
 export const ROTATION_COMPACTION_INSTRUCTIONS = [
     "Prepare a concise continuity summary for session rotation.",
@@ -158,7 +159,7 @@ export async function rotateSession(session, options = {}) {
     try {
         copyFileSync(previousSessionFile, archivePath);
         archived = true;
-        const ok = await session.newSession({
+        const ok = await getLegacyRuntimeSession(session).newSession({
             parentSession: archivePath,
             setup: async (sessionManager) => {
                 seedRotatedSession(sessionManager, context, {
@@ -172,10 +173,11 @@ export async function rotateSession(session, options = {}) {
                 rmSync(archivePath, { force: true });
             return { status: "error", reason, compacted, message: "Session rotation cancelled." };
         }
-        forcePersistSessionFile(session);
+        const activeSession = resolveActiveRuntimeSession(session);
+        forcePersistSessionFile(activeSession);
         rmSync(previousSessionFile, { force: true });
-        const nextSessionFile = session.sessionFile || "(unavailable)";
-        const nextSize = getSessionFileSize(session.sessionFile);
+        const nextSessionFile = activeSession.sessionFile || "(unavailable)";
+        const nextSize = getSessionFileSize(activeSession.sessionFile);
         const summaryCount = collectCarriedSummary(context.messages).summary ? 1 : 0;
         const carriedMessageCount = context.messages.filter((message) => message.role !== "compactionSummary" && message.role !== "branchSummary").length;
         return {

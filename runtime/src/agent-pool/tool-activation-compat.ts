@@ -1,11 +1,33 @@
 import { AgentSession } from "@mariozechner/pi-coding-agent";
 
+const liveToolSnapshotAgents = new WeakSet<object>();
+
 function replaceArrayContents<T>(target: T[], next: T[]): void {
   target.splice(0, target.length, ...next);
 }
 
+function ensureLiveToolSnapshot(agent: {
+  state?: { tools?: unknown[] };
+  createContextSnapshot?: () => { tools?: unknown[] } & Record<string, unknown>;
+}): void {
+  if (!agent || typeof agent !== "object") return;
+  if (liveToolSnapshotAgents.has(agent as object)) return;
+  if (typeof agent.createContextSnapshot !== "function") return;
+
+  const original = agent.createContextSnapshot.bind(agent);
+  agent.createContextSnapshot = () => {
+    const snapshot = original();
+    const liveTools = Array.isArray(agent.state?.tools) ? agent.state.tools : snapshot.tools;
+    return {
+      ...snapshot,
+      tools: liveTools,
+    };
+  };
+  liveToolSnapshotAgents.add(agent as object);
+}
+
 export function applyActiveToolsImmediately(session: {
-  agent: { state?: { tools?: unknown[] }; setTools?: (tools: unknown[]) => void; setSystemPrompt?: (prompt: string) => void };
+  agent: { state?: { tools?: unknown[] }; setTools?: (tools: unknown[]) => void; setSystemPrompt?: (prompt: string) => void; createContextSnapshot?: () => { tools?: unknown[] } & Record<string, unknown> };
   _toolRegistry: Map<string, unknown>;
   _baseSystemPrompt: string;
   _rebuildSystemPrompt: (toolNames: string[]) => string;
@@ -20,6 +42,8 @@ export function applyActiveToolsImmediately(session: {
       validToolNames.push(name);
     }
   }
+
+  ensureLiveToolSnapshot(session.agent);
 
   const currentTools = Array.isArray(session.agent?.state?.tools)
     ? session.agent.state.tools as unknown[]

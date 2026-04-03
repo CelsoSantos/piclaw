@@ -49,6 +49,7 @@ export class TestAgentControlSession {
   abortCalls = 0;
   abortRetryCalls = 0;
   abortBashCalls = 0;
+  abortCompactionCalls = 0;
   reloadCalls = 0;
   compactCalls = 0;
   compactError: Error | null = null;
@@ -175,6 +176,10 @@ export class TestAgentControlSession {
 
   abortBash() {
     this.abortBashCalls += 1;
+  }
+
+  abortCompaction() {
+    this.abortCompactionCalls += 1;
   }
 
   cycleModel() {

@@ -18,8 +18,9 @@ import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
   type AgentSession,
-  createAgentSession,
-  DefaultResourceLoader,
+  createAgentSessionFromServices,
+  createAgentSessionRuntime,
+  createAgentSessionServices,
   getAgentDir,
   SessionManager,
   type AuthStorage,
@@ -29,13 +30,16 @@ import {
 
 import { SESSIONS_DIR, WORKSPACE_DIR } from "../core/config.js";
 import { builtinExtensionFactories } from "../extensions/index.js";
+import { attachLegacySessionRuntimeCompatibility } from "./session-runtime-compat.js";
 import { installSameTurnToolActivationPatch } from "./tool-activation-compat.js";
 
 installSameTurnToolActivationPatch();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-type AgentSessionCreateOptions = NonNullable<Parameters<typeof createAgentSession>[0]>;
+type AgentSessionCreateOptions = {
+  tools: NonNullable<NonNullable<Parameters<typeof createAgentSessionFromServices>[0]>["tools"]>;
+};
 
 /**
  * Bundled extension paths that are loaded when their activation env vars
@@ -118,29 +122,45 @@ export async function createSessionInDir(
     modelRegistry: ModelRegistry;
     settingsManager: SettingsManager;
     tools: NonNullable<AgentSessionCreateOptions["tools"]>;
+    onReplace?: (session: AgentSession) => Promise<void> | void;
   }
 ): Promise<AgentSession> {
-  const resourceLoader = new DefaultResourceLoader({
-    cwd: WORKSPACE_DIR,
-    agentDir: getAgentDir(),
-    settingsManager: options.settingsManager,
-    extensionFactories: builtinExtensionFactories,
-    additionalExtensionPaths: getBundledExtensionPaths(),
-  });
-  await resourceLoader.reload();
+  const createRuntime = async ({ cwd, sessionManager, sessionStartEvent }: {
+    cwd: string;
+    sessionManager: SessionManager;
+    sessionStartEvent?: Parameters<typeof createAgentSessionFromServices>[0]["sessionStartEvent"];
+  }) => {
+    const services = await createAgentSessionServices({
+      cwd,
+      agentDir: getAgentDir(),
+      authStorage: options.authStorage,
+      modelRegistry: options.modelRegistry,
+      settingsManager: options.settingsManager,
+      resourceLoaderOptions: {
+        extensionFactories: builtinExtensionFactories,
+        additionalExtensionPaths: getBundledExtensionPaths(),
+      },
+    });
 
-  const { session } = await createAgentSession({
+    return {
+      ...(await createAgentSessionFromServices({
+        services,
+        sessionManager,
+        sessionStartEvent,
+        tools: options.tools,
+      })),
+      services,
+      diagnostics: services.diagnostics,
+    };
+  };
+
+  const runtime = await createAgentSessionRuntime(createRuntime, {
     cwd: WORKSPACE_DIR,
     agentDir: getAgentDir(),
-    authStorage: options.authStorage,
-    modelRegistry: options.modelRegistry,
-    settingsManager: options.settingsManager,
-    resourceLoader,
     sessionManager: SessionManager.continueRecent(WORKSPACE_DIR, sessionDir),
-    tools: options.tools,
   });
 
-  return session;
+  return attachLegacySessionRuntimeCompatibility(runtime, options.onReplace);
 }
 
 export async function createDefaultSession(
@@ -150,6 +170,7 @@ export async function createDefaultSession(
     modelRegistry: ModelRegistry;
     settingsManager: SettingsManager;
     tools: NonNullable<AgentSessionCreateOptions["tools"]>;
+    onReplace?: (session: AgentSession) => Promise<void> | void;
   }
 ): Promise<AgentSession> {
   const chatSessionDir = ensureSessionDir(chatJid);

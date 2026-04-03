@@ -11,6 +11,7 @@
 
 import type { AgentSession, ExtensionUIContext } from "@mariozechner/pi-coding-agent";
 
+import { getLegacyRuntimeSession } from "../../../agent-pool/session-runtime-compat.js";
 import { createLogger } from "../../../utils/logger.js";
 import { createFallbackTheme } from "./theme.js";
 
@@ -95,11 +96,11 @@ export class UiBridge {
       commandContextActions: {
         waitForIdle,
         newSession: async (options) => {
-          const ok = await session.newSession(options);
+          const ok = await getLegacyRuntimeSession(session).newSession(options);
           return { cancelled: !ok };
         },
         fork: async (entryId) => {
-          const result = await session.fork(entryId);
+          const result = await getLegacyRuntimeSession(session).fork(entryId);
           return { cancelled: result.cancelled };
         },
         navigateTree: async (targetId, options) => {
@@ -107,7 +108,7 @@ export class UiBridge {
           return { cancelled: result.cancelled };
         },
         switchSession: async (sessionPath) => {
-          const ok = await session.switchSession(sessionPath);
+          const ok = await getLegacyRuntimeSession(session).switchSession(sessionPath);
           return { cancelled: !ok };
         },
         reload: () => session.reload(),

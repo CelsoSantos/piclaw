@@ -195,6 +195,10 @@ export async function handleAutoRetry(session: AgentSession, command: AutoRetryC
 /** Handle /abort: cancel the current agent response. */
 export async function handleAbort(session: AgentSession, _command: AbortCommand): Promise<AgentControlResult> {
   try {
+    if (session.isCompacting) {
+      session.abortCompaction();
+      return { status: "success", message: "Compaction aborted." };
+    }
     await session.abort();
     return { status: "success", message: "Aborted current response." };
   } catch (err) {

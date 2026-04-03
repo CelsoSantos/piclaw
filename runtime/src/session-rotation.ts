@@ -10,6 +10,7 @@ import type { AgentSession, SessionContext, SessionManager } from "@mariozechner
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { basename, dirname, extname, join } from "path";
 import { formatBytes } from "./agent-control/agent-control-helpers.js";
+import { getLegacyRuntimeSession, resolveActiveRuntimeSession } from "./agent-pool/session-runtime-compat.js";
 
 type PersistableSessionMessage = Parameters<SessionManager["appendMessage"]>[0];
 
@@ -214,7 +215,7 @@ export async function rotateSession(
     copyFileSync(previousSessionFile, archivePath);
     archived = true;
 
-    const ok = await session.newSession({
+    const ok = await getLegacyRuntimeSession(session).newSession({
       parentSession: archivePath,
       setup: async (sessionManager) => {
         seedRotatedSession(sessionManager, context, {
@@ -229,11 +230,12 @@ export async function rotateSession(
       return { status: "error", reason, compacted, message: "Session rotation cancelled." };
     }
 
-    forcePersistSessionFile(session);
+    const activeSession = resolveActiveRuntimeSession(session);
+    forcePersistSessionFile(activeSession);
     rmSync(previousSessionFile, { force: true });
 
-    const nextSessionFile = session.sessionFile || "(unavailable)";
-    const nextSize = getSessionFileSize(session.sessionFile);
+    const nextSessionFile = activeSession.sessionFile || "(unavailable)";
+    const nextSize = getSessionFileSize(activeSession.sessionFile);
     const summaryCount = collectCarriedSummary(context.messages).summary ? 1 : 0;
     const carriedMessageCount = context.messages.filter(
       (message) => message.role !== "compactionSummary" && message.role !== "branchSummary"

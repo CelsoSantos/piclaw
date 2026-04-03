@@ -7,6 +7,7 @@
  * Consumers: agent-control-handlers.ts dispatches to these handlers.
  */
 import { truncateText } from "../agent-control-helpers.js";
+import { getLegacyRuntimeSession } from "../../agent-pool/session-runtime-compat.js";
 import { rotateSession } from "../../session-rotation.js";
 /** Handle /session-name: rename the current session. */
 export async function handleSessionName(session, command) {
@@ -27,7 +28,7 @@ export async function handleSessionName(session, command) {
 }
 /** Handle /new-session: create a new session, optionally under a parent. */
 export async function handleNewSession(session, command) {
-    const ok = await session.newSession(command.parent ? { parentSession: command.parent } : undefined);
+    const ok = await getLegacyRuntimeSession(session).newSession(command.parent ? { parentSession: command.parent } : undefined);
     if (!ok) {
         return { status: "error", message: "New session cancelled." };
     }
@@ -38,7 +39,7 @@ export async function handleSwitchSession(session, command) {
     if (!command.path) {
         return { status: "error", message: "Usage: /switch-session <path>" };
     }
-    const ok = await session.switchSession(command.path.trim());
+    const ok = await getLegacyRuntimeSession(session).switchSession(command.path.trim());
     if (!ok) {
         return { status: "error", message: "Switch session cancelled." };
     }
@@ -61,7 +62,7 @@ export async function handleFork(session, command) {
         return { status: "error", message: "Usage: /fork <entryId>" };
     }
     try {
-        const result = await session.fork(command.entryId.trim());
+        const result = await getLegacyRuntimeSession(session).fork(command.entryId.trim());
         if (result.cancelled) {
             return { status: "error", message: "Fork cancelled." };
         }

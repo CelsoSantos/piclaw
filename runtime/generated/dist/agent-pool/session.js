@@ -15,9 +15,10 @@
 import { mkdirSync, existsSync, symlinkSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, } from "@mariozechner/pi-coding-agent";
+import { createAgentSessionFromServices, createAgentSessionRuntime, createAgentSessionServices, getAgentDir, SessionManager, } from "@mariozechner/pi-coding-agent";
 import { SESSIONS_DIR, WORKSPACE_DIR } from "../core/config.js";
 import { builtinExtensionFactories } from "../extensions/index.js";
+import { attachLegacySessionRuntimeCompatibility } from "./session-runtime-compat.js";
 import { installSameTurnToolActivationPatch } from "./tool-activation-compat.js";
 installSameTurnToolActivationPatch();
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -95,25 +96,35 @@ export function ensureNamedSessionDir(chatJid, name) {
  * and resumes the most recent session tree.
  */
 export async function createSessionInDir(sessionDir, options) {
-    const resourceLoader = new DefaultResourceLoader({
+    const createRuntime = async ({ cwd, sessionManager, sessionStartEvent }) => {
+        const services = await createAgentSessionServices({
+            cwd,
+            agentDir: getAgentDir(),
+            authStorage: options.authStorage,
+            modelRegistry: options.modelRegistry,
+            settingsManager: options.settingsManager,
+            resourceLoaderOptions: {
+                extensionFactories: builtinExtensionFactories,
+                additionalExtensionPaths: getBundledExtensionPaths(),
+            },
+        });
+        return {
+            ...(await createAgentSessionFromServices({
+                services,
+                sessionManager,
+                sessionStartEvent,
+                tools: options.tools,
+            })),
+            services,
+            diagnostics: services.diagnostics,
+        };
+    };
+    const runtime = await createAgentSessionRuntime(createRuntime, {
         cwd: WORKSPACE_DIR,
         agentDir: getAgentDir(),
-        settingsManager: options.settingsManager,
-        extensionFactories: builtinExtensionFactories,
-        additionalExtensionPaths: getBundledExtensionPaths(),
-    });
-    await resourceLoader.reload();
-    const { session } = await createAgentSession({
-        cwd: WORKSPACE_DIR,
-        agentDir: getAgentDir(),
-        authStorage: options.authStorage,
-        modelRegistry: options.modelRegistry,
-        settingsManager: options.settingsManager,
-        resourceLoader,
         sessionManager: SessionManager.continueRecent(WORKSPACE_DIR, sessionDir),
-        tools: options.tools,
     });
-    return session;
+    return attachLegacySessionRuntimeCompatibility(runtime, options.onReplace);
 }
 export async function createDefaultSession(chatJid, options) {
     const chatSessionDir = ensureSessionDir(chatJid);

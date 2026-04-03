@@ -23,6 +23,7 @@ import {
 } from "../db.js";
 import { createUuid } from "../utils/ids.js";
 import { forcePersistSessionFile, seedRotatedSession } from "../session-rotation.js";
+import { getLegacyRuntimeSession, resolveActiveRuntimeSession } from "./session-runtime-compat.js";
 import type { PoolEntry } from "./session-manager.js";
 
 /** Active/known chat metadata surfaced by AgentPool. */
@@ -378,7 +379,7 @@ export class AgentBranchManager {
       ? { provider: sourceSession.model.provider, modelId: sourceSession.model.id }
       : null);
 
-    const ok = await targetSession.newSession({
+    const ok = await getLegacyRuntimeSession(targetSession).newSession({
       ...(parentSession ? { parentSession } : {}),
       setup: async (sessionManager) => {
         if (stableSeed) {
@@ -398,9 +399,11 @@ export class AgentBranchManager {
       throw new Error("Branch fork was cancelled.");
     }
 
+    const activeTargetSession = resolveActiveRuntimeSession(targetSession);
+
     if (sourceSession.model) {
       try {
-        await targetSession.setModel(sourceSession.model);
+        await activeTargetSession.setModel(sourceSession.model);
       } catch (err) {
         this.options.onWarn?.("Failed to copy model to forked branch", {
           operation: "create_forked_chat_branch.copy_model",
@@ -414,7 +417,7 @@ export class AgentBranchManager {
         stableSeed?.thinkingLevel || sourceContext.thinkingLevel || sourceSession.thinkingLevel,
       );
       if (nextThinkingLevel) {
-        targetSession.setThinkingLevel(nextThinkingLevel);
+        activeTargetSession.setThinkingLevel(nextThinkingLevel);
       }
     } catch (err) {
       this.options.onWarn?.("Failed to copy thinking level to forked branch", {
@@ -424,7 +427,7 @@ export class AgentBranchManager {
       });
     }
     try {
-      targetSession.setSessionName(setupName);
+      activeTargetSession.setSessionName(setupName);
     } catch (err) {
       this.options.onWarn?.("Failed to copy session name to forked branch", {
         operation: "create_forked_chat_branch.copy_session_name",
@@ -432,7 +435,7 @@ export class AgentBranchManager {
         err,
       });
     }
-    forcePersistSessionFile(targetSession);
+    forcePersistSessionFile(activeTargetSession);
 
     return ensureChatBranch({
       chat_jid: nextChatJid,

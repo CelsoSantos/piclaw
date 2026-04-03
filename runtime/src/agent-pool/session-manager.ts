@@ -8,6 +8,7 @@
 
 import type { AgentSession, ModelRegistry, SettingsManager, AuthStorage } from "@mariozechner/pi-coding-agent";
 
+import { getLegacyRuntimeSession, resolveActiveRuntimeSession } from "./session-runtime-compat.js";
 import { createDefaultSession, createSessionInDir, ensureNamedSessionDir, ensureSessionDir } from "./session.js";
 import { seedRotatedSession } from "../session-rotation.js";
 
@@ -68,11 +69,22 @@ export class AgentSessionManager {
       return session;
     }
 
+    const handleReplacement = async (nextSession: AgentSession) => {
+      const entry = this.options.pool.get(chatJid);
+      if (entry) {
+        entry.session = nextSession;
+        entry.lastUsed = Date.now();
+      }
+      await this.options.bindSession(nextSession, chatJid);
+      this.options.ensureBranchRegistration(chatJid, nextSession);
+    };
+
     const session = await createDefaultSession(chatJid, {
       authStorage: this.options.authStorage,
       modelRegistry: this.options.modelRegistry,
       settingsManager: this.options.settingsManager,
       tools: this.options.createDefaultTools(),
+      onReplace: handleReplacement,
     });
 
     this.options.pool.set(chatJid, { session, lastUsed: Date.now() });
@@ -100,6 +112,14 @@ export class AgentSessionManager {
     });
     const sideSessionDir = ensureNamedSessionDir(chatJid, "btw-side");
 
+    const handleSideReplacement = async (nextSession: AgentSession) => {
+      const entry = this.options.sidePool.get(chatJid);
+      if (entry) {
+        entry.session = nextSession;
+        entry.lastUsed = Date.now();
+      }
+    };
+
     const session = this.options.createSideSession
       ? await this.options.createSideSession(chatJid, sideSessionDir)
       : await createSessionInDir(sideSessionDir, {
@@ -107,6 +127,7 @@ export class AgentSessionManager {
           modelRegistry: this.options.modelRegistry,
           settingsManager: this.options.settingsManager,
           tools: this.options.createDefaultTools(),
+          onReplace: handleSideReplacement,
         });
 
     this.options.sidePool.set(chatJid, { session, lastUsed: Date.now() });
@@ -116,7 +137,7 @@ export class AgentSessionManager {
   async syncSideSessionFromMain(mainSession: AgentSession, sideSession: AgentSession): Promise<void> {
     try {
       const mainContext = mainSession.sessionManager.buildSessionContext();
-      await sideSession.newSession({
+      await getLegacyRuntimeSession(sideSession).newSession({
         setup: async (sessionManager) => {
           seedRotatedSession(sessionManager, mainContext, {
             sessionName: "BTW",
@@ -124,6 +145,7 @@ export class AgentSessionManager {
           });
         },
       });
+      sideSession = resolveActiveRuntimeSession(sideSession);
     } catch (err) {
       this.options.onWarn?.("Failed to reseed side session from main context", {
         operation: "sync_side_session_from_main.reseed",

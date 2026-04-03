@@ -255,6 +255,17 @@ test("agent control queue, compact, and abort commands", async () => {
   expect(autoRetry.message).toContain("on");
   expect(session.autoRetryEnabled).toBe(true);
 
+  const abort = await applyControlCommand(session as any, registry, { type: "abort", raw: "/abort" });
+  expect(abort.message).toContain("Aborted current response");
+  expect(session.abortCalls).toBe(1);
+
+  session.isCompacting = true;
+  const abortCompaction = await applyControlCommand(session as any, registry, { type: "abort", raw: "/abort" });
+  expect(abortCompaction.message).toContain("Compaction aborted");
+  expect(session.abortCompactionCalls).toBe(1);
+  expect(session.abortCalls).toBe(1);
+  session.isCompacting = false;
+
   const abortRetry = await applyControlCommand(session as any, registry, { type: "abort_retry", raw: "/abort-retry" });
   expect(abortRetry.message).toContain("Retry aborted");
   expect(session.abortRetryCalls).toBe(1);
