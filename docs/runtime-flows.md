@@ -219,6 +219,47 @@ Without isolation, a scheduled task's prompt and response would appear in the ag
 - **Model safety**: The model is restored to its pre-task state on the correct branch.
 - **No session forking**: Unlike `fork()` which creates a new session file, `navigateTree()` stays in the same file and simply moves the branch pointer.
 
+## Session-scoped SSH remote tools
+
+A chat can optionally switch its core file/shell tools to a remote host over SSH.
+
+- Control surface: agent-only `ssh` tool
+- Scope: one chat JID at a time
+- Persistence: SQLite `chat_ssh_configs`
+- Affected tools: `read`, `write`, `edit`, `bash`
+
+The important runtime property is that SSH mode is **live mutable**. If a warm session already exists, `ssh set` and `ssh clear` can flip the backend immediately for the next tool/model step without rebuilding the whole session.
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant ssh as ssh tool
+  participant Pool as AgentPool
+  participant DB as SQLite
+  participant Core as ssh-core wrappers
+  participant Host as Local or Remote host
+
+  Agent->>ssh: action=set target+keychain
+  ssh->>Pool: setChatSshConfig(chatJid, config)
+  Pool->>DB: upsert chat_ssh_configs
+  Pool->>Core: applyLiveChatSshConfig(chatJid)
+  Core-->>Host: next read/write/edit/bash uses SSH
+
+  Agent->>ssh: action=clear
+  ssh->>Pool: clearChatSshConfig(chatJid)
+  Pool->>DB: delete chat_ssh_configs row
+  Pool->>Core: clearLiveChatSshConfig(chatJid)
+  Core-->>Host: next core tool call runs locally
+```
+
+Transport semantics match the packaged SSH extension model:
+
+- multiplexed connection reuse
+- `ControlMaster=auto`
+- `ControlPersist=600`
+- persistent remote shell state
+- configured remote cwd/home mapping
+
 ## Session lifecycle (summary)
 
 - Messages for a chat JID share a warm `AgentSession`.

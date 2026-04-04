@@ -11,8 +11,8 @@ It is built for people who want a practical, stateful agent they can run locally
 ![Demo Animation](docs/demo.gif)
 
 - **Streaming web UI** — real-time chat with Markdown, KaTeX, Mermaid, and Adaptive Cards
-- **Persistent agent state** — SQLite-backed messages, media, tasks, token usage, and encrypted keychain
-- **Workspace-native workflow** — browse files, preview documents, upload attachments, edit code, and reference files in prompts
+- **Persistent agent state** — SQLite-backed messages, media, tasks, token usage, encrypted keychain, and per-chat SSH profiles
+- **Workspace-native workflow** — browse files, preview documents, upload attachments, edit code, reference files in prompts, and optionally flip core tools to a remote SSH host per chat
 - **Built-in tools** — Ghostty-based terminal, code editor, Office/PDF/CSV/image/video viewers, draw.io, kanban board and mindmap editors, VNC client, and browser automation
 - **Agent control features** — steering, queued follow-ups, threading, side prompts, autoresearch experiment loops, and scheduled tasks
 - **Optional auth and channels** — passkeys/TOTP for the web UI, plus optional WhatsApp integration
@@ -108,7 +108,7 @@ Key environment variables:
 | `PICLAW_KEYCHAIN_KEY` | _(empty)_ | Master key for encrypted secret storage |
 | `PICLAW_TRUST_PROXY` | `0` | Enable when behind a reverse proxy or tunnel |
 
-For the full list, auth setup (TOTP/passkeys), reverse proxy configuration, and SSHFS/FUSE support, see [docs/configuration.md](docs/configuration.md).
+For the full list, auth setup (TOTP/passkeys), per-chat SSH-backed remote tools, reverse proxy configuration, and SSHFS/FUSE support, see [docs/configuration.md](docs/configuration.md).
 
 ## Other install methods
 

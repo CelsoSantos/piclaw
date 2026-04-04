@@ -64,11 +64,23 @@ You can extend that baseline with `.piclaw/config.json`:
 - `exec_batch` — run multiple shell commands and return concise summaries for each
 - `powershell` — Windows-only replacement for the default shell tool; active instead of `bash` on Windows hosts
 - `exit_process` — gracefully terminate piclaw so Supervisor restarts it; kept always active because lifecycle control should not depend on same-turn lazy activation
+- `ssh` — get, set, or clear the session-scoped SSH profile used by remote-backed core tools (`read`, `write`, `edit`, `bash`)
 
 `messages` `search` accepts `query`, `chat_jid` (or `*`/`all`), `role`, `after`, `before`, `since`, `limit`, `offset`, and `details_max_chars` for controlling detail payloads.
 `messages` `get` accepts `row_ids`, optional `chat_jid`, `role`, `context_before`, `context_after`, and `details_max_chars`.
 `messages` `add` accepts `content`, optional `chat_jid`, `type` (`user` or `agent`), and `media_ids`.
 `messages` `delete` accepts `row_ids` and optional `chat_jid`, `force`, and `dry_run`.
+
+`ssh` accepts:
+- `action` — `get`, `set`, or `clear`
+- `chat_jid` — optional override; defaults to the current chat
+- `ssh_target` — `user@host` or `user@host:/remote/path`
+- `ssh_port` — optional port (default `22`)
+- `private_key_keychain` — keychain entry containing the private key
+- `known_hosts_keychain` — optional keychain entry containing `known_hosts`; empty string clears it
+- `strict_host_key_checking` — `yes`, `accept-new`, or `no`
+
+When a live session already exists for the chat, `ssh set` and `ssh clear` apply immediately to subsequent tool/model steps in the same turn.
 
 `search_workspace` accepts:
 - `query` — FTS query text

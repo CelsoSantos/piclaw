@@ -118,6 +118,32 @@ The tracked bash runner also replaces `keychain:<name>` placeholders directly in
 
 `keychain:<name>:username` resolves to the stored username (if present).
 
+## SSH keys and known_hosts entries
+
+The per-chat `ssh` tool expects SSH material to come from the keychain.
+
+Typical entries:
+
+- `ssh/prod` — type `secret`, secret = full OpenSSH private key
+- `ssh/prod.pub` — optional public key copy
+- `ssh/prod.known_hosts` — optional `known_hosts` text blob
+
+Example:
+
+```bash
+PICLAW_KEYCHAIN_KEY="your-master-key" \
+  piclaw keychain set ssh/prod \
+    --type secret \
+    --secret-file ~/.ssh/id_ed25519
+
+PICLAW_KEYCHAIN_KEY="your-master-key" \
+  piclaw keychain set ssh/prod.known_hosts \
+    --type secret \
+    --secret-file ~/.ssh/known_hosts
+```
+
+The runtime writes these values to temporary files with restrictive permissions and uses them for the SSH control connection.
+
 ## Notes
 
 - Entry names can be hierarchical (`github/foo/bar`).

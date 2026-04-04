@@ -118,6 +118,59 @@ Notes:
 
 Deprecated env names (still supported): `ASSISTANT_NAME`, `ASSISTANT_AVATAR`, `AGENT_TIMEOUT`, `AGENT_TIMEOUT_BACKGROUND`.
 
+## SSH-backed remote core tools
+
+Piclaw can redirect the core file/shell tools (`read`, `write`, `edit`, `bash`) to a remote host over SSH.
+
+There are two ways to enable it:
+
+1. **Startup/default session config** via env vars:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PICLAW_SSH_TARGET` | _(empty)_ | SSH target as `user@host` or `user@host:/remote/path` |
+| `PICLAW_SSH_PORT` | `22` | SSH port for startup/default remote sessions |
+
+2. **Per-chat live config** via the agent-only `ssh` tool:
+   - `ssh { action: "set", ssh_target, private_key_keychain, ... }`
+   - `ssh { action: "get" }`
+   - `ssh { action: "clear" }`
+
+The `ssh` tool stores chat-scoped profiles in SQLite and applies them immediately to live sessions when possible. That means the agent can switch a chat from local → remote → local again in the same turn/session without recreating the session runtime.
+
+### Required key material
+
+Live per-chat SSH uses keychain-backed credentials:
+
+- `private_key_keychain` — required; keychain entry containing the OpenSSH private key
+- `known_hosts_keychain` — optional; keychain entry containing `known_hosts` content
+- `strict_host_key_checking` — `yes`, `accept-new`, or `no`
+
+Example tool payload:
+
+```json
+{
+  "action": "set",
+  "ssh_target": "agent@example.com:/srv/project",
+  "ssh_port": 22,
+  "private_key_keychain": "ssh/prod",
+  "known_hosts_keychain": "ssh/prod.known_hosts",
+  "strict_host_key_checking": "accept-new"
+}
+```
+
+### Transport behavior
+
+The SSH backend keeps the same remote-tool semantics as the packaged SSH extension model:
+
+- multiplexed connection reuse with `ControlMaster=auto`
+- `ControlPersist=600`
+- persistent remote shell/session reuse across tool calls
+- remote cwd/home mapping from the configured target path
+- immediate live switching when the chat already has a warm session
+
+If a chat has no stored SSH profile, core tools run locally as usual.
+
 ### Assistant name and avatar
 
 Set via environment variables (see above) or in `.piclaw/config.json`:
