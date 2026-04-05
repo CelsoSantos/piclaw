@@ -13,6 +13,7 @@ import {
   type ProxmoxWorkflowRequest,
   type ProxmoxWorkflowResponse,
 } from "../proxmox/client.js";
+import { presentStructuredToolValue } from "./structured-tool-response.js";
 
 type SessionProxmoxConfigInput = Omit<ProxmoxConfig, "chat_jid" | "created_at" | "updated_at">;
 type ProxmoxToolResult = { content: Array<{ type: "text"; text: string }>; details: Record<string, unknown> };
@@ -578,7 +579,7 @@ function buildProxmoxRequestHelpPayload(): Record<string, unknown> {
         "Use body + body_mode=json only for JSON-native endpoints; Proxmox form endpoints should stay in body_mode=form.",
       ],
       response_shape: {
-        content_text: "Success summary plus a bounded Response preview block.",
+        content_text: "Success summary plus the full inline Response body when bounded, otherwise a tool-output handle/path plus preview.",
         details_path: "details.response",
         fields: {
           status: "HTTP status number",
@@ -587,6 +588,7 @@ function buildProxmoxRequestHelpPayload(): Record<string, unknown> {
           body: "parsed JSON body when possible, otherwise raw text",
         },
         body_access_path: "details.response.body",
+        overflow_tool_output_access_path: "details.response_tool_output",
       },
       examples: buildProxmoxRequestExamples(),
       metrics_charting_patterns: [
@@ -633,7 +635,7 @@ function buildProxmoxContractPayload(): Record<string, unknown> {
     workflow_contract: {
       discovery: "Use capabilities/recommend/workflow_help to choose one workflow before execution.",
       response_shape: {
-        content_text: "Workflow completion summary plus a bounded Result preview block.",
+        content_text: "Workflow completion summary plus the full inline Result when bounded, otherwise a tool-output handle/path plus preview.",
         details_path: "details.response",
         fields: {
           workflow: "canonical workflow name",
@@ -642,6 +644,7 @@ function buildProxmoxContractPayload(): Record<string, unknown> {
           result: "workflow-specific result payload",
         },
         result_access_path: "details.response.result",
+        overflow_tool_output_access_path: "details.result_tool_output",
       },
     },
   };
@@ -786,22 +789,6 @@ const PROXMOX_TOOL_HINT = [
 function normalizeChatJid(value: string | undefined): string {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed || getChatJid("web:default");
-}
-
-function formatContentPreview(value: unknown, maxChars = 1200): string | null {
-  if (value === undefined) return null;
-  try {
-    const rendered = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-    if (!rendered) return null;
-    return rendered.length > maxChars ? `${rendered.slice(0, maxChars)}\n…` : rendered;
-  } catch {
-    return null;
-  }
-}
-
-function appendContentPreview(summary: string, label: string, value: unknown): string {
-  const preview = formatContentPreview(value);
-  return preview ? `${summary}\n${label}:\n${preview}` : summary;
 }
 
 function buildWorkflowSummary(workflow: string, result: ProxmoxWorkflowResponse): string {
@@ -1052,10 +1039,17 @@ export const proxmoxTool: ExtensionFactory = (pi: ExtensionAPI) => {
           ...(typeof params.lines === "number" ? { lines: params.lines } : {}),
         });
 
+        const presented = presentStructuredToolValue(
+          buildWorkflowSummary(help.canonical_workflow, workflowResult),
+          "Result",
+          workflowResult.result,
+          `proxmox:workflow:${help.canonical_workflow}`,
+        );
+
         return {
           content: [{
             type: "text",
-            text: appendContentPreview(buildWorkflowSummary(help.canonical_workflow, workflowResult), "Result preview", workflowResult.result),
+            text: presented.text,
           }],
           details: {
             action: "workflow",
@@ -1064,6 +1058,7 @@ export const proxmoxTool: ExtensionFactory = (pi: ExtensionAPI) => {
             canonical_workflow: help.canonical_workflow,
             runtime_workflow: help.runtime_workflow,
             response: workflowResult,
+            ...(presented.stored_output ? { result_tool_output: presented.stored_output } : {}),
           },
         };
       }
@@ -1085,16 +1080,24 @@ export const proxmoxTool: ExtensionFactory = (pi: ExtensionAPI) => {
         ...(params.body_mode ? { body_mode: params.body_mode } : {}),
       });
 
+      const presented = presentStructuredToolValue(
+        `Proxmox ${response.method} ${response.path} succeeded with HTTP ${response.status}.`,
+        "Response",
+        response.body,
+        `proxmox:request:${response.method}:${response.path}`,
+      );
+
       return {
         content: [{
           type: "text",
-          text: appendContentPreview(`Proxmox ${response.method} ${response.path} succeeded with HTTP ${response.status}.`, "Response preview", response.body),
+          text: presented.text,
         }],
         details: {
           action: "request",
           chat_jid: chatJid,
           ok: true,
           response,
+          ...(presented.stored_output ? { response_tool_output: presented.stored_output } : {}),
         },
       };
     },

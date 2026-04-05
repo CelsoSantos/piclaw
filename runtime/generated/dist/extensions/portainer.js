@@ -1,6 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import { getChatJid } from "../core/chat-context.js";
 import { discoverPortainerInstances, } from "../portainer/client.js";
+import { presentStructuredToolValue } from "./structured-tool-response.js";
 let registeredHandlers = null;
 export function setPortainerToolHandlers(handlers) {
     registeredHandlers = handlers ?? null;
@@ -342,6 +343,13 @@ function buildPortainerRequestExamples() {
         {
             action: "request",
             method: "GET",
+            path: "/api/endpoints/2/docker/containers/04572d64c639/stats",
+            query: { stream: false },
+            purpose: "Fetch one bounded Docker stats snapshot for charting/reporting without opening a streaming attach session.",
+        },
+        {
+            action: "request",
+            method: "GET",
             path: "/api/stacks/7/file",
             query: { endpointId: 2 },
             purpose: "Fetch stack compose content when you know the stack and endpoint IDs.",
@@ -365,7 +373,7 @@ function buildPortainerRequestHelpPayload() {
                 "Use body_mode=text only when an endpoint expects raw text instead of JSON.",
             ],
             response_shape: {
-                content_text: "Success summary plus a bounded Response preview block.",
+                content_text: "Success summary plus the full inline Response body when bounded, otherwise a tool-output handle/path plus preview.",
                 details_path: "details.response",
                 fields: {
                     status: "HTTP status number",
@@ -374,6 +382,7 @@ function buildPortainerRequestHelpPayload() {
                     body: "parsed JSON body when possible, otherwise raw text",
                 },
                 body_access_path: "details.response.body",
+                overflow_tool_output_access_path: "details.response_tool_output",
             },
             examples: buildPortainerRequestExamples(),
             inventory_patterns: [
@@ -383,6 +392,15 @@ function buildPortainerRequestHelpPayload() {
                         "GET /api/endpoints to resolve an endpoint ID.",
                         "GET /api/endpoints/{id}/docker/... for Docker-native list/inspect surfaces not yet modeled as workflows.",
                         "Render the returned inventory/log/config data locally as needed.",
+                    ],
+                },
+                {
+                    goal: "Collect bounded container memory/CPU stats for charting",
+                    steps: [
+                        "Use workflow endpoint.list or GET /api/endpoints to pick a reachable endpoint.",
+                        "Use workflow container.list or GET /api/endpoints/{id}/docker/containers/json?all=1 to resolve target containers.",
+                        "GET /api/endpoints/{id}/docker/containers/{containerId}/stats?stream=false for one non-streaming snapshot per container.",
+                        "Aggregate memory/cpu/network fields locally into a chart/report artifact.",
                     ],
                 },
             ],
@@ -419,13 +437,14 @@ function buildPortainerContractPayload() {
         workflow_contract: {
             discovery: "Use capabilities/recommend/workflow_help to choose one workflow before execution.",
             response_shape: {
-                content_text: "Workflow completion summary plus a bounded Result preview block.",
+                content_text: "Workflow completion summary plus the full inline Result when bounded, otherwise a tool-output handle/path plus preview.",
                 details_path: "details.response",
                 fields: {
                     workflow: "canonical workflow name",
                     result: "workflow-specific result payload",
                 },
                 result_access_path: "details.response.result",
+                overflow_tool_output_access_path: "details.result_tool_output",
             },
         },
     };
@@ -460,7 +479,7 @@ function buildPortainerCapabilitiesPayload(options) {
         next_steps: [
             "Set category to inspect one workflow family without pulling the whole surface.",
             "Use workflow_help with one workflow for required fields, guidance, and see_also suggestions.",
-            "Use request_help when you need raw API request fields, response shape, or Docker-proxy request examples.",
+            "Use request_help when you need raw API request fields, response shape, Docker-proxy request examples, or bounded stats-snapshot patterns for charting.",
             "Set include_examples=true on workflow_help only when you need example payloads.",
         ],
     };
@@ -560,30 +579,13 @@ const PORTAINER_TOOL_HINT = [
     "Use portainer to inspect or change the Portainer API profile for the current session.",
     "Use portainer discover to find a likely existing Portainer instance from keychain/env hints.",
     "Use portainer capabilities to list workflow families, portainer recommend for intent-based shortlists, and portainer workflow_help for one workflow's fields/guidance.",
-    "Use portainer contract for the overall tool contract and request_help for raw request fields, response shape, and Docker-proxy request examples.",
+    "Use portainer contract for the overall tool contract and request_help for raw request fields, response shape, Docker-proxy request examples, and bounded stats-snapshot patterns.",
     "Use portainer request for ad-hoc Portainer API calls and portainer workflow for reusable endpoint/stack/container/image/network/volume orchestration.",
     "Keep the raw request path available so future inventory/charting and other Portainer API surfaces do not need bespoke runtime primitives.",
 ].join("\n");
 function normalizeChatJid(value) {
     const trimmed = typeof value === "string" ? value.trim() : "";
     return trimmed || getChatJid("web:default");
-}
-function formatContentPreview(value, maxChars = 1200) {
-    if (value === undefined)
-        return null;
-    try {
-        const rendered = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-        if (!rendered)
-            return null;
-        return rendered.length > maxChars ? `${rendered.slice(0, maxChars)}\n…` : rendered;
-    }
-    catch {
-        return null;
-    }
-}
-function appendContentPreview(summary, label, value) {
-    const preview = formatContentPreview(value);
-    return preview ? `${summary}\n${label}:\n${preview}` : summary;
 }
 function buildWorkflowSummary(workflow, result) {
     const maybeArrayCount = Array.isArray(result.result) ? ` (${result.result.length} items)` : "";
@@ -783,8 +785,9 @@ export const portainerTool = (pi) => {
                     ...(params.options ? { options: params.options } : {}),
                     ...(Array.isArray(params.names) ? { names: params.names } : {}),
                 });
+                const presented = presentStructuredToolValue(buildWorkflowSummary(help.canonical_workflow, workflowResult), "Result", workflowResult.result, `portainer:workflow:${help.canonical_workflow}`);
                 return {
-                    content: [{ type: "text", text: appendContentPreview(buildWorkflowSummary(help.canonical_workflow, workflowResult), "Result preview", workflowResult.result) }],
+                    content: [{ type: "text", text: presented.text }],
                     details: {
                         action: "workflow",
                         chat_jid: chatJid,
@@ -792,6 +795,7 @@ export const portainerTool = (pi) => {
                         canonical_workflow: help.canonical_workflow,
                         runtime_workflow: help.runtime_workflow,
                         response: workflowResult,
+                        ...(presented.stored_output ? { result_tool_output: presented.stored_output } : {}),
                     },
                 };
             }
@@ -811,16 +815,18 @@ export const portainerTool = (pi) => {
                 ...(params.body_mode ? { body_mode: params.body_mode } : {}),
                 ...(params.headers ? { headers: params.headers } : {}),
             });
+            const presented = presentStructuredToolValue(`Portainer ${response.method} ${response.path} succeeded with HTTP ${response.status}.`, "Response", response.body, `portainer:request:${response.method}:${response.path}`);
             return {
                 content: [{
                         type: "text",
-                        text: appendContentPreview(`Portainer ${response.method} ${response.path} succeeded with HTTP ${response.status}.`, "Response preview", response.body),
+                        text: presented.text,
                     }],
                 details: {
                     action: "request",
                     chat_jid: chatJid,
                     ok: true,
                     response,
+                    ...(presented.stored_output ? { response_tool_output: presented.stored_output } : {}),
                 },
             };
         },

@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 
+import { createTempWorkspace, setEnv, importFresh } from "../helpers.js";
 import { createFakeExtensionApi } from "./fake-extension-api.ts";
 import { portainerTool, setPortainerToolHandlers } from "../../src/extensions/portainer.js";
 
@@ -113,7 +114,7 @@ test("portainer request delegates through registered handlers", async () => {
     body: [{ Id: 2, Name: "diskstation" }],
   });
   expect(result.content[0].text).toContain("HTTP 200");
-  expect(result.content[0].text).toContain("Response preview");
+  expect(result.content[0].text).toContain("Response:");
   expect(result.content[0].text).toContain("diskstation");
 });
 
@@ -159,7 +160,7 @@ test("portainer workflow delegates through registered handlers", async () => {
     result: [{ Id: 2, Name: "diskstation" }],
   });
   expect(result.content[0].text).toContain("(1 items)");
-  expect(result.content[0].text).toContain("Result preview");
+  expect(result.content[0].text).toContain("Result:");
   expect(result.content[0].text).toContain("diskstation");
 });
 
@@ -172,6 +173,7 @@ test("portainer capabilities and workflow_help are available without handlers", 
   expect(contract.details.actions).toContain("request_help");
   expect(contract.details.request_contract.required_fields).toContain("path");
   expect(contract.details.request_contract.response_shape.body_access_path).toBe("details.response.body");
+  expect(contract.details.request_contract.response_shape.overflow_tool_output_access_path).toBe("details.response_tool_output");
   expect(Array.isArray(contract.details.request_contract.examples)).toBe(true);
   expect(contract.content[0].text).toContain("discover");
 
@@ -196,6 +198,7 @@ test("portainer capabilities and workflow_help are available without handlers", 
   expect(family.details.matching_workflow_count).toBeGreaterThan(5);
 
   const help = await tool.execute("tool-help", { action: "workflow_help", workflow: "image.update_check", include_examples: true });
+  expect(contract.details.workflow_contract.response_shape.overflow_tool_output_access_path).toBe("details.result_tool_output");
   expect(help.details.canonical_workflow).toBe("image.update_check");
   expect(help.details.runtime_workflow).toBe("image.update_check");
   expect(help.details.recommended_for).toContain("update planning");
@@ -206,6 +209,46 @@ test("portainer capabilities and workflow_help are available without handlers", 
   const recommend = await tool.execute("tool-recommend", { action: "recommend", intent: "refresh a stack-managed workload" });
   expect(recommend.details.recommendation_count).toBeGreaterThan(0);
   expect(recommend.details.recommendations[0].workflow).toBe("stack.pull_and_update");
+});
+
+test("portainer stores large request bodies as tool-output and preserves full body in details", async () => {
+  const workspace = createTempWorkspace("piclaw-portainer-large-");
+  const restore = setEnv({
+    PICLAW_WORKSPACE: workspace.workspace,
+    PICLAW_STORE: workspace.store,
+    PICLAW_DATA: workspace.data,
+    PICLAW_TOOL_OUTPUT_STORE_BYTES: "200",
+    PICLAW_TOOL_OUTPUT_STORE_LINES: "3",
+  });
+
+  try {
+    const largeBody = Array.from({ length: 30 }, (_, index) => ({ Id: index + 1, Name: `container-${index}`, Memory: 1024 * (index + 1) }));
+    const freshDb = await importFresh<typeof import("../src/db.js")>("../src/db.js");
+    freshDb.initDatabase();
+    const fresh = await importFresh<typeof import("../src/extensions/portainer.js")>("../src/extensions/portainer.js");
+    fresh.setPortainerToolHandlers({
+      get: () => null,
+      async set() { throw new Error("unexpected"); },
+      async clear() { return { deleted: false, apply_timing: "immediate" as const }; },
+      async request() {
+        return { status: 200, method: "GET", path: "/api/endpoints", body: largeBody };
+      },
+      async workflow() { throw new Error("unexpected"); },
+    });
+
+    const fake = createFakeExtensionApi();
+    fresh.portainerTool(fake.api);
+    const tool = fake.tools.get("portainer");
+    const result = await tool.execute("tool-large-request", { action: "request", method: "GET", path: "/api/endpoints" });
+
+    expect(result.content[0].text).toContain("tool-output:");
+    expect(result.details.response.body).toEqual(largeBody);
+    expect(result.details.response_tool_output.id).toMatch(/^out-/);
+    expect(result.details.response_tool_output.path).toContain("tool-output");
+  } finally {
+    restore();
+    workspace.cleanup();
+  }
 });
 
 test("portainer get reports missing config for the current session", async () => {

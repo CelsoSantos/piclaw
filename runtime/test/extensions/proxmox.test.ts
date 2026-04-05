@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 
+import { createTempWorkspace, setEnv, importFresh } from "../helpers.js";
 import { createFakeExtensionApi } from "./fake-extension-api.ts";
 import { proxmoxTool, setProxmoxToolHandlers } from "../../src/extensions/proxmox.js";
 
@@ -115,7 +116,7 @@ test("proxmox request delegates through registered handlers", async () => {
     body: { data: [{ vmid: 117 }] },
   });
   expect(result.content[0].text).toContain("HTTP 200");
-  expect(result.content[0].text).toContain("Response preview");
+  expect(result.content[0].text).toContain("Response:");
   expect(result.content[0].text).toContain('"vmid": 117');
 });
 
@@ -183,7 +184,7 @@ test("proxmox workflow delegates through registered handlers", async () => {
     result: { status: "running", qmpstatus: "running" },
   });
   expect(result.content[0].text).toContain("workflow vm.create");
-  expect(result.content[0].text).toContain("Result preview");
+  expect(result.content[0].text).toContain("Result:");
   expect(result.content[0].text).toContain('"status": "running"');
 });
 
@@ -196,6 +197,7 @@ test("proxmox capabilities and workflow_help are available without handlers", as
   expect(contract.details.actions).toContain("request_help");
   expect(contract.details.request_contract.required_fields).toContain("path");
   expect(contract.details.request_contract.response_shape.body_access_path).toBe("details.response.body");
+  expect(contract.details.request_contract.response_shape.overflow_tool_output_access_path).toBe("details.response_tool_output");
   expect(Array.isArray(contract.details.request_contract.examples)).toBe(true);
   expect(contract.content[0].text).toContain("discover");
 
@@ -218,6 +220,7 @@ test("proxmox capabilities and workflow_help are available without handlers", as
   expect(family.details.matching_workflow_count).toBeGreaterThan(8);
 
   const help = await tool.execute("tool-help", { action: "workflow_help", workflow: "vm.template.create", include_examples: true });
+  expect(contract.details.workflow_contract.response_shape.overflow_tool_output_access_path).toBe("details.result_tool_output");
   expect(help.details.canonical_workflow).toBe("vm.template.create");
   expect(help.details.runtime_workflow).toBe("vm.template.create");
   expect(help.details.recommended_for).toContain("golden image preparation");
@@ -232,6 +235,46 @@ test("proxmox capabilities and workflow_help are available without handlers", as
   const provisionRecommend = await tool.execute("tool-recommend-2", { action: "recommend", category: "storage", intent: "download an ISO" });
   expect(provisionRecommend.details.recommendation_count).toBeGreaterThan(0);
   expect(provisionRecommend.details.recommendations[0].workflow).toBe("storage.download_url");
+});
+
+test("proxmox stores large request bodies as tool-output and preserves full body in details", async () => {
+  const workspace = createTempWorkspace("piclaw-proxmox-large-");
+  const restore = setEnv({
+    PICLAW_WORKSPACE: workspace.workspace,
+    PICLAW_STORE: workspace.store,
+    PICLAW_DATA: workspace.data,
+    PICLAW_TOOL_OUTPUT_STORE_BYTES: "200",
+    PICLAW_TOOL_OUTPUT_STORE_LINES: "3",
+  });
+
+  try {
+    const largeBody = { data: Array.from({ length: 30 }, (_, index) => ({ vmid: 100 + index, node: `pve${index % 3}` })) };
+    const freshDb = await importFresh<typeof import("../src/db.js")>("../src/db.js");
+    freshDb.initDatabase();
+    const fresh = await importFresh<typeof import("../src/extensions/proxmox.js")>("../src/extensions/proxmox.js");
+    fresh.setProxmoxToolHandlers({
+      get: () => null,
+      async set() { throw new Error("unexpected"); },
+      async clear() { return { deleted: false, apply_timing: "immediate" as const }; },
+      async request() {
+        return { status: 200, method: "GET", path: "/cluster/resources", body: largeBody };
+      },
+      async workflow() { throw new Error("unexpected"); },
+    });
+
+    const fake = createFakeExtensionApi();
+    fresh.proxmoxTool(fake.api);
+    const tool = fake.tools.get("proxmox");
+    const result = await tool.execute("tool-large-request", { action: "request", method: "GET", path: "/cluster/resources" });
+
+    expect(result.content[0].text).toContain("tool-output:");
+    expect(result.details.response.body).toEqual(largeBody);
+    expect(result.details.response_tool_output.id).toMatch(/^out-/);
+    expect(result.details.response_tool_output.path).toContain("tool-output");
+  } finally {
+    restore();
+    workspace.cleanup();
+  }
 });
 
 test("proxmox metrics workflow forwards charting parameters", async () => {

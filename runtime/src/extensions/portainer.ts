@@ -13,6 +13,7 @@ import {
   type PortainerWorkflowResponse,
   type PortainerWorkflowName,
 } from "../portainer/client.js";
+import { presentStructuredToolValue } from "./structured-tool-response.js";
 
 type SessionPortainerConfigInput = Omit<PortainerConfig, "chat_jid" | "created_at" | "updated_at">;
 type PortainerToolResult = { content: Array<{ type: "text"; text: string }>; details: Record<string, unknown> };
@@ -451,7 +452,7 @@ function buildPortainerRequestHelpPayload(): Record<string, unknown> {
         "Use body_mode=text only when an endpoint expects raw text instead of JSON.",
       ],
       response_shape: {
-        content_text: "Success summary plus a bounded Response preview block.",
+        content_text: "Success summary plus the full inline Response body when bounded, otherwise a tool-output handle/path plus preview.",
         details_path: "details.response",
         fields: {
           status: "HTTP status number",
@@ -460,6 +461,7 @@ function buildPortainerRequestHelpPayload(): Record<string, unknown> {
           body: "parsed JSON body when possible, otherwise raw text",
         },
         body_access_path: "details.response.body",
+        overflow_tool_output_access_path: "details.response_tool_output",
       },
       examples: buildPortainerRequestExamples(),
       inventory_patterns: [
@@ -515,13 +517,14 @@ function buildPortainerContractPayload(): Record<string, unknown> {
     workflow_contract: {
       discovery: "Use capabilities/recommend/workflow_help to choose one workflow before execution.",
       response_shape: {
-        content_text: "Workflow completion summary plus a bounded Result preview block.",
+        content_text: "Workflow completion summary plus the full inline Result when bounded, otherwise a tool-output handle/path plus preview.",
         details_path: "details.response",
         fields: {
           workflow: "canonical workflow name",
           result: "workflow-specific result payload",
         },
         result_access_path: "details.response.result",
+        overflow_tool_output_access_path: "details.result_tool_output",
       },
     },
   };
@@ -658,22 +661,6 @@ const PORTAINER_TOOL_HINT = [
 function normalizeChatJid(value: string | undefined): string {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed || getChatJid("web:default");
-}
-
-function formatContentPreview(value: unknown, maxChars = 1200): string | null {
-  if (value === undefined) return null;
-  try {
-    const rendered = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-    if (!rendered) return null;
-    return rendered.length > maxChars ? `${rendered.slice(0, maxChars)}\n…` : rendered;
-  } catch {
-    return null;
-  }
-}
-
-function appendContentPreview(summary: string, label: string, value: unknown): string {
-  const preview = formatContentPreview(value);
-  return preview ? `${summary}\n${label}:\n${preview}` : summary;
 }
 
 function buildWorkflowSummary(workflow: string, result: PortainerWorkflowResponse): string {
@@ -888,8 +875,15 @@ export const portainerTool: ExtensionFactory = (pi: ExtensionAPI) => {
           ...(Array.isArray(params.names) ? { names: params.names } : {}),
         });
 
+        const presented = presentStructuredToolValue(
+          buildWorkflowSummary(help.canonical_workflow, workflowResult),
+          "Result",
+          workflowResult.result,
+          `portainer:workflow:${help.canonical_workflow}`,
+        );
+
         return {
-          content: [{ type: "text", text: appendContentPreview(buildWorkflowSummary(help.canonical_workflow, workflowResult), "Result preview", workflowResult.result) }],
+          content: [{ type: "text", text: presented.text }],
           details: {
             action: "workflow",
             chat_jid: chatJid,
@@ -897,6 +891,7 @@ export const portainerTool: ExtensionFactory = (pi: ExtensionAPI) => {
             canonical_workflow: help.canonical_workflow,
             runtime_workflow: help.runtime_workflow,
             response: workflowResult,
+            ...(presented.stored_output ? { result_tool_output: presented.stored_output } : {}),
           },
         };
       }
@@ -919,16 +914,24 @@ export const portainerTool: ExtensionFactory = (pi: ExtensionAPI) => {
         ...(params.headers ? { headers: params.headers } : {}),
       });
 
+      const presented = presentStructuredToolValue(
+        `Portainer ${response.method} ${response.path} succeeded with HTTP ${response.status}.`,
+        "Response",
+        response.body,
+        `portainer:request:${response.method}:${response.path}`,
+      );
+
       return {
         content: [{
           type: "text",
-          text: appendContentPreview(`Portainer ${response.method} ${response.path} succeeded with HTTP ${response.status}.`, "Response preview", response.body),
+          text: presented.text,
         }],
         details: {
           action: "request",
           chat_jid: chatJid,
           ok: true,
           response,
+          ...(presented.stored_output ? { response_tool_output: presented.stored_output } : {}),
         },
       };
     },
