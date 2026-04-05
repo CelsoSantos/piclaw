@@ -86,18 +86,50 @@ It only runs when both are true:
 
 If those gates are not met, AutoDream skips the cycle.
 
+## Memory lifecycle and content model
+
+Dream now treats memory as layered outputs rather than a mirrored `notes/daily/` → `notes/memory/days/` copy.
+
+### Lifecycle
+
+1. runtime creates a pre-Dream backup of `notes/daily/` and `notes/memory/`
+2. runtime refreshes/seeds in-window `notes/daily/*.md` from the messages database
+3. the model runs Orient → Signal → Consolidate → Prune and Index
+4. runtime refreshes workspace FTS and cleans up the temporary `dream:` session
+
+### Which file should contain what?
+
+| Surface | Role | Content approach |
+|---|---|---|
+| `notes/daily/*.md` | Human-readable day narrative | Concise day summary, summary updates, truthful front matter (`summarised_until`, `first_message`, `last_message`, counts) |
+| `notes/memory/MEMORY.md` | Compact startup index | One-line hooks only; links to sparse `notes/memory/days/*.md` when present, otherwise links back to `notes/daily/*.md` |
+| `notes/memory/current-state.md` | Compact Dream state snapshot | Markdown summary of complete/partial/unsummarised day status plus recent-window state |
+| `notes/memory/recent-context.md` | Agent-ready digest | Compact recent context for quick orientation |
+| `notes/memory/user.md` | Durable user memory | Stable role/preferences |
+| `notes/memory/feedback.md` | Durable feedback memory | Corrections and steering cues |
+| `notes/memory/project.md` | Durable project memory | Ongoing work and recent outcomes |
+| `notes/memory/reference.md` | Durable reference memory | Note-index and durable external pointers |
+| `notes/memory/days/*.md` | Optional sparse episodic memory | Only when a day has durable agent-facing signal beyond the daily note; should not mirror every day |
+
+### Sparse day-memory rule
+
+`notes/memory/days/*.md` is intentionally model-owned and sparse:
+
+- create/update it only when a day carries durable agent-facing memory beyond the daily note
+- do not generate it as a required mirror of every complete daily note
+- keep `MEMORY.md` pointing at the best available artifact for that day: sparse day-memory file if it exists, otherwise the daily note
+
 ## Files touched
 
-Dream is allowed to modify only the Dream note surfaces:
+Dream is allowed to modify only the Dream note surfaces. Daily-note structure stays inside Markdown front matter and sections; Dream should not create JSON sidecars.
 
 - `notes/daily/*.md`
-- `notes/daily/*.agent.json`
 - `notes/memory/days/*.md` (optional sparse episodic memory files; do not mirror every daily note)
 - `notes/memory/user.md`
 - `notes/memory/feedback.md`
 - `notes/memory/project.md`
 - `notes/memory/reference.md`
-- `notes/memory/current-state.json`
+- `notes/memory/current-state.md`
 - `notes/memory/recent-context.md`
 - `notes/memory/MEMORY.md`
 

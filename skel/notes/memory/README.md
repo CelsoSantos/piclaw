@@ -13,7 +13,7 @@ The model follows the original 4-phase Dream flow:
 
 Files created and refreshed here include:
 - `MEMORY.md` — compact startup index
-- `current-state.json` — machine-readable dream state
+- `current-state.md` — compact Dream state snapshot
 - `recent-context.md` — concise recent digest
 - `user.md` — durable role and preference memory
 - `feedback.md` — corrections and steering cues

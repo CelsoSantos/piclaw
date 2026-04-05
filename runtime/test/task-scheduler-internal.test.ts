@@ -103,8 +103,9 @@ test("internal Dream flows keep notes/memory/days model-owned and AutoDream stay
   const memoryIndexText = readFileSync(join(ws.workspace, "notes/memory/MEMORY.md"), "utf8");
   expect(memoryIndexText).toContain("[2026-04-05](../daily/2026-04-05.md)");
 
-  const currentStateText = readFileSync(join(ws.workspace, "notes/memory/current-state.json"), "utf8");
-  expect(currentStateText).toContain("database, not just daily-note summaries");
+  const currentStateText = readFileSync(join(ws.workspace, "notes/memory/current-state.md"), "utf8");
+  expect(currentStateText).toContain("# Current Dream state");
+  expect(currentStateText).toContain("- Complete days: 1");
 
   const recentContextText = readFileSync(join(ws.workspace, "notes/memory/recent-context.md"), "utf8");
   expect(recentContextText).toContain("Infra tooling and memory maintenance landed.");
@@ -118,7 +119,7 @@ test("internal Dream flows keep notes/memory/days model-owned and AutoDream stay
   expect(indexed.rows.some((row) => row.path === "notes/daily/2026-04-05.md")).toBe(true);
 
   writeFileSync(
-    join(ws.workspace, "notes", "memory", "current-state.json"),
+    join(ws.workspace, "notes", "memory", "current-state.md"),
     `${JSON.stringify({ generated_at: new Date(Date.now() - 48 * 3_600_000).toISOString() }, null, 2)}\n`,
     "utf8",
   );

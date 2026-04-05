@@ -43,7 +43,7 @@ const DREAM_DAILY_DIR = resolve(WORKSPACE_DIR, "notes/daily");
 const DREAM_MEMORY_DIR = resolve(WORKSPACE_DIR, "notes/memory");
 const DREAM_BACKUPS_DIR = resolve(DATA_DIR, "dream-backups");
 const DREAM_LOCK_PATH = resolve(DREAM_MEMORY_DIR, ".dream.lock");
-const DREAM_CURRENT_STATE_PATH = resolve(DREAM_MEMORY_DIR, "current-state.json");
+const DREAM_CURRENT_STATE_PATH = resolve(DREAM_MEMORY_DIR, "current-state.md");
 const DREAM_RECENT_CONTEXT_PATH = resolve(DREAM_MEMORY_DIR, "recent-context.md");
 const DREAM_MEMORY_PATH = resolve(DREAM_MEMORY_DIR, "MEMORY.md");
 const AUTO_DREAM_MIN_HOURS = 24;
@@ -63,8 +63,9 @@ function refreshDailyNotes(chatJid: string, days: number): boolean {
 function readLastConsolidatedAt(): string | null {
   if (!existsSync(DREAM_CURRENT_STATE_PATH)) return null;
   try {
-    const parsed = JSON.parse(readFileSync(DREAM_CURRENT_STATE_PATH, "utf8")) as { generated_at?: unknown };
-    return typeof parsed.generated_at === "string" && parsed.generated_at.trim() ? parsed.generated_at : null;
+    const text = readFileSync(DREAM_CURRENT_STATE_PATH, "utf8");
+    const match = text.match(/^Generated:\s*(.+)$/m);
+    return match?.[1]?.trim() || null;
   } catch {
     return null;
   }

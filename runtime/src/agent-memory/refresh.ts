@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { WORKSPACE_DIR } from "../core/config.js";
@@ -59,7 +59,6 @@ export interface AgentMemoryCurrentStateDay {
   session_trees: number | null;
   session_chats: number | null;
   source_note: string;
-  sidecar_path: string;
   transcript_signals: AgentMemoryTranscriptSignals;
 }
 
@@ -500,6 +499,44 @@ function buildReferenceMemoryMarkdown(): string {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+function buildCurrentStateMarkdown(currentState: AgentMemoryCurrentState): string {
+  const lines: string[] = [];
+  lines.push("# Current Dream state", "");
+  lines.push(`Generated: ${currentState.generated_at}`, "");
+  lines.push("## Status", "");
+  lines.push(`- Window: last ${currentState.recent_days} days`);
+  lines.push(`- Complete days: ${currentState.complete_days.length}`);
+  lines.push(`- Partial days: ${currentState.partial_days.length}`);
+  lines.push(`- Unsummarised days: ${currentState.unsummarised_days.length}`);
+  if (currentState.latest_complete_date) lines.push(`- Latest complete day: ${currentState.latest_complete_date}`);
+  lines.push("");
+  if (currentState.complete_days.length > 0) {
+    lines.push("## Complete days", "");
+    for (const day of currentState.complete_days) {
+      const summary = truncateText(day.summary, 160) || "(no summary)";
+      lines.push(`- ${day.date} — ${summary}`);
+    }
+    lines.push("");
+  }
+  if (currentState.partial_days.length > 0) {
+    lines.push("## Partial days", "");
+    for (const day of currentState.partial_days) {
+      lines.push(`- ${day.date} — ${day.state}${day.summarised_until ? ` — summarised_until ${day.summarised_until}` : ""}`);
+    }
+    lines.push("");
+  }
+  if (currentState.unsummarised_days.length > 0) {
+    lines.push("## Unsummarised days", "");
+    for (const day of currentState.unsummarised_days) {
+      lines.push(`- ${day.date}`);
+    }
+    lines.push("");
+  }
+  lines.push("## Source", "");
+  lines.push(`- Daily notes directory: ${DAILY_NOTES_DIR}`);
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
 function resolveMemoryIndexDayLink(date: string): string {
   const sparseDayPath = resolve(AGENT_MEMORY_DIR, "days", `${date}.md`);
   return existsSync(sparseDayPath) ? `days/${date}.md` : `../daily/${date}.md`;
@@ -547,7 +584,7 @@ function buildMemoryMarkdown(currentState: AgentMemoryCurrentState): string {
   }
 
   lines.push("## Sources", "");
-  lines.push(`- [current-state.json](current-state.json)`);
+  lines.push(`- [current-state.md](current-state.md)`);
   lines.push(`- [recent-context.md](recent-context.md)`);
   lines.push(`- Daily notes directory: ${DAILY_NOTES_DIR}`);
   lines.push(`- Sparse day-memory directory (model-owned, optional): ${resolve(AGENT_MEMORY_DIR, "days")}`);
@@ -581,13 +618,13 @@ export function refreshAgentMemoryFromDailyNotes(options?: { recentDays?: number
   const recentDays = Math.max(1, options?.recentDays ?? 7);
   mkdirSync(AGENT_MEMORY_DIR, { recursive: true });
 
-  const currentStatePath = `${AGENT_MEMORY_DIR}/current-state.json`;
+  const currentStatePath = `${AGENT_MEMORY_DIR}/current-state.md`;
   const recentContextPath = `${AGENT_MEMORY_DIR}/recent-context.md`;
   const memoryPath = `${AGENT_MEMORY_DIR}/MEMORY.md`;
 
   if (!existsSync(DAILY_NOTES_DIR)) {
     const currentState = buildEmptyCurrentState(recentDays);
-    writeFileSync(currentStatePath, `${JSON.stringify(currentState, null, 2)}\n`, "utf8");
+    writeFileSync(currentStatePath, buildCurrentStateMarkdown(currentState), "utf8");
     writeFileSync(recentContextPath, "# Agent-ready recent context\n\nNo daily notes found yet.\n", "utf8");
     writeFileSync(memoryPath, buildMemoryMarkdown(currentState), "utf8");
     return { sidecars: [], currentState, currentStatePath, recentContextPath, memoryPath };
@@ -600,9 +637,8 @@ export function refreshAgentMemoryFromDailyNotes(options?: { recentDays?: number
 
   const sidecars = notePaths.map((path) => buildSidecar(path, readFileSync(path, "utf8")));
 
-  for (const sidecar of sidecars) {
-    const outPath = sidecar.source_note.replace(/\.md$/i, ".agent.json");
-    writeFileSync(outPath, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
+  for (const notePath of notePaths) {
+    rmSync(notePath.replace(/\.md$/i, ".agent.json"), { force: true });
   }
 
   const cutoff = new Date(Date.now() - recentDays * 86400000).toISOString().slice(0, 10);
@@ -627,7 +663,6 @@ export function refreshAgentMemoryFromDailyNotes(options?: { recentDays?: number
       session_trees: sidecar.session_trees,
       session_chats: sidecar.session_chats,
       source_note: sidecar.source_note,
-      sidecar_path: sidecar.source_note.replace(/\.md$/i, ".agent.json"),
       transcript_signals: collectTranscriptSignals(sidecar),
     })),
     partial_days: partial.map((sidecar) => ({
@@ -645,7 +680,7 @@ export function refreshAgentMemoryFromDailyNotes(options?: { recentDays?: number
     })),
   };
 
-  writeFileSync(currentStatePath, `${JSON.stringify(currentState, null, 2)}\n`, "utf8");
+  writeFileSync(currentStatePath, buildCurrentStateMarkdown(currentState), "utf8");
 
   const summaryLines: string[] = [];
   summaryLines.push("# Agent-ready recent context", "");
@@ -685,6 +720,7 @@ export function refreshAgentMemoryFromDailyNotes(options?: { recentDays?: number
   }
 
   writeFileSync(recentContextPath, `${summaryLines.join("\n").trimEnd()}\n`, "utf8");
+  rmSync(`${AGENT_MEMORY_DIR}/current-state.json`, { force: true });
 
   // Runtime no longer materializes `notes/memory/days/` from `notes/daily/`.
   // That subtree is model-owned and should remain sparse/optional rather than

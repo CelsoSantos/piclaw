@@ -3,7 +3,7 @@
 Memory
 - notes/memory/README.md
 - notes/memory/MEMORY.md
-- notes/memory/current-state.json
+- notes/memory/current-state.md
 - notes/memory/recent-context.md
 - notes/memory/user.md
 - notes/memory/feedback.md
