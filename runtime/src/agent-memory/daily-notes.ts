@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { WORKSPACE_DIR } from "../core/config.js";
@@ -31,6 +31,13 @@ export interface RefreshDailyNotesResult {
   updated: number;
   skipped: number;
   days: string[];
+}
+
+export interface DailyNoteSummaryBacklog {
+  unsummarised: number;
+  partial: number;
+  missing_watermark: number;
+  dates: string[];
 }
 
 function formatDateLong(iso: string): string {
@@ -132,6 +139,47 @@ function resolveScope(chatJid: string): { clause: string; params: string[]; mode
     return { clause: "m.chat_jid LIKE 'web:%'", params: [], mode: "all-web-session-trees", anchor: normalized };
   }
   return { clause: "m.chat_jid = ?", params: [normalized], mode: "chat-only", anchor: normalized };
+}
+
+export function inspectDailyNoteSummaryBacklog(options?: { recentDays?: number }): DailyNoteSummaryBacklog {
+  const recentDays = Math.max(1, Math.floor(Number(options?.recentDays) || 7));
+  const dailyNotesDir = resolve(process.env.PICLAW_WORKSPACE || WORKSPACE_DIR, "notes/daily");
+  if (!existsSync(dailyNotesDir)) {
+    return { unsummarised: 0, partial: 0, missing_watermark: 0, dates: [] };
+  }
+
+  const cutoff = new Date(Date.now() - recentDays * 86400000).toISOString().slice(0, 10);
+  let unsummarised = 0;
+  let partial = 0;
+  let missing_watermark = 0;
+  const dates: string[] = [];
+
+  for (const file of readdirSync(dailyNotesDir).filter((entry) => /^\d{4}-\d{2}-\d{2}\.md$/.test(entry)).sort()) {
+    const date = file.slice(0, 10);
+    if (date < cutoff) continue;
+    const content = readFileSync(resolve(dailyNotesDir, file), 'utf8');
+    const { fields, body } = splitFrontMatter(content);
+    const summary = extractSummary(body);
+    const summarisedUntil = (fields.summarised_until || '').trim();
+    const needsSummaryUpdate = body.includes(SUMMARY_UPDATE_MARKER);
+
+    if (!summary) {
+      unsummarised += 1;
+      dates.push(date);
+      continue;
+    }
+    if (!summarisedUntil) {
+      missing_watermark += 1;
+      dates.push(date);
+      continue;
+    }
+    if (needsSummaryUpdate) {
+      partial += 1;
+      dates.push(date);
+    }
+  }
+
+  return { unsummarised, partial, missing_watermark, dates };
 }
 
 export function refreshDailyNotesFromMessages(options?: { days?: number; chatJid?: string; force?: boolean }): RefreshDailyNotesResult {

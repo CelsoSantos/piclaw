@@ -6,7 +6,7 @@ import { strToU8, zipSync, type Zippable } from "fflate";
 import type { AgentPool } from "./agent-pool.js";
 
 import { buildDreamPrompt } from "./agent-memory/dream-prompt.js";
-import { refreshDailyNotesFromMessages } from "./agent-memory/daily-notes.js";
+import { inspectDailyNoteSummaryBacklog, refreshDailyNotesFromMessages } from "./agent-memory/daily-notes.js";
 import { refreshAgentMemoryFromDailyNotes, type RefreshAgentMemoryResult } from "./agent-memory/refresh.js";
 import { AUTO_DREAM_DEFAULT_DAYS, MANUAL_DREAM_DEFAULT_DAYS } from "./dream-defaults.js";
 import { DATA_DIR, SESSIONS_DIR, WORKSPACE_DIR } from "./core/config.js";
@@ -125,8 +125,18 @@ export function parseDreamPromptToken(prompt: string): { matched: boolean; mode:
   };
 }
 
-export function shouldRunAutoDream(lastConsolidatedAt: string | null, sessionsSinceLast: number | null): { ok: boolean; reason: string | null } {
+export function hasOutstandingDreamConsolidation(recentDays: number): boolean {
+  const backlog = inspectDailyNoteSummaryBacklog({ recentDays });
+  return backlog.unsummarised > 0 || backlog.partial > 0 || backlog.missing_watermark > 0;
+}
+
+export function shouldRunAutoDream(
+  lastConsolidatedAt: string | null,
+  sessionsSinceLast: number | null,
+  hasOutstandingConsolidation = false,
+): { ok: boolean; reason: string | null } {
   if (!lastConsolidatedAt) return { ok: true, reason: null };
+  if (hasOutstandingConsolidation) return { ok: true, reason: null };
   if (sessionsSinceLast === 0) {
     return { ok: false, reason: "No sessions since last consolidation." };
   }
@@ -264,9 +274,10 @@ export async function runDreamAgentTurn(options: { chatJid: string; days?: numbe
     : (mode === "auto" ? AUTO_DREAM_DEFAULT_DAYS : MANUAL_DREAM_DEFAULT_DAYS);
   const lastConsolidatedAt = readLastConsolidatedAt();
   const sessionsSinceLast = countSessionsSince(DREAM_ALL_CHATS_SCOPE_ANCHOR, lastConsolidatedAt);
+  const hasOutstandingConsolidation = hasOutstandingDreamConsolidation(days);
 
   if (mode === "auto") {
-    const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast);
+    const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast, hasOutstandingConsolidation);
     if (!gate.ok) {
       return {
         mode,
@@ -338,9 +349,10 @@ export async function runDreamMaintenance(options?: { chatJid?: string; days?: n
     : (mode === "auto" ? AUTO_DREAM_DEFAULT_DAYS : MANUAL_DREAM_DEFAULT_DAYS);
   const lastConsolidatedAt = readLastConsolidatedAt();
   const sessionsSinceLast = countSessionsSince(DREAM_ALL_CHATS_SCOPE_ANCHOR, lastConsolidatedAt);
+  const hasOutstandingConsolidation = hasOutstandingDreamConsolidation(days);
 
   if (mode === "auto") {
-    const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast);
+    const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast, hasOutstandingConsolidation);
     if (!gate.ok) {
       return {
         generated_at: new Date().toISOString(),

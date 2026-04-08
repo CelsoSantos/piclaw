@@ -19,6 +19,7 @@ export function buildDreamPrompt(options) {
         "Follow the original 4-phase Dream flow:",
         "1. Orient:",
         "- Runtime has already created a pre-Dream backup and refreshed/seeded daily note files from all chats in scope before you start editing (excluding temporary `dream:` chats).",
+        "- Any daily note still containing `<!-- NEEDS_SUMMARY -->` or `<!-- NEEDS_SUMMARY_UPDATE -->` is unfinished and must be treated as needing consolidation, not as a completed day.",
         "- Load startup memory from `notes/memory/MEMORY.md` and `notes/index.md`.",
         "- Inspect relevant `notes/daily/*.md` and existing `notes/memory/*` files before deciding what matters.",
         "- Open deeper files only when they are needed to resolve uncertainty.",
@@ -33,6 +34,7 @@ export function buildDreamPrompt(options) {
         "- Convert phrases like 'today' or 'yesterday' into absolute dates.",
         "- If a newer fact disproves an older memory, fix the older source file.",
         "- Update the `## Summary` section for each daily note in scope so it reflects the final understanding for that day.",
+        "- Explicitly replace `<!-- NEEDS_SUMMARY -->` and `<!-- NEEDS_SUMMARY_UPDATE -->` markers for in-scope days once you have enough evidence; do not leave placeholder markers behind accidentally.",
         "- For partially summarised days, keep the Summary update flow coherent and advance `summarised_until` to the day's `last_message` when the note is fully brought up to date.",
         "- Keep `notes/daily/` and `notes/memory/` aligned as two layers of the same final state.",
         "4. Prune and Index:",
@@ -53,6 +55,7 @@ export function buildDreamPrompt(options) {
         "- Treat `notes/memory/days/*.md` as optional sparse episodic memory: create, update, or prune them only when a day carries durable agent-facing signal beyond the human-readable daily note.",
         "- Do not create or depend on JSON sidecars; keep durable Dream memory surfaces in Markdown.",
         "- Keep daily-note front matter truthful, especially `summarised_until`, `first_message`, and `last_message` when you touch a note.",
+        "- A day is not done while either summary placeholder marker is still present in its note; only leave a marker if the note truly remains incomplete after your narrow evidence-gathering pass.",
         "",
         "Return a brief summary of what changed across Orient, Signal, Consolidate, and Prune and Index, plus whether runtime post-processing succeeded.",
     ].join("\n");

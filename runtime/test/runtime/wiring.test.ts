@@ -71,7 +71,7 @@ describe("runtime wiring", () => {
     expect(whatsappCalls).toEqual([{ jid: "12345@s.whatsapp.net", text: "hi" }]);
   });
 
-  test("workspaceNeedsDreamBootstrap returns true until Dream memory files exist", async () => {
+  test("workspaceNeedsDreamBootstrap returns true until Dream memory files exist and recent daily notes are consolidated", async () => {
     const ws = createTempWorkspace("piclaw-runtime-wiring-");
     restoreEnv = setEnv({
       PICLAW_WORKSPACE: ws.workspace,
@@ -87,7 +87,26 @@ describe("runtime wiring", () => {
     writeFileSync(join(ws.workspace, "notes", "memory", "current-state.md"), "# Current Dream state\n", "utf8");
     writeFileSync(join(ws.workspace, "notes", "memory", "recent-context.md"), "# Recent context\n", "utf8");
 
-    const wiringFresh = await importFresh<typeof import("../src/runtime/wiring.js")>("../src/runtime/wiring.js");
+    let wiringFresh = await importFresh<typeof import("../src/runtime/wiring.js")>("../src/runtime/wiring.js");
+    expect(wiringFresh.workspaceNeedsDreamBootstrap()).toBe(false);
+
+    mkdirSync(join(ws.workspace, "notes", "daily"), { recursive: true });
+    writeFileSync(
+      join(ws.workspace, "notes", "daily", "2026-04-08.md"),
+      "---\ndate: 2026-04-08\nsummarised_until:\nmessages_total: 2\nmessages_user: 1\nmessages_assistant: 1\nsession_trees: 1\nsession_chats: 1\nfirst_message: 2026-04-08T10:00:00.000Z\nlast_message: 2026-04-08T10:05:00.000Z\nscope_mode: all-chats\nscope_anchor: *\n---\n# 2026-04-08\n\n## Summary\n\n<!-- NEEDS_SUMMARY -->\n",
+      "utf8",
+    );
+
+    wiringFresh = await importFresh<typeof import("../src/runtime/wiring.js")>("../src/runtime/wiring.js");
+    expect(wiringFresh.workspaceNeedsDreamBootstrap()).toBe(true);
+
+    writeFileSync(
+      join(ws.workspace, "notes", "daily", "2026-04-08.md"),
+      "---\ndate: 2026-04-08\nsummarised_until: 2026-04-08T10:05:00.000Z\nmessages_total: 2\nmessages_user: 1\nmessages_assistant: 1\nsession_trees: 1\nsession_chats: 1\nfirst_message: 2026-04-08T10:00:00.000Z\nlast_message: 2026-04-08T10:05:00.000Z\nscope_mode: all-chats\nscope_anchor: *\n---\n# 2026-04-08\n\n## Summary\n\nA complete daily summary.\n",
+      "utf8",
+    );
+
+    wiringFresh = await importFresh<typeof import("../src/runtime/wiring.js")>("../src/runtime/wiring.js");
     expect(wiringFresh.workspaceNeedsDreamBootstrap()).toBe(false);
 
     ws.cleanup();

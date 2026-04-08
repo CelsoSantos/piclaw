@@ -11,5 +11,6 @@ test("dream token defaults and auto gate follow nightly cadence", async () => {
 
   expect(dream.shouldRunAutoDream(null, null)).toEqual({ ok: true, reason: null });
   expect(dream.shouldRunAutoDream("2026-04-06T23:22:39.203Z", 0)).toEqual({ ok: false, reason: "No sessions since last consolidation." });
+  expect(dream.shouldRunAutoDream("2026-04-06T23:22:39.203Z", 0, true)).toEqual({ ok: true, reason: null });
   expect(dream.shouldRunAutoDream("2026-04-06T23:22:39.203Z", 1)).toEqual({ ok: true, reason: null });
 });

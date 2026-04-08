@@ -3,7 +3,7 @@
  */
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { ensureDreamTask, runDreamAgentTurn } from "../dream.js";
+import { ensureDreamTask, hasOutstandingDreamConsolidation, runDreamAgentTurn } from "../dream.js";
 import { WORKSPACE_DIR } from "../core/config.js";
 import { AUTO_DREAM_DEFAULT_DAYS, MANUAL_DREAM_DEFAULT_DAYS } from "../dream-defaults.js";
 import { startIpcWatcher } from "../ipc.js";
@@ -25,7 +25,9 @@ export function getDreamBootstrapFiles() {
     return DREAM_BOOTSTRAP_RELATIVE_FILES.map((path) => resolve(workspaceRoot, path));
 }
 export function workspaceNeedsDreamBootstrap() {
-    return getDreamBootstrapFiles().some((path) => !existsSync(path));
+    if (getDreamBootstrapFiles().some((path) => !existsSync(path)))
+        return true;
+    return hasOutstandingDreamConsolidation(MANUAL_DREAM_DEFAULT_DAYS);
 }
 /** Build sendMessage/sendNudge closures for runtime workers. */
 export function createRuntimeSenders(web, whatsapp, pushover) {
@@ -58,6 +60,7 @@ export function startRuntimeWorkers(queue, agentPool, web, senders) {
             days: MANUAL_DREAM_DEFAULT_DAYS,
             nightlyDefaultDays: AUTO_DREAM_DEFAULT_DAYS,
             missingFiles: getDreamBootstrapFiles().filter((path) => !existsSync(path)),
+            hasOutstandingConsolidation: hasOutstandingDreamConsolidation(MANUAL_DREAM_DEFAULT_DAYS),
         });
         queue.enqueueTask(taskId, async () => {
             const result = await runDreamAgentTurn({

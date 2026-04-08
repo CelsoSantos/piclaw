@@ -2,7 +2,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, 
 import { join, relative, resolve } from "path";
 import { strToU8, zipSync } from "fflate";
 import { buildDreamPrompt } from "./agent-memory/dream-prompt.js";
-import { refreshDailyNotesFromMessages } from "./agent-memory/daily-notes.js";
+import { inspectDailyNoteSummaryBacklog, refreshDailyNotesFromMessages } from "./agent-memory/daily-notes.js";
 import { refreshAgentMemoryFromDailyNotes } from "./agent-memory/refresh.js";
 import { AUTO_DREAM_DEFAULT_DAYS, MANUAL_DREAM_DEFAULT_DAYS } from "./dream-defaults.js";
 import { DATA_DIR, SESSIONS_DIR, WORKSPACE_DIR } from "./core/config.js";
@@ -83,8 +83,14 @@ export function parseDreamPromptToken(prompt) {
         days: match[2] ? Math.max(1, Number.parseInt(match[2], 10) || fallbackDays) : fallbackDays,
     };
 }
-export function shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast) {
+export function hasOutstandingDreamConsolidation(recentDays) {
+    const backlog = inspectDailyNoteSummaryBacklog({ recentDays });
+    return backlog.unsummarised > 0 || backlog.partial > 0 || backlog.missing_watermark > 0;
+}
+export function shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast, hasOutstandingConsolidation = false) {
     if (!lastConsolidatedAt)
+        return { ok: true, reason: null };
+    if (hasOutstandingConsolidation)
         return { ok: true, reason: null };
     if (sessionsSinceLast === 0) {
         return { ok: false, reason: "No sessions since last consolidation." };
@@ -226,8 +232,9 @@ export async function runDreamAgentTurn(options) {
         : (mode === "auto" ? AUTO_DREAM_DEFAULT_DAYS : MANUAL_DREAM_DEFAULT_DAYS);
     const lastConsolidatedAt = readLastConsolidatedAt();
     const sessionsSinceLast = countSessionsSince(DREAM_ALL_CHATS_SCOPE_ANCHOR, lastConsolidatedAt);
+    const hasOutstandingConsolidation = hasOutstandingDreamConsolidation(days);
     if (mode === "auto") {
-        const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast);
+        const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast, hasOutstandingConsolidation);
         if (!gate.ok) {
             return {
                 mode,
@@ -299,8 +306,9 @@ export async function runDreamMaintenance(options) {
         : (mode === "auto" ? AUTO_DREAM_DEFAULT_DAYS : MANUAL_DREAM_DEFAULT_DAYS);
     const lastConsolidatedAt = readLastConsolidatedAt();
     const sessionsSinceLast = countSessionsSince(DREAM_ALL_CHATS_SCOPE_ANCHOR, lastConsolidatedAt);
+    const hasOutstandingConsolidation = hasOutstandingDreamConsolidation(days);
     if (mode === "auto") {
-        const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast);
+        const gate = shouldRunAutoDream(lastConsolidatedAt, sessionsSinceLast, hasOutstandingConsolidation);
         if (!gate.ok) {
             return {
                 generated_at: new Date().toISOString(),
