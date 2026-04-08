@@ -1348,6 +1348,7 @@ export function WorkspaceExplorer({
     const workspaceIndexLabel = describeWorkspaceIndexState(workspaceIndexStatus);
     const workspaceIndexTitle = buildWorkspaceIndexTitle(workspaceIndexStatus);
     const workspaceIndexState = workspaceIndexStatus?.state || 'never_indexed';
+    const showWorkspaceIndexIndicator = workspaceIndexState !== 'ready';
 
     const closeHeaderMenu = useCallback(() => setHeaderMenuOpen(false), []);
 
@@ -2229,15 +2230,6 @@ export function WorkspaceExplorer({
                             <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                     </button>
-                    <button class=${`workspace-reindex${workspaceReindexing ? ' active' : ''}`} onClick=${handleWorkspaceReindex} title=${workspaceReindexing ? 'Reindexing workspace…' : 'Reindex workspace'} disabled=${workspaceReindexing}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 12a9 9 0 0 1 15.3-6.3" />
-                            <path d="M21 12a9 9 0 0 1-15.3 6.3" />
-                            <polyline points="19 3 18.2 7.7 13.5 6.9" />
-                            <polyline points="5 21 5.8 16.3 10.5 17.1" />
-                        </svg>
-                    </button>
                     <button class="workspace-refresh" onClick=${handleRefreshClick} title="Refresh tree">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2248,12 +2240,14 @@ export function WorkspaceExplorer({
                     </button>
                 </div>
             </div>
-            <div class="workspace-index-status-row">
-                <div class=${`workspace-index-status-chip state-${workspaceIndexState}`} title=${workspaceIndexTitle}>
-                    <span class="workspace-index-status-dot" aria-hidden="true"></span>
-                    <span>${workspaceIndexLabel}</span>
+            ${showWorkspaceIndexIndicator && html`
+                <div class="workspace-index-status-row">
+                    <div class=${`workspace-index-status-chip state-${workspaceIndexState}`} title=${workspaceIndexTitle}>
+                        <span class="workspace-index-status-dot" aria-hidden="true"></span>
+                        <span>${workspaceIndexLabel}</span>
+                    </div>
                 </div>
-            </div>
+            `}
             <div class="workspace-tree" onClick=${handleBackgroundClick}>
                 ${uploading && html`<div class="workspace-drop-hint">Uploading…</div>`}
                 ${initialLoad && html`<div class="workspace-loading">Loading…</div>`}
