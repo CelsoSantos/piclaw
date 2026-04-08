@@ -179,8 +179,10 @@ export function AgentStatus({ status, draft, plan, thought, pendingRequest, inte
         content = 'Last activity just now';
     }
 
+    const toolRepoRepoPath = toolRepoContext?.repoPath || '';
+    const toolRepoBranch = toolRepoContext?.branch || '';
     const toolRepoLabel = toolRepoContext
-        ? [toolRepoContext.repoPath, toolRepoContext.branch].filter(Boolean).join(' · ')
+        ? [toolRepoRepoPath, toolRepoBranch].filter(Boolean).join(' · ')
         : '';
 
     const renderThinkingPanel = ({ panelTitle, text, fullText, totalLines, maxLines, titleClass, panelKey }) => {
@@ -619,7 +621,11 @@ export function AgentStatus({ status, draft, plan, thought, pendingRequest, inte
                         ${toolRepoLabel && html`
                             <span class="agent-status-git-row" title=${toolContextPath || toolRepoLabel}>
                                 <span class="agent-status-git-icon">${GIT_BRANCH_ICON_SVG}</span>
-                                <span class="agent-status-git-label">${toolRepoLabel}</span>
+                                <span class="agent-status-git-label">
+                                    ${toolRepoRepoPath && html`<span class="agent-status-git-part">${toolRepoRepoPath}</span>`}
+                                    ${toolRepoRepoPath && toolRepoBranch && html`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
+                                    ${toolRepoBranch && html`<span class="agent-status-git-part">${toolRepoBranch}</span>`}
+                                </span>
                             </span>
                         `}
                     </div>

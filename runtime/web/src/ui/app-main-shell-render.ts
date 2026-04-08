@@ -171,6 +171,11 @@ export function renderMainShell(options: MainShellRenderOptions): any {
     toggleWorkspace,
   } = options;
 
+  const handleComposeFocus = () => {
+    if (isIOSDevice()) return;
+    scrollToBottom();
+  };
+
   return html`
     <div class=${buildMainShellClassName({ workspaceOpen, editorOpen, chatOnlyMode, zenMode })} ref=${appShellRef}>
       ${isRenameBranchFormOpen && html`
@@ -471,7 +476,7 @@ export function renderMainShell(options: MainShellRenderOptions): any {
             const { searchQuery: sq, searchOpen: so } = viewStateRef.current || {};
             if (!sq && !so) { loadPosts(); scrollToBottom(); }
           }}
-          onFocus=${scrollToBottom}
+          onFocus=${handleComposeFocus}
           searchMode=${searchOpen}
           searchScope=${searchScope}
           onSearch=${handleSearch}

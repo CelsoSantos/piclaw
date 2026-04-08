@@ -1,12 +1,14 @@
 import { expect, test } from 'bun:test';
 
 import {
+  SLASH_COMMANDS,
   formatModelPickerContextWindow,
   formatModelPickerDisplayLabel,
   getComposeHistoryStorageKey,
   getModelPickerOptionSearchLabel,
   normalizeModelPickerOptions,
 } from '../../web/src/components/compose-box.ts';
+import { CONTROL_COMMAND_DEFINITIONS } from '../../src/agent-control/command-registry.ts';
 
 test('getComposeHistoryStorageKey keeps the legacy default key for the default chat', () => {
   expect(getComposeHistoryStorageKey()).toBe('piclaw_compose_history');
@@ -66,6 +68,15 @@ test('normalizeModelPickerOptions falls back to legacy string labels', () => {
       reasoning: false,
     },
   ]);
+});
+
+test('slash autocomplete includes all canonical control commands', () => {
+  const composeNames = new Set(SLASH_COMMANDS.map((item) => item.name));
+  const missing = CONTROL_COMMAND_DEFINITIONS
+    .map((item) => item.name)
+    .filter((name) => !composeNames.has(name));
+
+  expect(missing).toEqual([]);
 });
 
 test('model picker helpers expose searchable names and formatted context windows', () => {

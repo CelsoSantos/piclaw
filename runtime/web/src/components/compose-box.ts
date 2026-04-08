@@ -4,6 +4,7 @@ import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatc
 import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
 import { buildMentionValue, filterMentionAgents, parseMentionAutocompleteQuery } from '../ui/agent-mentions.js';
+import { isIOSDevice } from '../ui/app-helpers.js';
 import { shouldOpenSessionSwitcherFromBlankCompose } from '../ui/compose-session-switcher.js';
 import { formatBranchPickerLabel, formatCurrentBranchLabel } from '../ui/branch-lifecycle.js';
 import { buildComposeStatusDotClass } from '../ui/status-dot.js';
@@ -14,7 +15,7 @@ import { FilePill } from './file-pill.js';
  * Slash command definitions for autocomplete.
  * Kept in sync with agent-control/command-registry.ts.
  */
-const SLASH_COMMANDS = [
+export const SLASH_COMMANDS = [
   { name: "/model", description: "Select model or list available models" },
   { name: "/cycle-model", description: "Cycle to the next available model" },
   { name: "/thinking", description: "Show or set thinking level" },
@@ -42,6 +43,7 @@ const SLASH_COMMANDS = [
   { name: "/session-name", description: "Set or show the session name" },
   { name: "/new-session", description: "Start a new session" },
   { name: "/switch-session", description: "Switch to a session file" },
+  { name: "/session-rotate", description: "Rotate the current persisted session into an archived file" },
   { name: "/fork", description: "Fork from a previous message" },
   { name: "/forks", description: "List forkable messages" },
   { name: "/tree", description: "List the session tree" },
@@ -61,6 +63,9 @@ const SLASH_COMMANDS = [
   { name: "/tasks", description: "List scheduled tasks" },
   { name: "/scheduled", description: "List scheduled tasks" },
   { name: "/restart", description: "Restart the agent and stop subprocesses" },
+  { name: "/exit", description: "Exit the current piclaw process immediately (Supervisor will restart it)" },
+  { name: "/login", description: "Login to an AI model provider (OAuth or API key)" },
+  { name: "/logout", description: "Logout from an AI model provider" },
   { name: "/commands", description: "List available commands" },
 ];
 
@@ -588,6 +593,20 @@ export function ComposeBox({
         textarea.style.height = `${textarea.scrollHeight}px`;
         textarea.style.overflowY = 'hidden';
     };
+
+    const focusTextareaWithoutScroll = useCallback((event) => {
+        if (!isIOSDevice()) return;
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        if (document.activeElement === textarea) return;
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        try {
+            textarea.focus({ preventScroll: true });
+        } catch {
+            textarea.focus();
+        }
+    }, []);
 
     /** Update slash autocomplete matches based on current input. */
     const updateSlashAutocomplete = (value) => {
@@ -1699,7 +1718,8 @@ export function ComposeBox({
                         onKeyDown=${handleKeyDown}
                         onPaste=${handlePaste}
                         onFocus=${onFocus}
-                        onClick=${onFocus}
+                        onMouseDown=${focusTextareaWithoutScroll}
+                        onTouchStart=${focusTextareaWithoutScroll}
                         rows="1"
                     />
                     ${showMention && mentionMatches.length > 0 && html`
