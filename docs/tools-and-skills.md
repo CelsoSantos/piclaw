@@ -47,7 +47,7 @@ You can extend that baseline with `.piclaw/config.json`:
   - `add` (insert a row, optionally attaching media)
   - `delete` (thread-cascade delete, optional `dry_run`, optional `force`)
 - `search_workspace` — full‑text search across configured workspace FTS roots (notes + skills by default, with aggressive cleanup and size limits)
-- `refresh_workspace_index` — rebuild workspace FTS indexing for the configured roots
+- `refresh_workspace_index` — rebuild workspace FTS indexing for the configured roots (the same index state surfaced in the workspace explorer status chip)
 - `get_model_state` — show current model, thinking level, and context usage
 - `list_models` — list available models/providers
 - `switch_model` — switch to a different model
@@ -69,6 +69,7 @@ You can extend that baseline with `.piclaw/config.json`:
 - `ssh` — get, set, or clear the session-scoped SSH profile used by remote-backed core tools (`read`, `write`, `edit`, `bash`)
 - `proxmox` — get, set, or clear the session-scoped Proxmox API profile, perform ad-hoc Proxmox API requests, or run common VM/task/metrics workflows with keychain-backed token auth
 - `portainer` — get, set, or clear the session-scoped Portainer API profile, perform ad-hoc Portainer API requests, or run common endpoint/stack/container workflows with keychain-backed token auth
+- `mcp` — token-efficient proxy for external MCP servers via the bundled `pi-mcp-adapter`; supports search, describe, connect, tool calls, and MCP UI message retrieval using `.pi/mcp.json` or the Pi home config
 
 `messages` `search` accepts `query`, `chat_jid` (or `*`/`all`), `role`, `after`, `before`, `since`, `limit`, `offset`, and `details_max_chars` for controlling detail payloads.
 `messages` `get` accepts `row_ids`, optional `chat_jid`, `role`, `context_before`, `context_after`, and `details_max_chars`.
@@ -326,6 +327,7 @@ Each skill keeps its script alongside its `SKILL.md` for portability. Current se
 | `twitter-summary` | Fetch a user's recent tweets via Playwright + Nitter |
 | `feed-digest` | Build a deduped Markdown digest from an RSS/Atom feed index |
 | `bootstrap-container` | Validate required tools and install missing dependencies |
+| `mcp-adapter` | Configure and use the bundled `pi-mcp-adapter` through `.pi/mcp.json` |
 | `extension-design` | Design and audit Pi extensions safely |
 | `extension-troubleshoot` | Diagnose and fix extension issues (imports, DB init, watcher perms) |
 | `kanban-management` | Manage the project workitems board: ideation, triage, quality scoring, definition-of-done tracking |
@@ -405,10 +407,14 @@ Direct commands (no LLM round-trip):
 | `/tasks [filter]` | List scheduled tasks (via extension) |
 | `/scheduled [filter]` | Alias for `/tasks` |
 | `/dream [days]` | Queue an out-of-band Dream cycle on a temporary `dream:` channel; runtime backs up notes, seeds daily notes from DB, the model follows Orient / Signal / Consolidate / Prune and Index, and runtime refreshes FTS at the end |
+| `/mcp [status\|tools\|reconnect [server]]` | Open MCP status/UI, list MCP tools, or reconnect bundled `pi-mcp-adapter` servers |
+| `/mcp-auth <server>` | Start OAuth/authentication for an MCP server managed by `pi-mcp-adapter` |
 
 > [!NOTE]
 > Provider auth works via `pi /login` in the terminal or the experimental `/login` card flow in the web UI.
 > The card-based `/login` flow supports GitHub Copilot, Codex, and standard OpenAI providers. Anthropic is untested. The terminal remains the reliable fallback.
+
+The bundled `pi-mcp-adapter` reads project-local MCP config from `.pi/mcp.json` (starter example: `.pi/mcp.json.example`) and also understands the Pi home config under `~/.pi/agent/mcp.json` (inside the container image this typically maps to `/config/.pi/agent/mcp.json`). Prefer the project-local config when an MCP server belongs to the current workspace.
 
 `/search` performs a workspace full‑text search (notes + skills) without calling the LLM:
 

@@ -21,6 +21,7 @@ and slash commands such as:
 /mcp
 /mcp tools
 /mcp reconnect
+/mcp reconnect <server>
 /mcp-auth <server>
 ```
 
@@ -41,6 +42,12 @@ cp /workspace/.pi/mcp.json.example /workspace/.pi/mcp.json
 ### Global Pi config
 
 The adapter also supports Pi's global MCP config:
+
+```text
+~/.pi/agent/mcp.json
+```
+
+In the container image, that Pi home is typically bind-mounted at:
 
 ```text
 /config/.pi/agent/mcp.json
@@ -75,6 +82,8 @@ In PiClaw, prefer the project-local file when the server configuration belongs t
    - `mcp({})`
    - `mcp({ search: "..." })`
    - `/mcp`
+   - `/mcp tools`
+   - `/mcp reconnect [server]`
 5. Call tools through the proxy:
 
 ```text

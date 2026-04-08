@@ -56,7 +56,7 @@ PiClaw is single-user, mobile-friendly, and streams updates over SSE.
 - Live steering and queued follow-ups
 - Adaptive Cards with persisted submissions
 - `/btw` side conversations
-- File attachments, link previews, and threaded turns
+- File attachments, link previews, threaded turns, and syntax-highlighted previews for common text/code attachments
 - Themes and tinting via `/theme` and `/tint`
 - Mobile-friendly layout with webapp manifest
 
@@ -65,6 +65,7 @@ PiClaw is single-user, mobile-friendly, and streams updates over SSE.
 - Sidebar file browser with auto-refresh and drag-and-drop upload
 - File-reference pills in prompts
 - Folder sizes in the starburst explorer
+- Workspace search index status with one-click reindex from the explorer header
 
 ### Editor
 
@@ -86,6 +87,7 @@ PiClaw is single-user, mobile-friendly, and streams updates over SSE.
 - **Office documents** — `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`
 - **CSV/TSV** — dedicated table viewer
 - **PDF, images, video** — inline viewers
+- **Text/code attachments** — syntax-highlighted timeline preview modal for common code/config formats
 - **Kanban boards** — `*.kanban.md` in a drag-and-drop board editor (Obsidian Kanban compatible)
 - **Mindmaps** — `*.mindmap.yaml` in a D3/SVG visual editor
 - **VNC remote display** — connect to remote machines from a tab (experimental)

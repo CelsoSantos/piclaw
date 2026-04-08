@@ -184,6 +184,40 @@ Set via environment variables (see above) or in `.piclaw/config.json`:
 }
 ```
 
+### MCP server config (`pi-mcp-adapter`)
+
+PiClaw ships the `pi-mcp-adapter` extension for token-efficient MCP access.
+
+Preferred project-local config:
+
+```text
+/workspace/.pi/mcp.json
+```
+
+Starter example seeded on first startup:
+
+```text
+/workspace/.pi/mcp.json.example
+```
+
+Global Pi-home config also works:
+
+```text
+~/.pi/agent/mcp.json
+```
+
+In the container image that Pi home is typically bind-mounted under:
+
+```text
+/config/.pi/agent/mcp.json
+```
+
+Notes:
+- prefer the project-local file when MCP servers are part of the current workspace
+- restart PiClaw or reload the session after changing MCP config
+- the adapter exposes the `mcp` tool plus `/mcp`, `/mcp tools`, `/mcp reconnect [server]`, and `/mcp-auth` commands
+- `pi-mcp-adapter` does not require `mcp-cli`
+
 ### Default active tools
 
 Piclaw now keeps the agent's always-active tool list intentionally small and uses
@@ -270,6 +304,8 @@ Rules:
 - Absolute paths are allowed
 - Configured roots are indexed automatically at session start
 - `search_workspace` can still refresh indexing on demand per call
+- `refresh_workspace_index` forces a full rebuild for the configured roots
+- the web workspace explorer now shows the current index status, last indexed time, indexed file count, configured roots, and a one-click reindex control
 - `scope: notes` and `scope: skills` remain the built-in convenience filters; `scope: all` searches across the configured root set
 
 ### Dream and AutoDream
