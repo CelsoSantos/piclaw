@@ -121,9 +121,11 @@ build-piclaw: build-web build-ts ## Full build: vendor + web + ts
 PACK_DIR ?= /tmp/piclaw-pack
 
 pack: build-piclaw ## Pack piclaw into a .tgz (outside the repo)
-	rm -rf $(PACK_DIR) && mkdir -p $(PACK_DIR)
-	bun pm pack --destination $(PACK_DIR)
-	@ls -lh $(PACK_DIR)/piclaw-*.tgz || true
+	@set -e; \
+	exec 1>&2; \
+	rm -rf $(PACK_DIR) && mkdir -p $(PACK_DIR); \
+	bun pm pack --destination $(PACK_DIR); \
+	ls -lh $(PACK_DIR)/piclaw-*.tgz || true
 
 restart: ## Restart piclaw (auto-detects supervisor or systemd)
 	@if command -v supervisorctl >/dev/null 2>&1 && \
@@ -144,10 +146,11 @@ restart: ## Restart piclaw (auto-detects supervisor or systemd)
 
 local-install: pack ## Pack and install piclaw globally (no restart)
 	@set -e; \
+	exec 1>&2; \
 	VERSION=$$(jq -r .version package.json); \
-	TGZ="$$(ls -t $(PACK_DIR)/piclaw-*.tgz | head -1)"; \
-	if [ -z "$$TGZ" ]; then echo "[local-install] No package tarball found in $(PACK_DIR)"; exit 1; fi; \
-	echo "[local-install] Installing v$${VERSION} globally..."; \
+	TGZ="$$(find $(PACK_DIR) -maxdepth 1 -type f -name 'piclaw-*.tgz' | sort | tail -1)"; \
+	if [ -z "$$TGZ" ]; then printf '%s\n' "[local-install] No package tarball found in $(PACK_DIR)"; exit 1; fi; \
+	printf '%s\n' "[local-install] Installing v$${VERSION} globally..."; \
 	printf '{"dependencies":{"@mariozechner/pi-coding-agent":"$(PI_AGENT_VERSION)","piclaw":"%s"}}\n' \
 		"$$TGZ" | sudo tee $(GLOBAL_PKG) >/dev/null; \
 	sudo rm -f $(GLOBAL_LOCK); \
@@ -160,8 +163,8 @@ local-install: pack ## Pack and install piclaw globally (no restart)
 	if [ -d "$$DEST_REAL/extensions" ] && [ -d "$$DEST_REAL/node_modules" ]; then \
 		sudo ln -sfn "$$DEST_REAL/node_modules" "$$DEST_REAL/extensions/node_modules" 2>/dev/null || true; \
 	fi; \
-	echo "[local-install] Install complete (no restart)"; \
-	echo "[local-install] Done (v$${VERSION})"
+	printf '%s\n' "[local-install] Install complete (no restart)"; \
+	printf '%s\n' "[local-install] Done (v$${VERSION})"
 
 # ── Quality ──────────────────────────────────────────────────────────
 
