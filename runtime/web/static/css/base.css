@@ -226,11 +226,8 @@ body {
 }
 
 html[data-mobile-viewport="dynamic"] body {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    position: relative;
+    inset: auto;
     min-height: var(--app-height, 100dvh);
     height: var(--app-height, 100dvh);
 }
