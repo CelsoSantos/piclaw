@@ -4,7 +4,7 @@ title: Add provider-readiness and first-use OOBE panel in the web app
 status: doing
 priority: medium
 created: 2026-04-08
-updated: 2026-04-08
+updated: 2026-04-09
 parent: improve-first-run-oobe-and-new-user-guidance
 estimate: M
 risk: medium
@@ -156,17 +156,17 @@ Path A — native shell panel with provider-driven state.
   - [ ] Restore / reconnect matrix test
   - [ ] Pane / viewer contract test
   - [ ] Real-browser smoke test
-- [ ] Existing tests to rerun are listed:
-  - [ ] app-shell render/composition tests
-  - [ ] compose-box interaction tests
-- [ ] New regression coverage to add is listed:
-  - [ ] provider missing → panel visible
-  - [ ] provider available → ready-state panel visible
-  - [ ] dismissed panel stays hidden
-  - [ ] `/login` CTA prefills compose
-  - [ ] pane popout mode suppresses panel
-- [ ] Real-browser smoke pass required? If yes, record the surface:
-  - [ ] initial web load with no models configured
+- [x] Existing tests to rerun are listed:
+  - [x] app-shell render/composition tests
+  - [x] compose-box interaction tests
+- [x] New regression coverage to add is listed:
+  - [x] provider missing → panel visible
+  - [x] provider available → ready-state panel visible
+  - [x] dismissed panel stays hidden
+  - [x] `/login` CTA prefills compose
+  - [x] pane popout mode suppresses panel
+- [x] Real-browser smoke pass required? If yes, record the surface:
+  - [x] initial web load with no models configured
 
 ## Definition of Done
 
@@ -180,6 +180,19 @@ Path A — native shell panel with provider-driven state.
 - [ ] Ticket front matter updated
 
 ## Updates
+
+### 2026-04-09
+- Diagnosed and fixed a lifecycle wiring bug in `runtime/web/src/ui/app-main-orchestration-composition.ts`: `/agent/models` responses were arriving, but `setAgentModelsPayload` and `setHasLoadedAgentModels` were not being forwarded into lifecycle composition, so the OOBE panel stayed hidden even after model readiness had loaded.
+- Added regression coverage for that lifecycle forwarding so the OOBE state setters stay wired through future refactors.
+- Updated the current panel copy in `runtime/web/src/components/oobe-panel.ts` to the latest wording for the provider-missing and provider-ready states.
+- Focused web/OOBE regression tests are passing after the latest wiring fix.
+- Dedicated source-level browser validation can now surface the provider-missing panel again.
+- Current status for tomorrow:
+  - source-level panel logic and focused regression coverage are healthy
+  - local-container Playwright validation still needs one fresh rerun after the latest source fix to capture final evidence for provider-missing, dismiss persistence, and provider-ready states
+- Evidence and follow-up logs live under:
+  - `/workspace/tmp/test-evidence/oobe-async-verbose-20260409T214220Z/combined.log`
+  - `artifacts/oobe-local-container/`
 
 ### 2026-04-08
 - Created as a child implementation slice under `improve-first-run-oobe-and-new-user-guidance`.

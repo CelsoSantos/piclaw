@@ -83,12 +83,12 @@ Without a local container + real browser pass, it is easy to miss issues in:
 
 ## Acceptance Criteria
 
-- [ ] A repeatable local container workflow exists for OOBE browser testing.
-- [ ] A Playwright test or small Playwright suite covers at least the provider-missing OOBE path.
+- [x] A repeatable local container workflow exists for OOBE browser testing.
+- [x] A Playwright test or small Playwright suite covers at least the provider-missing OOBE path.
 - [ ] Dismiss persistence is validated in the browser.
 - [ ] At least one provider-ready path is validated in the browser.
-- [ ] Test setup and rerun instructions are documented in the ticket updates or linked docs.
-- [ ] The test approach is narrow enough to stay reliable in local development.
+- [x] Test setup and rerun instructions are documented in the ticket updates or linked docs.
+- [x] The test approach is narrow enough to stay reliable in local development.
 
 ## Implementation Paths
 
@@ -117,14 +117,14 @@ Without a local container + real browser pass, it is easy to miss issues in:
   - [x] Restore / reconnect matrix test
   - [ ] Pane / viewer contract test
   - [x] Real-browser smoke test
-- [ ] Existing tests to rerun are listed.
-- [ ] New regression coverage to add is listed:
-  - [ ] fresh OOBE provider-missing browser path
+- [x] Existing tests to rerun are listed.
+- [x] New regression coverage to add is listed:
+  - [x] fresh OOBE provider-missing browser path
   - [ ] dismiss persistence after reload
   - [ ] provider-ready OOBE browser path
   - [ ] optional popout suppression path
-- [ ] Real-browser smoke pass required? If yes, record the surface:
-  - [ ] local container startup → first web load → OOBE CTA/dismiss/reload behavior
+- [x] Real-browser smoke pass required? If yes, record the surface:
+  - [x] local container startup → first web load → OOBE CTA/dismiss/reload behavior
 
 ## Definition of Done
 
@@ -138,6 +138,26 @@ Without a local container + real browser pass, it is easy to miss issues in:
 - [ ] Ticket front matter updated
 
 ## Updates
+
+### 2026-04-09
+- Added `runtime/scripts/playwright/oobe-local-container.ts`, the `bun run test:oobe:local-container` entry point, and `docs/development.md` rerun notes for the local-container OOBE smoke path.
+- Added failure instrumentation for screenshot, DOM dump, body text, model-response state, and container logs under `artifacts/oobe-local-container/`.
+- Fixed the Docker image build bottleneck in `scripts/docker/build-piclaw-package.sh` by replacing the broad recursive Bun-tree permission sweep with narrower runtime permission normalization; rebuilt image creation now completes again.
+- Diagnosed and fixed a second OOBE regression in lifecycle wiring: `/agent/models` responses were arriving, but `setAgentModelsPayload` and `setHasLoadedAgentModels` were not being forwarded into lifecycle composition, so `modelsLoaded` stayed false and the panel remained hidden.
+- Added regression coverage for that lifecycle forwarding and reran focused web/OOBE tests successfully.
+- Current status:
+  - dedicated source-level browser validation can show the provider-missing OOBE panel
+  - local-container smoke now rebuilds successfully and reaches the Playwright OOBE phase
+  - provider-missing local-container proof still needs one fresh rerun against the very latest source after the final lifecycle fix
+  - dismiss persistence and provider-ready local-container validation remain open
+- Evidence to pick up tomorrow:
+  - `/workspace/tmp/test-evidence/oobe-async-verbose-20260409T214220Z/combined.log`
+  - `artifacts/oobe-local-container/`
+- Next follow-up tomorrow:
+  - rerun `bun run test:oobe:local-container` against a freshly rebuilt image containing the latest lifecycle fix
+  - capture a clean provider-missing screenshot plus dismiss-persistence and provider-ready evidence
+  - if the smoke still fails, instrument `hasLoadedAgentModels` and `agentModelsPayload` directly in the browser during the local-container run
+- Quality: ★★★★☆ 8/10 (problem: 2, scope: 2, test: 2, deps: 1, risk: 1)
 
 ### 2026-04-09
 - Lane change: `00-inbox` → `20-doing`.
