@@ -14,7 +14,7 @@ export function setLocalStorageItem(key, value) {
   try {
     window.localStorage.setItem(key, value);
   } catch {
-    // ignore
+    return;
   }
 }
 

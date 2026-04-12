@@ -16,13 +16,18 @@ function normalizeText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-export function generatePaneDetachId(prefix = 'pane'): string {
+function readRandomUuidBestEffort(runtime: typeof globalThis = globalThis): string | null {
   try {
-    if (typeof globalThis?.crypto?.randomUUID === 'function') {
-      return `${prefix}-${globalThis.crypto.randomUUID()}`;
-    }
-  } catch {
-    // fall through
+    return typeof runtime?.crypto?.randomUUID === 'function' ? runtime.crypto.randomUUID() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+export function generatePaneDetachId(prefix = 'pane'): string {
+  const uuid = readRandomUuidBestEffort();
+  if (uuid) {
+    return `${prefix}-${uuid}`;
   }
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

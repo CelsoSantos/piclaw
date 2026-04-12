@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { importFresh, setEnv, withTempWorkspaceEnv } from "./helpers.js";
+import { closeDbQuietly, importFresh, setEnv, withTempWorkspaceEnv } from "./helpers.js";
 
 async function withKeychainContext(
   run: (ctx: {
@@ -23,11 +23,7 @@ async function withKeychainContext(
         await run({ workspace, db, keychain });
       } finally {
         keychain.setKeyMaterialProviderForTests(null);
-        try {
-          db.getDb().close();
-        } catch {
-          // expected: a test may already have closed the in-memory handle
-        }
+        closeDbQuietly(db);
       }
     },
   );
@@ -109,11 +105,7 @@ test("reads key material from PICLAW_KEYCHAIN_KEY_FILE when no env key is set", 
       } finally {
         keychain.setKeyMaterialProviderForTests(null);
         restoreKeyFile();
-        try {
-          db.getDb().close();
-        } catch {
-          // expected: a test may already have closed the in-memory handle
-        }
+        closeDbQuietly(db);
       }
     },
   );

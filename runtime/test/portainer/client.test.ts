@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import "../helpers.js";
-import { importFresh, withTempWorkspaceEnv } from "../helpers.js";
+import { closeDbQuietly, importFresh, withTempWorkspaceEnv } from "../helpers.js";
 
 type DbModule = typeof import("../../src/db.js");
 type KeychainModule = typeof import("../../src/secure/keychain.js");
@@ -25,11 +25,7 @@ async function withPortainerContext(
     } finally {
       portainer.setPortainerRequestExecutorForTests(null);
       keychain.setKeyMaterialProviderForTests(null);
-      try {
-        db.getDb().close();
-      } catch {
-        // ignore test cleanup close races
-      }
+      closeDbQuietly(db);
     }
   });
 }

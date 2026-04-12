@@ -87,6 +87,15 @@ function readModeParam(raw: string | null | undefined): boolean {
   return value === '1' || value === 'true' || value === 'yes';
 }
 
+function readAssetVersionFromImportMeta(importMetaUrl: string | null | undefined): string | null {
+  try {
+    const direct = importMetaUrl ? new URL(importMetaUrl).searchParams.get('v') : null;
+    return direct && direct.trim() ? direct.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function readTextParam(locationParams: LocationParamsLike, key: string, fallback = ''): string {
   const raw = locationParams?.get?.(key);
   return raw && raw.trim() ? raw.trim() : fallback;
@@ -100,12 +109,8 @@ export function getCurrentAppAssetVersion(options: CurrentAppAssetVersionOptions
     ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
     : (options.origin || 'http://localhost');
 
-  try {
-    const direct = importMetaUrl ? new URL(importMetaUrl).searchParams.get('v') : null;
-    if (direct && direct.trim()) return direct.trim();
-  } catch {
-    /* expected: importMetaUrl may be missing or malformed in some contexts. */
-  }
+  const direct = readAssetVersionFromImportMeta(importMetaUrl);
+  if (direct) return direct;
 
   try {
     const script = Array.from(doc?.querySelectorAll?.('script[type="module"][src]') || [])

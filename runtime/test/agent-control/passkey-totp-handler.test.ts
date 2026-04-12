@@ -8,18 +8,13 @@
 import { createHmac } from "node:crypto";
 import { afterEach, expect, test } from "bun:test";
 
-import { createTempWorkspace, setEnv } from "../helpers.js";
+import { createTempWorkspace, resetWebTotpSecretIfLoaded, setEnv } from "../helpers.js";
 
 let restoreEnv: (() => void) | null = null;
 let cleanupWorkspace: (() => void) | null = null;
 
 afterEach(async () => {
-  try {
-    const config = await import("../../src/core/config.js");
-    config.setWebTotpSecret("");
-  } catch {
-    // Ignore when config was not loaded in the test.
-  }
+  await resetWebTotpSecretIfLoaded();
   restoreEnv?.();
   restoreEnv = null;
   cleanupWorkspace?.();

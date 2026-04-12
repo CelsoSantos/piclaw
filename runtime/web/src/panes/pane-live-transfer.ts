@@ -38,6 +38,15 @@ function getRegistry(runtimeWindow: any): Map<string, PaneLiveTransferRecord> | 
   return created;
 }
 
+function releaseSourceHostBestEffort(releaseSourceHost: (() => void) | null | undefined): boolean {
+  try {
+    releaseSourceHost?.();
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 export function registerPaneLiveTransfer(record: PaneLiveTransferRecord, runtimeWindow: any = typeof window !== 'undefined' ? window : null): boolean {
   const registry = getRegistry(runtimeWindow);
   const panePath = normalizeText(record?.panePath);
@@ -89,10 +98,6 @@ export async function claimPaneLiveTransfer(
   if (!moved) return null;
 
   registry.delete(paneWindowId);
-  try {
-    record.releaseSourceHost?.();
-  } catch {
-    /* expected: release is best-effort and source cleanup should fail safe. */
-  }
+  releaseSourceHostBestEffort(record.releaseSourceHost);
   return record.instance;
 }

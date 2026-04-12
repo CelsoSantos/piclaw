@@ -9,6 +9,7 @@ import { formatBranchPickerLabel, formatCurrentBranchLabel } from '../ui/branch-
 import { buildComposeStatusDotClass } from '../ui/status-dot.js';
 import { getStatusElapsedLabel, isCompactionStatus, resolveStatusPanelTitle } from '../ui/status-duration.js';
 import { FilePill } from './file-pill.js';
+import { refreshAgentModelStateBestEffort } from './compose-model-refresh.js';
 
 /**
  * Slash command definitions for autocomplete.
@@ -879,12 +880,7 @@ export function ComposeBox({
                 thinking_level: response?.command?.thinking_level,
                 supports_thinking: response?.command?.supports_thinking,
             });
-            try {
-                const latest = await getAgentModels(currentChatJid);
-                if (latest) emitModelState(latest);
-            } catch {
-                /* expected: background model refresh should not block command completion. */
-            }
+            await refreshAgentModelStateBestEffort(getAgentModels, currentChatJid, emitModelState);
             onPost?.(response);
             return true;
         } catch (error) {
@@ -1072,12 +1068,7 @@ export function ComposeBox({
                         thinking_level: response.command.thinking_level,
                         supports_thinking: response.command.supports_thinking,
                     });
-                    try {
-                        const latest = await getAgentModels(currentChatJid);
-                        if (latest) emitModelState(latest);
-                    } catch {
-                        /* expected: background model refresh should not block message submission. */
-                    }
+                    await refreshAgentModelStateBestEffort(getAgentModels, currentChatJid, emitModelState);
                 }
 
                 onPost?.(response);

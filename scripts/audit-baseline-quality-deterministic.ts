@@ -172,6 +172,7 @@ const groupDefinitions: GroupDefinition[] = [
       relativePath.startsWith("channels/web/") &&
       basenameIsOneOf(relativePath, [
         "agent-buffers.test.ts",
+        "agent-debug.test.ts",
         "agent-message-handler.test.ts",
         "agent-message-store.test.ts",
         "agent-pool-binder.test.ts",
@@ -319,7 +320,8 @@ const groupDefinitions: GroupDefinition[] = [
       "secure/",
       "tools/",
       "utils/",
-    ].some((prefix) => relativePath.startsWith(prefix)),
+    ].some((prefix) => relativePath.startsWith(prefix))
+      || (relativePath.startsWith("channels/") && basenameIsOneOf(relativePath, ["whatsapp-presence.test.ts"])),
   },
   {
     id: "extensions",
@@ -351,11 +353,13 @@ const groupDefinitions: GroupDefinition[] = [
           "app-resume.test.ts",
           "branch-lifecycle.test.ts",
           "btw.test.ts",
+          "compose-model-refresh.test.ts",
           "chat-window.test.ts",
           "compose-box.test.ts",
           "compose-layout.test.ts",
           "compose-session-switcher.test.ts",
           "mobile-viewport.test.ts",
+          "notification-focus.test.ts",
           "oobe-state.test.ts",
           "optional-api.test.ts",
           "popup-typeahead.test.ts",
@@ -365,6 +369,7 @@ const groupDefinitions: GroupDefinition[] = [
           "status-duration.test.ts",
           "tab-source-editor.test.ts",
           "tab-store.test.ts",
+          "storage.test.ts",
           "tab-strip.test.ts",
         ])
         || (isAppShellTest(relativePath)
@@ -379,6 +384,7 @@ const groupDefinitions: GroupDefinition[] = [
     match: (relativePath) =>
       relativePath.startsWith("web/") && (
         basenameIsOneOf(relativePath, [
+          "adaptive-card-input-lock.test.ts",
           "adaptive-card-renderer.test.ts",
           "adaptive-card-submission.test.ts",
           "attachment-preview.test.ts",
@@ -386,28 +392,36 @@ const groupDefinitions: GroupDefinition[] = [
           "drawio-pane.test.ts",
           "editor-extension.test.ts",
           "editor-popout-transfer.test.ts",
+          "editor-safety.test.ts",
           "extension-ui-events.test.ts",
           "file-pill-open.test.ts",
           "floating-widget-styles.test.ts",
+          "generated-widget-host-bridge.test.ts",
           "generated-widget.test.ts",
           "kanban-board-ops.test.ts",
           "kanban-editor-source.test.ts",
           "markdown-live-preview-gating.test.ts",
+          "markdown-preview-storage.test.ts",
           "markdown-rendering.test.ts",
           "oobe-panel.test.ts",
           "post-copy-markdown.test.ts",
+          "post-runtime-safety.test.ts",
           "mindmap-history.test.ts",
           "mindmap-layout-utils.test.ts",
           "mindmap-pane-source.test.ts",
           "pane-detach-state.test.ts",
           "pane-detach-transfer.test.ts",
+          "pane-runtime-safety.test.ts",
           "pane-host-transfer.test.ts",
           "pane-live-transfer.test.ts",
           "pane-popout-contracts.test.ts",
           "pane-registry.test.ts",
           "tab-compare-saved.test.ts",
+          "terminal-lifecycle-runtime.test.ts",
           "terminal-pane.test.ts",
+          "terminal-theme-runtime.test.ts",
           "theme.test.ts",
+          "input-focus-safety.test.ts",
           "video-viewer-pane.test.ts",
           "zip-preview.test.ts",
         ])
@@ -430,6 +444,10 @@ const groupDefinitions: GroupDefinition[] = [
           "workspace-preview-pane.test.ts",
           "workspace-scale.test.ts",
           "workspace-visibility.test.ts",
+          "remote-display-gc.test.ts",
+          "remote-display-socket.test.ts",
+          "window-bridge-safety.test.ts",
+          "login-safety.test.ts",
         ])
         || isAppRemoteWorkspaceTest(relativePath)
       ),

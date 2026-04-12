@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { getLocalStorageBoolean, setLocalStorageItem } from '../utils/storage.js';
+import { focusWindowBestEffort } from './notification-focus.js';
 
 export function useNotifications() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -66,11 +67,7 @@ export function useNotifications() {
     try {
       const notification = new Notification(title, { body });
       notification.onclick = () => {
-        try {
-          window.focus();
-        } catch {
-          // ignore
-        }
+        focusWindowBestEffort(window);
       };
       return true;
     } catch {

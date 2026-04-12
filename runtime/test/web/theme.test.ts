@@ -133,3 +133,25 @@ test('/tint updates derived highlight vars and tints the full default palette', 
   expect(runtime.styleValues.get('--danger-color')).not.toBe('#f4212e');
   expect(runtime.styleValues.get('--success-color')).not.toBe('#00ba7c');
 });
+
+test('theme parser falls back to inline css color when computed-style resolution fails', async () => {
+  const runtime = createThemeRuntime();
+  runtime.document.body.appendChild = () => {
+    throw new Error('blocked');
+  };
+  (globalThis as any).window = runtime.window;
+  (globalThis as any).document = runtime.document;
+  (globalThis as any).CustomEvent = class CustomEventStub {
+    type: string;
+    detail: unknown;
+    constructor(type: string, init?: { detail?: unknown }) {
+      this.type = type;
+      this.detail = init?.detail;
+    }
+  };
+
+  const theme = await importFresh<typeof import('../../web/src/ui/theme.js')>('../web/src/ui/theme.ts');
+  theme.applyThemeFromEvent({ theme: 'default', tint: 'rgb(255, 85, 0)', chat_jid: 'web:default' });
+
+  expect(runtime.styleValues.get('--accent-color')).toBe('#ff5500');
+});

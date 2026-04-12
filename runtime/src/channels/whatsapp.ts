@@ -33,6 +33,7 @@ import { STORE_DIR, getIdentityConfig, getWhatsAppConfig } from "../core/config.
 import type { OnChatMetadata, OnInboundMessage } from "../types.js";
 import { createUuid } from "../utils/ids.js";
 import { createLogger } from "../utils/logger.js";
+import { sendWhatsAppTypingUpdate } from "./whatsapp-presence.js";
 
 const log = createLogger("whatsapp");
 
@@ -269,11 +270,7 @@ export class WhatsAppChannel {
   }
 
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
-    try {
-      await this.sock.sendPresenceUpdate(isTyping ? "composing" : "paused", jid);
-    } catch {
-      /* expected: transient presence failures should not block message delivery. */
-    }
+    await sendWhatsAppTypingUpdate(this.sock, jid, isTyping);
   }
 
   private async flushOutgoingQueue(): Promise<void> {

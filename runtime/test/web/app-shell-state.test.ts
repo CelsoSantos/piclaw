@@ -31,6 +31,13 @@ test('getCurrentAppAssetVersion prefers import.meta query and falls back to scri
     },
   });
   expect(version).toBe('fallback456');
+  expect(getCurrentAppAssetVersion({
+    importMetaUrl: 'not a valid url',
+    origin: 'https://example.test',
+    document: {
+      querySelectorAll: () => [createScript('/static/dist/app.bundle.js?v=malformed789')],
+    },
+  })).toBe('malformed789');
   expect(getCurrentAppAssetVersion({ importMetaUrl: null, document: { querySelectorAll: () => [] } })).toBeNull();
 });
 

@@ -10,6 +10,7 @@
 import type { PaneCapability, PaneContext, PaneInstance, WebPaneExtension } from './pane-types.js';
 import { isStandaloneWebAppMode } from '../ui/chat-window.js';
 import { WebSocketRemoteDisplayBoundary } from './remote-display-socket.js';
+import { disposeSocketBoundaryBestEffort, readRandomUuidBestEffort, removeStorageItemBestEffort } from './pane-runtime-safety.js';
 import { loadRemoteDisplayWasmDecoder } from './remote-display-decoder.js';
 import {
     buildVncWheelPointerEvents,
@@ -50,12 +51,9 @@ function getVncPopoutStorage(runtime = globalThis): StorageLike | null {
 }
 
 function generateVncPopoutSecretToken(runtime = globalThis): string {
-    try {
-        if (typeof runtime?.crypto?.randomUUID === 'function') {
-            return runtime.crypto.randomUUID();
-        }
-    } catch {
-        // fall through
+    const uuid = readRandomUuidBestEffort(runtime);
+    if (uuid) {
+        return uuid;
     }
     return `vnc-popout-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -80,7 +78,7 @@ function sweepExpiredVncPopoutSecrets(storage: StorageLike | null, nowMs = Date.
                 storage.removeItem(key);
             }
         } catch {
-            try { storage.removeItem(key); } catch { /* ignore */ }
+            removeStorageItemBestEffort(storage, key);
         }
     }
 }

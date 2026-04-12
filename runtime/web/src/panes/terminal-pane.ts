@@ -8,6 +8,13 @@
 
 import type { WebPaneExtension, PaneContext, PaneInstance, PaneCapability } from './pane-types.js';
 import { consumePanePopoutTransferToken } from './editor-popout-transfer.js';
+import {
+    clearContainerContentBestEffort,
+    detachTerminalHostListenersBestEffort,
+    disposeTerminalRuntimeBestEffort,
+    resizeTerminalRuntimeBestEffort,
+} from './terminal-lifecycle-runtime.js';
+import { applyTerminalThemeBestEffort } from './terminal-theme-runtime.js';
 
 const GHOSTTY_WEB_MODULE = '/static/js/vendor/ghostty-web.js';
 const GHOSTTY_WASM_MODULE = '/static/js/vendor/ghostty-vt.wasm';
@@ -257,11 +264,7 @@ export function buildTerminalTheme(runtimeWindow = typeof window !== 'undefined'
 
 export function relocateTerminalPaneRoot(root: HTMLElement | null | undefined, container: HTMLElement | null | undefined): boolean {
     if (!root || !container || typeof container.appendChild !== 'function') return false;
-    try {
-        container.innerHTML = '';
-    } catch {
-        /* expected: fake hosts/tests may not support innerHTML resets. */
-    }
+    clearContainerContentBestEffort(container);
     container.appendChild(root);
     return true;
 }
@@ -428,77 +431,15 @@ class TerminalPaneInstance implements PaneInstance {
         const theme = buildTerminalTheme(this.ownerWindow, this.ownerDocument);
         const themeSignature = JSON.stringify(theme);
         const themeChanged = this.lastAppliedThemeSignature !== null && this.lastAppliedThemeSignature !== themeSignature;
-        try {
-            this.termEl.style.backgroundColor = theme.background;
-            this.bodyEl.style.backgroundColor = theme.background;
-            const host = this.bodyEl.querySelector('.terminal-live-host');
-            if (host instanceof HTMLElement) {
-                host.style.backgroundColor = theme.background;
-                host.style.color = theme.foreground;
-            }
-            const canvas = this.bodyEl.querySelector('canvas');
-            if (canvas instanceof HTMLElement) {
-                canvas.style.backgroundColor = theme.background;
-                canvas.style.color = theme.foreground;
-            }
-        } catch {
-            /* expected: theme repaint can race with terminal DOM teardown. */
-        }
-        try {
-            if (this.terminal.options) {
-                this.terminal.options.theme = theme;
-            }
-        } catch {
-            /* expected: terminal options can be transient while Ghostty is booting. */
-        }
-        try {
-            if (themeChanged && this.terminal.reset) {
-                this.terminal.reset();
-            }
-        } catch {
-            /* expected: theme reset can fail briefly during terminal bootstrap/disposal. */
-        }
-        try {
-            this.terminal.renderer?.setTheme?.(theme);
-            this.terminal.renderer?.clear?.();
-        } catch {
-            /* expected: renderer theme hooks are optional across Ghostty/xterm variants. */
-        }
-        try {
-            this.terminal.loadFonts?.();
-        } catch {
-            /* expected: font reloads are best-effort while the terminal runtime settles. */
-        }
-        try {
-            this.terminal.renderer?.remeasureFont?.();
-        } catch {
-            /* expected: renderer font metrics can be unavailable during theme churn. */
-        }
-        try {
-            if (this.terminal.wasmTerm && this.terminal.renderer?.render) {
-                this.terminal.renderer.render(this.terminal.wasmTerm, true, this.terminal.viewportY || 0, this.terminal);
-                this.terminal.renderer.render(this.terminal.wasmTerm, false, this.terminal.viewportY || 0, this.terminal);
-            }
-        } catch {
-            /* expected: forcing a repaint can race with renderer disposal. */
-        }
-        try {
-            this.resize();
-        } catch {
-            /* expected: resize can race with late terminal bootstrap/teardown. */
-        }
-        try {
-            if (themeChanged && this.socket?.readyState === WebSocket.OPEN) {
-                this.socket.send(JSON.stringify({ type: 'input', data: '\f' }));
-            }
-        } catch {
-            /* expected: backend websocket may disconnect during theme-driven refresh. */
-        }
-        try {
-            this.terminal.refresh?.();
-        } catch {
-            /* expected: refresh is best-effort while the renderer is settling. */
-        }
+        applyTerminalThemeBestEffort({
+            termEl: this.termEl,
+            bodyEl: this.bodyEl,
+            terminal: this.terminal,
+            theme,
+            themeChanged,
+            socket: this.socket,
+            resize: () => this.resize(),
+        });
         this.lastAppliedThemeSignature = themeSignature;
     }
 
@@ -639,41 +580,16 @@ class TerminalPaneInstance implements PaneInstance {
     }
 
     private detachHostListeners(): void {
-        try {
-            if (this.themeChangeListener) {
-                this.ownerWindow?.removeEventListener?.('piclaw-theme-change', this.themeChangeListener);
-            }
-        } catch {
-            /* expected: window listeners may already be detached during teardown. */
-        }
-        try {
-            if (this.mediaQuery && this.mediaQueryListener) {
-                if (this.mediaQuery.removeEventListener) this.mediaQuery.removeEventListener('change', this.mediaQueryListener);
-                else if (this.mediaQuery.removeListener) this.mediaQuery.removeListener(this.mediaQueryListener);
-            }
-        } catch {
-            /* expected: media-query listeners differ across browser implementations. */
-        }
-        try {
-            if (this.dockResizeListener) {
-                this.ownerWindow?.removeEventListener?.('dock-resize', this.dockResizeListener);
-            }
-            if (this.windowResizeListener) {
-                this.ownerWindow?.removeEventListener?.('resize', this.windowResizeListener);
-            }
-        } catch {
-            /* expected: resize listeners may already be detached during teardown. */
-        }
-        try {
-            this.themeObserver?.disconnect?.();
-        } catch {
-            /* expected: mutation observer may already be disconnected. */
-        }
-        try {
-            this.resizeObserver?.disconnect?.();
-        } catch {
-            /* expected: resize observer may already be disconnected. */
-        }
+        detachTerminalHostListenersBestEffort({
+            ownerWindow: this.ownerWindow,
+            themeChangeListener: this.themeChangeListener,
+            mediaQuery: this.mediaQuery,
+            mediaQueryListener: this.mediaQueryListener,
+            dockResizeListener: this.dockResizeListener,
+            windowResizeListener: this.windowResizeListener,
+            themeObserver: this.themeObserver,
+            resizeObserver: this.resizeObserver,
+        });
         this.themeChangeListener = null;
         this.mediaQuery = null;
         this.mediaQueryListener = null;
@@ -747,54 +663,25 @@ class TerminalPaneInstance implements PaneInstance {
     }
 
     resize(): void {
-        this.syncHostLayout();
-        try {
-            this.terminal?.renderer?.remeasureFont?.();
-        } catch {
-            /* expected: renderer font metrics may be unavailable during resize churn. */
-        }
-        try {
-            this.fitAddon?.fit?.();
-        } catch {
-            /* expected: fit addon is best-effort while the terminal host is mounting/unmounting. */
-        }
-        try {
-            this.terminal?.refresh?.();
-        } catch {
-            /* expected: refresh can race with renderer disposal. */
-        }
-        this.syncHostLayout();
-        this.sendResize();
+        resizeTerminalRuntimeBestEffort({
+            syncHostLayout: () => this.syncHostLayout(),
+            terminal: this.terminal,
+            fitAddon: this.fitAddon,
+            sendResize: () => this.sendResize(),
+        });
     }
 
     dispose(): void {
         if (this.disposed) return;
         this.disposed = true;
-        try {
-            if (this.resizeFrame) {
-                cancelAnimationFrame(this.resizeFrame);
-                this.resizeFrame = 0;
-            }
-        } catch {
-            /* expected: resize frame may already be cancelled during teardown. */
-        }
         this.detachHostListeners();
-        try {
-            this.socket?.close?.();
-        } catch {
-            /* expected: backend websocket may already be closed during teardown. */
-        }
-        try {
-            this.fitAddon?.dispose?.();
-        } catch {
-            /* expected: fit addon may already be disposed during teardown. */
-        }
-        try {
-            this.terminal?.dispose?.();
-        } catch {
-            /* expected: terminal runtime may already be disposed during teardown. */
-        }
-        this.termEl?.remove();
+        this.resizeFrame = disposeTerminalRuntimeBestEffort({
+            resizeFrame: this.resizeFrame,
+            socket: this.socket,
+            fitAddon: this.fitAddon,
+            terminal: this.terminal,
+            termEl: this.termEl,
+        });
     }
 }
 

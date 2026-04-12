@@ -59,6 +59,34 @@ test('consumeEditorPopoutState expires stale transfer payloads', () => {
   expect(consumeEditorPopoutState(payload?.editor_popout, runtime, 1_000 + (5 * 60 * 1000) + 1)).toBeNull();
 });
 
+test('consumeEditorPopoutState tolerates cleanup failures after reading state', () => {
+  const localStorage = createStorage();
+  const token = 'tok-throwing-remove';
+  localStorage.setItem(`piclaw:editor-popout:${token}`, JSON.stringify({
+    path: '/workspace/notes.md',
+    content: '# Draft',
+    capturedAt: 1_000,
+  }));
+  const runtime = {
+    localStorage: {
+      getItem: localStorage.getItem,
+      setItem: localStorage.setItem,
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    },
+  } as any;
+
+  expect(consumeEditorPopoutState(token, runtime, 1_100)).toEqual({
+    path: '/workspace/notes.md',
+    content: '# Draft',
+    mtime: undefined,
+    paneOverrideId: null,
+    viewState: null,
+    capturedAt: 1_000,
+  });
+});
+
 test('consumePanePopoutTransferToken removes the query parameter after reading it', () => {
   const calls: string[] = [];
   const runtime = {

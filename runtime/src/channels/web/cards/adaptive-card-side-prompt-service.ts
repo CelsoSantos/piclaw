@@ -648,11 +648,7 @@ export class WebAdaptiveCardSidePromptService {
         });
       },
       cancel: () => {
-        try {
-          req.signal.throwIfAborted();
-        } catch {
-          /* expected: cancellation frequently arrives from an already-aborted request signal. */
-        }
+        if (!req.signal.aborted) return;
       },
     });
 

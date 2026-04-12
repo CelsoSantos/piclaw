@@ -389,6 +389,26 @@ test("media attachments are stored and returned", () => {
   expect(interaction?.data.media_ids).toEqual([mediaId]);
 });
 
+test("text media attachments are added to message search indexing", () => {
+  const chatJid = `test:${Date.now()}-media-fts`;
+  db.storeChatMetadata(chatJid, new Date().toISOString(), "Test");
+
+  const mediaId = db.createMedia(
+    "note.txt",
+    "text/plain",
+    new TextEncoder().encode("attached needle"),
+    null,
+    { size: 15 }
+  );
+
+  const rowId = db.storeMessage(makeMessage(chatJid, "message body", "2024-03-01T00:00:00.000Z"));
+  db.attachMediaToMessage(rowId, [mediaId]);
+
+  const results = db.searchMessages(chatJid, "needle", 10, 0);
+  expect(results.map((row) => row.id)).toContain(rowId);
+  expect(results.map((row) => row.data.content)).toContain("message body");
+});
+
 // --- New coverage: same-timestamp ordering & cursor filters ---
 
 test("same-timestamp ordering is stable for timeline and cursor queries", () => {

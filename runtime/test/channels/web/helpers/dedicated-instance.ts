@@ -1,5 +1,5 @@
 import { createServer } from "node:net";
-import { createTempWorkspace, importFresh, setEnv } from "../../../helpers.js";
+import { createTempWorkspace, importFresh, probeHttpOk, setEnv, stopQuietly } from "../../../helpers.js";
 
 async function getFreePort(): Promise<number> {
   return await new Promise((resolve, reject) => {
@@ -98,21 +98,14 @@ export async function startDedicatedWebTestInstance(options: {
   let ready = false;
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${baseUrl}/`);
-      if (response.ok) {
-        ready = true;
-        break;
-      }
-    } catch {
-      /* expected: instance startup polling races with the server not listening yet. */
+    if (await probeHttpOk(`${baseUrl}/`)) {
+      ready = true;
+      break;
     }
     await Bun.sleep(50);
   }
   if (!ready) {
-    await web.stop().catch(() => {
-      /* expected: failed startup cleanup should stay best-effort in test helpers. */
-    });
+    await stopQuietly(() => web.stop());
     restoreEnv();
     workspace.cleanup();
     throw new Error(`Dedicated web test instance did not become ready at ${baseUrl}.`);

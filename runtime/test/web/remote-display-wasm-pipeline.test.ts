@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as loader from "@assemblyscript/loader";
 import { zlibSync } from "fflate";
+import { tryRun } from "../helpers.js";
 import { VncRemoteDisplayProtocol, DEFAULT_CLIENT_PIXEL_FORMAT } from "../../web/src/panes/remote-display-vnc.js";
 
 // ─── WASM loading ───────────────────────────────────────────────
@@ -95,7 +96,7 @@ function buildPipeline() {
         finally { wasm.__unpin(outputPtr); }
       } finally {
         wasm.__unpin(inputPtr);
-        try { wasm.__collect?.(); } catch { /* expected: AssemblyScript GC hook is optional in the test WASM build. */ }
+        void tryRun(() => wasm.__collect?.());
       }
     },
   };

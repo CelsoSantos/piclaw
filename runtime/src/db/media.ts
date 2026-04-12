@@ -195,19 +195,15 @@ function appendMediaTextToFts(
   const textParts: string[] = [];
   for (const row of rows) {
     if (!isTextIndexable(row.content_type)) continue;
-    try {
-      const raw = new TextDecoder().decode(row.data);
-      const text =
-        row.content_type.includes("svg") ||
-        row.content_type.includes("html") ||
-        row.content_type.includes("xml")
-          ? stripTags(raw)
-          : raw;
-      if (text.length > 0 && text.length < 100_000) {
-        textParts.push(text);
-      }
-    } catch {
-      // skip non-decodable blobs
+    const raw = new TextDecoder().decode(row.data);
+    const text =
+      row.content_type.includes("svg") ||
+      row.content_type.includes("html") ||
+      row.content_type.includes("xml")
+        ? stripTags(raw)
+        : raw;
+    if (text.length > 0 && text.length < 100_000) {
+      textParts.push(text);
     }
   }
 

@@ -6,6 +6,8 @@
  * web/static/login.html. It intentionally has no framework/runtime deps.
  */
 
+import { probePasskeyCapabilityBestEffort, readJsonBodyBestEffort, runPasskeyAttemptBestEffort } from './login-safety.js';
+
 const form = document.getElementById("login-form");
 const codeInput = document.getElementById("code");
 const errorEl = document.getElementById("error");
@@ -72,11 +74,11 @@ const attemptPasskey = async ({ conditional }: { conditional: boolean }) => {
   if (!window.PublicKeyCredential || !navigator.credentials) return;
   if (passkeyInFlight || passkeySucceeded) return;
   passkeyInFlight = true;
-  try {
+  const succeeded = await runPasskeyAttemptBestEffort(async () => {
     const res = await fetch("/auth/webauthn/login/start", { method: "POST" });
     if (!res.ok) {
       passkeyInFlight = false;
-      return;
+      return false;
     }
 
     const payload = await res.json();
@@ -88,7 +90,7 @@ const attemptPasskey = async ({ conditional }: { conditional: boolean }) => {
 
     if (!cred) {
       passkeyInFlight = false;
-      return;
+      return false;
     }
 
     const finish = await fetch("/auth/webauthn/login/finish", {
@@ -100,21 +102,18 @@ const attemptPasskey = async ({ conditional }: { conditional: boolean }) => {
     if (finish.ok) {
       passkeySucceeded = true;
       window.location.href = "/";
-      return;
+      return true;
     }
-  } catch {
-    // Silent fallback to TOTP
-  }
+    return false;
+  });
+  if (succeeded) return;
   passkeyInFlight = false;
 };
 
 if (window.PublicKeyCredential && typeof PublicKeyCredential.isConditionalMediationAvailable === "function") {
-  PublicKeyCredential.isConditionalMediationAvailable()
+  void probePasskeyCapabilityBestEffort(() => PublicKeyCredential.isConditionalMediationAvailable())
     .then((available) => {
       if (available) attemptPasskey({ conditional: true });
-    })
-    .catch(() => {
-      /* expected: some browsers expose the API but reject the capability probe. */
     });
 }
 
@@ -142,7 +141,7 @@ const submitCode = async () => {
     return;
   }
 
-  const payload = await res.json().catch(() => ({}));
+  const payload = await readJsonBodyBestEffort(res, {} as Record<string, any>);
   errorEl.textContent = payload.error || "Invalid code. Try again.";
 };
 

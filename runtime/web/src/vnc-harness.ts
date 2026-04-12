@@ -3,6 +3,7 @@
 import { zlibSync } from 'fflate';
 
 import { loadRemoteDisplayWasmDecoder } from './panes/remote-display-decoder.js';
+import { disposeSocketBoundaryBestEffort } from './panes/pane-runtime-safety.js';
 import { WebSocketRemoteDisplayBoundary } from './panes/remote-display-socket.js';
 import { VncRemoteDisplayProtocol } from './panes/remote-display-vnc.js';
 
@@ -468,7 +469,7 @@ class VncHarness {
         }
         this.fallbackEnabled = false;
         this.fallbackArmed = false;
-        try { this.socketBoundary?.dispose?.(); } catch { /* expected: socket boundary may already be torn down during fallback reset. */ }
+        disposeSocketBoundaryBestEffort(this.socketBoundary);
         this.socketBoundary = null;
     }
 

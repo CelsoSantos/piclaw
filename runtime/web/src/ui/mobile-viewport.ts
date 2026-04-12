@@ -17,6 +17,37 @@ function isTextEntryFocused(doc) {
   return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(type);
 }
 
+function scrollWindowToTopBestEffort(win) {
+  try {
+    if (typeof win?.scrollTo === 'function') {
+      win.scrollTo(0, 0);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resetDocumentScrollRootsBestEffort(doc) {
+  try {
+    if (doc?.scrollingElement) {
+      doc.scrollingElement.scrollTop = 0;
+      doc.scrollingElement.scrollLeft = 0;
+    }
+    if (doc?.documentElement) {
+      doc.documentElement.scrollTop = 0;
+      doc.documentElement.scrollLeft = 0;
+    }
+    if (doc?.body) {
+      doc.body.scrollTop = 0;
+      doc.body.scrollLeft = 0;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function readViewportHeight(runtime = {}, options = {}) {
   const win = runtime.window ?? (typeof window !== 'undefined' ? window : null);
   const viewportHeight = Number(win?.visualViewport?.height || 0);
@@ -63,30 +94,8 @@ export function syncStandaloneMobileViewport(runtime = {}, options = {}) {
   // chat to jump on every keystroke. Keep scroll resets opt-in for any
   // future call sites that explicitly need a top reset.
   if (options.resetScroll === true) {
-    try {
-      if (typeof win.scrollTo === 'function') {
-        win.scrollTo(0, 0);
-      }
-    } catch {
-      /* expected: standalone mobile shells can reject forced scroll resets. */
-    }
-
-    try {
-      if (doc.scrollingElement) {
-        doc.scrollingElement.scrollTop = 0;
-        doc.scrollingElement.scrollLeft = 0;
-      }
-      if (doc.documentElement) {
-        doc.documentElement.scrollTop = 0;
-        doc.documentElement.scrollLeft = 0;
-      }
-      if (doc.body) {
-        doc.body.scrollTop = 0;
-        doc.body.scrollLeft = 0;
-      }
-    } catch {
-      /* expected: some mobile browsers expose partially writable scroll roots. */
-    }
+    scrollWindowToTopBestEffort(win);
+    resetDocumentScrollRootsBestEffort(doc);
   }
 
   return height;

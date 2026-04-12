@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { html, useEffect, useMemo, useRef } from '../vendor/preact-htm.js';
+import { postIframeMessageBestEffort, setIframeNameBestEffort } from './generated-widget-host-bridge.js';
 import {
     buildWidgetSrcDoc,
     getGeneratedWidgetEmptyStateMessage,
@@ -48,24 +49,15 @@ export function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
                 ? getGeneratedWidgetInitPayload(widget)
                 : getGeneratedWidgetHostPayload(widget);
 
-            try {
-                iframe.name = hostName;
-            } catch {
-                /* expected: iframe may be detaching while host state sync runs. */
-            }
-
-            try {
-                iframe.contentWindow?.postMessage({
-                    __piclawGeneratedWidgetHost: true,
-                    type,
-                    widgetId: widget?.widgetId || null,
-                    toolCallId: widget?.toolCallId || null,
-                    turnId: widget?.turnId || null,
-                    payload,
-                }, '*');
-            } catch {
-                /* expected: iframe may be unloading before widget host messages are delivered. */
-            }
+            setIframeNameBestEffort(iframe, hostName);
+            postIframeMessageBestEffort(iframe, {
+                __piclawGeneratedWidgetHost: true,
+                type,
+                widgetId: widget?.widgetId || null,
+                toolCallId: widget?.toolCallId || null,
+                turnId: widget?.turnId || null,
+                payload,
+            });
         };
 
         const syncHostState = () => {
@@ -99,24 +91,15 @@ export function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
         const hostName = getGeneratedWidgetHostWindowName(widget);
         const payload = getGeneratedWidgetHostPayload(widget);
 
-        try {
-            iframe.name = hostName;
-        } catch {
-            /* expected: iframe may be detaching while host state sync runs. */
-        }
-
-        try {
-            iframe.contentWindow.postMessage({
-                __piclawGeneratedWidgetHost: true,
-                type: 'widget.update',
-                widgetId: widget?.widgetId || null,
-                toolCallId: widget?.toolCallId || null,
-                turnId: widget?.turnId || null,
-                payload,
-            }, '*');
-        } catch {
-            /* expected: iframe may be unloading before widget host updates are delivered. */
-        }
+        setIframeNameBestEffort(iframe, hostName);
+        postIframeMessageBestEffort(iframe, {
+            __piclawGeneratedWidgetHost: true,
+            type: 'widget.update',
+            widgetId: widget?.widgetId || null,
+            toolCallId: widget?.toolCallId || null,
+            turnId: widget?.turnId || null,
+            payload,
+        });
         return undefined;
     }, [
         widget?.widgetId,

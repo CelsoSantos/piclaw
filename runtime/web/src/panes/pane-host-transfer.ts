@@ -30,6 +30,15 @@ function createToken(nowMs = Date.now()): string {
   return `pane-transfer-${nowMs.toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function removeStorageItemBestEffort(storage: Storage | null, key: string): boolean {
+  try {
+    storage?.removeItem(key);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 export function stashPaneHostTransferState(state: PaneHostTransferEnvelope, runtime: any = globalThis, nowMs = Date.now()): string | null {
   const storage = getStorage(runtime);
   const path = normalizePath(state?.path);
@@ -63,11 +72,7 @@ export function consumePaneHostTransferState(token?: string | null, runtime: any
   }
   if (!raw) return null;
 
-  try {
-    storage.removeItem(key);
-  } catch {
-    /* expected: one-shot transfer cleanup is best-effort. */
-  }
+  removeStorageItemBestEffort(storage, key);
 
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;

@@ -146,3 +146,50 @@ export async function waitFor(predicate: () => boolean, timeoutMs = 5000, interv
   }
   throw new Error("Timed out waiting for condition");
 }
+
+export function closeDbQuietly(db: { getDb: () => { close: () => void } } | null | undefined): boolean {
+  if (!db) return false;
+  try {
+    db.getDb().close();
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+export async function resetWebTotpSecretIfLoaded(): Promise<boolean> {
+  try {
+    const config = await import("../src/core/config.js");
+    config.setWebTotpSecret("");
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+export function tryRun<T>(run: () => T): { ok: true; value: T } | { ok: false } {
+  try {
+    return { ok: true, value: run() };
+  } catch (_error) {
+    return { ok: false };
+  }
+}
+
+export async function probeHttpOk(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url);
+    return response.ok;
+  } catch (_error) {
+    return false;
+  }
+}
+
+export async function stopQuietly(stop: (() => Promise<unknown>) | null | undefined): Promise<boolean> {
+  if (!stop) return false;
+  try {
+    await stop();
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}

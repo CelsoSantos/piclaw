@@ -1,10 +1,21 @@
-import { expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 
 import {
   createPaneDetachTransferParams,
+  generatePaneDetachId,
   hasPaneDetachTransferState,
   readPaneDetachTransferState,
 } from '../../web/src/panes/pane-detach-transfer.js';
+
+const originalCrypto = globalThis.crypto;
+
+afterEach(() => {
+  if (originalCrypto === undefined) {
+    delete (globalThis as any).crypto;
+  } else {
+    (globalThis as any).crypto = originalCrypto;
+  }
+});
 
 test('createPaneDetachTransferParams emits opaque pane detach identifiers', () => {
   expect(createPaneDetachTransferParams({
@@ -16,6 +27,16 @@ test('createPaneDetachTransferParams emits opaque pane detach identifiers', () =
     pane_window_id: 'pane-window-1',
     pane_source_window_id: 'pane-window-main',
   });
+});
+
+test('generatePaneDetachId falls back when randomUUID throws', () => {
+  (globalThis as any).crypto = {
+    randomUUID() {
+      throw new Error('blocked');
+    },
+  };
+
+  expect(generatePaneDetachId('pane')).toMatch(/^pane-[a-z0-9]+-[a-z0-9]+$/i);
 });
 
 test('readPaneDetachTransferState reads pane detach bootstrap params from the URL', () => {

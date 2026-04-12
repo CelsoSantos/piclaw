@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test, beforeEach } from "bun:test";
+import { tryRun } from "../helpers.js";
 
 // We can't import the browser modules directly (they use preact/htm),
 // so we replicate the registry logic for testing. The registry is pure
@@ -62,17 +63,13 @@ class PaneRegistryImpl {
             if (ext.placement !== 'tabs') continue;
             if (!ext.canHandle) continue;
 
-            try {
-                const result = ext.canHandle(context);
-                if (result === false || result === 0) continue;
+            const result = tryRun(() => ext.canHandle(context));
+            if (!result.ok || result.value === false || result.value === 0) continue;
 
-                const priority = result === true ? 0 : (typeof result === 'number' ? result : 0);
-                if (priority > bestPriority) {
-                    bestPriority = priority;
-                    best = ext;
-                }
-            } catch {
-                // canHandle() threw — skip silently
+            const priority = result.value === true ? 0 : (typeof result.value === 'number' ? result.value : 0);
+            if (priority > bestPriority) {
+                bestPriority = priority;
+                best = ext;
             }
         }
 

@@ -11,6 +11,7 @@
 
 import { html, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { renderMarkdown, renderMermaidDiagrams } from '../markdown.js';
+import { readStoredPanelHeight, writeStoredPanelHeight } from './markdown-preview-storage.js';
 
 const POLL_MS = 400;
 const MIN_H = 60;
@@ -18,11 +19,7 @@ const DEFAULT_H = 220;
 const LS_KEY = 'mdPreviewHeight';
 
 function getStoredHeight() {
-    try {
-        const v = localStorage.getItem(LS_KEY);
-        const n = v ? Number(v) : NaN;
-        return Number.isFinite(n) && n >= MIN_H ? n : DEFAULT_H;
-    } catch { return DEFAULT_H; }
+    return readStoredPanelHeight(localStorage, LS_KEY, MIN_H, DEFAULT_H);
 }
 
 /**
@@ -92,7 +89,7 @@ export function MarkdownPreview({ getContent, path, onClose }) {
             splitter.classList.remove('dragging');
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
-            try { localStorage.setItem(LS_KEY, String(Math.round(panelRef.current?.offsetHeight || height))); } catch { /* expected: localStorage can be blocked in private mode or constrained embeds. */ }
+            writeStoredPanelHeight(localStorage, LS_KEY, panelRef.current?.offsetHeight || height);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
@@ -123,7 +120,7 @@ export function MarkdownPreview({ getContent, path, onClose }) {
         const onUp = () => {
             splitter.classList.remove('dragging');
             document.body.style.userSelect = '';
-            try { localStorage.setItem(LS_KEY, String(Math.round(panelRef.current?.offsetHeight || height))); } catch { /* expected: localStorage can be blocked in private mode or constrained embeds. */ }
+            writeStoredPanelHeight(localStorage, LS_KEY, panelRef.current?.offsetHeight || height);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('touchend', onUp);
             document.removeEventListener('touchcancel', onUp);

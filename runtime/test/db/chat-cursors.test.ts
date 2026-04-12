@@ -514,12 +514,12 @@ describe("multi-chat rollback transaction", () => {
     db.beginChatRun(j1, newTs, { prevTs, messageId: "m-p1", startedAt: newTs });
     db.beginChatRun(j2, newTs, { prevTs, messageId: "m-p2", startedAt: newTs });
 
-    try {
+    expect(() => {
       db.getDb().transaction(() => {
         db.rollbackInflightRun(j1, prevTs);
         throw new Error("simulated crash mid-transaction");
       })();
-    } catch { /* expected */ }
+    }).toThrow("simulated crash mid-transaction");
 
     expect(db.getChatCursor(j1)).toBe(newTs);
     expect(db.getInflightRuns().filter((r) => r.chatJid === j1)).toHaveLength(1);

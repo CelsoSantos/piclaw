@@ -5,6 +5,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
+import { cleanupVncHarnessReport, probeHarnessHealth } from './vnc-harness-report-helpers.ts';
+
 const DEFAULT_TARGET = '192.168.1.10:5917';
 const DEFAULT_PASSWORD = 'cd8a99cd';
 const DEFAULT_HOST = '127.0.0.1';
@@ -83,12 +85,7 @@ async function sleep(ms: number) {
 async function waitForHealth(baseUrl: string, timeoutMs = 10000) {
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
-        try {
-            const response = await fetch(`${baseUrl}/healthz`);
-            if (response.ok) return true;
-        } catch {
-            // retry
-        }
+        if (await probeHarnessHealth(baseUrl)) return true;
         await sleep(200);
     }
     return false;
@@ -289,9 +286,7 @@ async function main() {
         console.log(`[report] json: ${jsonPath}`);
         console.log(`[report] screenshot: ${screenshotPath}`);
     } finally {
-        try { await browser?.close?.(); } catch { /* expected: browser may already be closed during report teardown. */ }
-        try { harnessProc.kill(); } catch { /* expected: harness process may already be gone during report teardown. */ }
-        try { await harnessProc.exited; } catch { /* expected: exited promise may reject if the harness is force-killed. */ }
+        await cleanupVncHarnessReport({ browser, harnessProc });
 
         const procStdout = await procStdoutPromise.catch(() => '');
         const procStderr = await procStderrPromise.catch(() => '');

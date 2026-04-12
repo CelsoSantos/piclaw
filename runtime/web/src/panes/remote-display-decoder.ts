@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import * as loader from '@assemblyscript/loader';
+import { collectAssemblyScriptGarbageBestEffort } from './remote-display-gc.js';
 
 const REMOTE_DISPLAY_DECODER_WASM_URL = '/static/js/vendor/remote-display-decoder.wasm';
 
@@ -91,7 +92,7 @@ export async function loadRemoteDisplayWasmDecoder(): Promise<WasmDisplayPipelin
                     );
                 } finally {
                     ex.__unpin(ptr);
-                    try { ex.__collect(); } catch { /* expected: AssemblyScript GC collection hook may be unavailable on some builds. */ }
+                    collectAssemblyScriptGarbageBestEffort(ex);
                 }
             }
 
@@ -151,7 +152,7 @@ export async function loadRemoteDisplayWasmDecoder(): Promise<WasmDisplayPipelin
                         } finally { ex.__unpin(outputPtr); }
                     } finally {
                         ex.__unpin(inputPtr);
-                        try { ex.__collect?.(); } catch { /* expected: AssemblyScript GC collection hook may be unavailable on some builds. */ }
+                        collectAssemblyScriptGarbageBestEffort(ex);
                     }
                 },
             };

@@ -129,6 +129,33 @@ test("prime/navigate/close provisional chat window are safe helper operations", 
   expect(calls).toEqual(["replace:https://example.com/chat", "close"]);
 });
 
+test("prime/navigate/close provisional chat window tolerate disappearing popup handles", () => {
+  const brokenHandle: any = {
+    location: {
+      replace: () => {
+        throw new Error('closed');
+      },
+    },
+    document: {
+      set title(_value: string) {
+        throw new Error('closed');
+      },
+      body: {
+        set innerHTML(_value: string) {
+          throw new Error('closed');
+        },
+      },
+    },
+    close: () => {
+      throw new Error('closed');
+    },
+  };
+
+  expect(() => primeProvisionalChatWindow(brokenHandle, { title: 'Opening…', message: 'Preparing…' })).not.toThrow();
+  expect(() => navigateProvisionalChatWindow(brokenHandle, 'https://example.com/chat')).not.toThrow();
+  expect(() => closeProvisionalChatWindow(brokenHandle)).not.toThrow();
+});
+
 test("buildChatWindowUrl preserves origin/path and adds branch params", () => {
   const url = buildChatWindowUrl("https://example.com/app?foo=1", "web:research");
   const parsed = new URL(url);

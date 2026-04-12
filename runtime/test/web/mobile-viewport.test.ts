@@ -138,6 +138,38 @@ test('syncStandaloneMobileViewport can reset page scroll when explicitly request
   expect(body.scrollLeft).toBe(0);
 });
 
+test('syncStandaloneMobileViewport tolerates rejected scroll resets', () => {
+  const cssVars = new Map<string, string>();
+  const documentElement = {
+    style: {
+      setProperty: (name: string, value: string) => cssVars.set(name, value),
+    },
+  };
+  const body = {};
+
+  expect(() => syncStandaloneMobileViewport({
+    navigator: {
+      standalone: true,
+      userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)',
+      maxTouchPoints: 5,
+    },
+    window: {
+      matchMedia: () => ({ matches: true }),
+      visualViewport: { height: 701.9 },
+      innerHeight: 900,
+      scrollTo: () => { throw new Error('blocked'); },
+    },
+    document: {
+      documentElement,
+      body,
+      get scrollingElement() {
+        throw new Error('readonly root');
+      },
+    },
+  }, { resetScroll: true })).not.toThrow();
+  expect(cssVars.get('--app-height')).toBe('702px');
+});
+
 test('syncStandaloneMobileViewport includes offsetTop while text entry is focused', () => {
   const cssVars = new Map<string, string>();
   const documentElement = {

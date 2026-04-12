@@ -91,7 +91,7 @@ export function primeProvisionalChatWindow(handle, options = {}) {
             </div>
         `;
     } catch {
-        /* expected: provisional window can disappear before its placeholder UI is primed. */
+        return;
     }
 }
 
@@ -104,7 +104,7 @@ export function navigateProvisionalChatWindow(handle, url) {
         }
         handle.location = String(url);
     } catch {
-        /* expected: popup may be closed before navigation completes. */
+        return;
     }
 }
 
@@ -113,7 +113,7 @@ export function closeProvisionalChatWindow(handle) {
     try {
         handle.close();
     } catch {
-        /* expected: browser may already have torn down the popup handle. */
+        return;
     }
 }
 

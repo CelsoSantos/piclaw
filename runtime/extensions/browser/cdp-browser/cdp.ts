@@ -2,6 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
+import { closeWebSocketQuietly, runCdpCleanup } from "./cdp-cleanup.ts";
+
 export const CDP_PORTS = [9224, 9225, 9226, 9227, 9228, 9229, 9230, 9231, 9232, 9233] as const;
 
 type BrowserLaunch = { command: string; name: string };
@@ -202,15 +204,6 @@ export async function getTargets(port: number, signal?: MaybeAbortSignal): Promi
   return targets.filter((target) => target.type === "page");
 }
 
-export function closeWebSocketQuietly(ws: WebSocket | null | undefined): void {
-  if (!ws) return;
-  try {
-    ws.close();
-  } catch {
-    // Ignore close errors from stale sockets.
-  }
-}
-
 export async function connectToTab(port: number, match?: string, signal?: MaybeAbortSignal): Promise<{ ws: WebSocket; target: any }> {
   const pages = await getTargets(port, signal);
   throwIfAborted(signal);
@@ -377,11 +370,10 @@ export async function printToPdf(options: PrintToPdfOptions): Promise<{ file: st
     return result;
   } finally {
     if (createdTargetId) {
-      try {
-        await closeTab(port, createdTargetId, signal);
-      } catch {
-        // Best-effort cleanup.
-      }
+      await runCdpCleanup(
+        () => closeTab(port, createdTargetId, signal),
+        { port, targetId: createdTargetId },
+      );
     }
   }
 }

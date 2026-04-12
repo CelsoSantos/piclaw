@@ -17,6 +17,7 @@ import {
 } from '../api.js';
 import { formatFileSize } from '../utils/format.js';
 import { paneRegistry } from '../panes/index.js';
+import { focusAndSelectBestEffort } from './input-focus-safety.js';
 import {
     WORKSPACE_SCALE_STORAGE_KEY,
     getWorkspaceScaleMetrics,
@@ -789,12 +790,7 @@ export function WorkspaceExplorer({
         const input = renameInputRef.current;
         if (!input) return;
         const timer = requestAnimationFrame(() => {
-            try {
-                input.focus();
-                input.select();
-            } catch {
-                /* expected: rename input can unmount before focus lands. */
-            }
+            focusAndSelectBestEffort(input);
         });
         return () => cancelAnimationFrame(timer);
     }, [renamingPath]);

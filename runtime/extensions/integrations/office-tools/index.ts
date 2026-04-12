@@ -3,11 +3,11 @@ import { Type } from "@sinclair/typebox";
 import { createRequire } from "node:module";
 import { dirname, extname, resolve, basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { inflateRawSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 import { ensureBrowser, findBrowser, findCdpPort, printToPdf, type MaybeAbortSignal } from "../../browser/cdp-browser/cdp.ts";
+import { decodeZipEntryText } from "./zip-entry-text.ts";
 
 const EXT_DIR = typeof import.meta.dir === "string" ? import.meta.dir : dirname(new URL(import.meta.url).pathname);
 const require = createRequire(import.meta.url);
@@ -40,12 +40,8 @@ function readZipEntries(buf: Buffer): Map<string, string> {
     const extraLen = buf.readUInt16LE(i + 28);
     const name = buf.toString("utf-8", i + 30, i + 30 + nameLen);
     const dataStart = i + 30 + nameLen + extraLen;
-    try {
-      if (method === 0) entries.set(name, buf.subarray(dataStart, dataStart + cSize).toString("utf-8"));
-      else if (method === 8) entries.set(name, inflateRawSync(buf.subarray(dataStart, dataStart + cSize)).toString("utf-8"));
-    } catch {
-      // Skip corrupt or binary entries.
-    }
+    const text = decodeZipEntryText(name, method, buf.subarray(dataStart, dataStart + cSize));
+    if (text !== null) entries.set(name, text);
     i = dataStart + cSize;
   }
   return entries;

@@ -10,6 +10,7 @@
  */
 
 import { renderMarkdown } from "../markdown.js";
+import { lockAdaptiveCardInputs } from "./adaptive-card-input-lock.js";
 import { buildHostConfig, getAdaptiveCardThemeValues } from "./adaptive-card-host-config.js";
 
 /** Shape of an adaptive_card content block in a message's content_blocks. */
@@ -224,21 +225,6 @@ export function hydrateAdaptiveCardPayloadWithSubmission(
   };
 
   return visit(payload) as Record<string, unknown>;
-}
-
-function lockAdaptiveCardInputs(root: HTMLElement): void {
-  root.classList.add("adaptive-card-readonly");
-  for (const input of Array.from(root.querySelectorAll("input, textarea, select, button"))) {
-    const element = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement;
-    try { element.setAttribute("aria-disabled", "true"); } catch { /* expected: third-party card elements may reject attribute mutation during teardown. */ }
-    try { element.setAttribute("tabindex", "-1"); } catch { /* expected: third-party card elements may reject tabindex mutation during teardown. */ }
-    if ("disabled" in element) {
-      try { (element as any).disabled = true; } catch { /* expected: disabled setter can throw on bridged/custom controls. */ }
-    }
-    if ("readOnly" in element) {
-      try { (element as any).readOnly = true; } catch { /* expected: readOnly setter can throw on bridged/custom controls. */ }
-    }
-  }
 }
 
 function formatAdaptiveCardTimestamp(value: unknown): string {

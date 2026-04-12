@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { setEnv, withTempWorkspaceEnv } from "./helpers.js";
+import { closeDbQuietly, setEnv, withTempWorkspaceEnv } from "./helpers.js";
 
 test("plain import covers keychain file-key, CRUD, resolution, and disabled-state branches", async () => {
   await withTempWorkspaceEnv(
@@ -109,11 +109,7 @@ test("plain import covers keychain file-key, CRUD, resolution, and disabled-stat
         }
       } finally {
         keychain.setKeyMaterialProviderForTests(null);
-        try {
-          db.getDb().close();
-        } catch {
-          // expected: a test may already have closed the in-memory handle
-        }
+        closeDbQuietly(db);
       }
     },
   );

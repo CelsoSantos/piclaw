@@ -1,3 +1,4 @@
+import { removeStorageItemBestEffort } from './pane-runtime-safety.js';
 import type { TabViewState } from './tab-store.js';
 
 const EDITOR_POPOUT_STATE_PREFIX = 'piclaw:editor-popout:';
@@ -114,11 +115,7 @@ export function consumeEditorPopoutState(token?: string | null, runtime: any = g
   }
   if (!raw) return null;
 
-  try {
-    storage.removeItem(key);
-  } catch {
-    /* expected: one-shot transfer cleanup is best-effort. */
-  }
+  removeStorageItemBestEffort(storage, key);
 
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;

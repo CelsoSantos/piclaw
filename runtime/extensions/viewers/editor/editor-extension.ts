@@ -61,6 +61,11 @@ import type { WebPaneExtension, PaneContext, PaneInstance, PaneCapability, PaneH
 import { frontmatterExtension } from './markdown/frontmatter.js';
 import { footnoteExtension } from './markdown/footnote.js';
 import { hashtagExtension } from './markdown/tag.js';
+import {
+    getLocalBoolWithFallback,
+    restoreEditorViewStateBestEffort,
+    setLocalBoolBestEffort,
+} from './editor-safety.ts';
 
 // ── Constants ───────────────────────────────────────────────────
 
@@ -85,16 +90,11 @@ function getThemeMode(doc: Document): 'dark' | 'light' {
 }
 
 function getLocalBool(key: string, fallback: boolean): boolean {
-    try {
-        const v = localStorage.getItem(key);
-        if (v === 'true') return true;
-        if (v === 'false') return false;
-    } catch { /* expected: localStorage can be unavailable in private mode or embedded contexts. */ }
-    return fallback;
+    return getLocalBoolWithFallback(() => localStorage, key, fallback);
 }
 
 function setLocalBool(key: string, value: boolean): void {
-    try { localStorage.setItem(key, value ? 'true' : 'false'); } catch { /* expected: localStorage writes are best-effort in embedded/private contexts. */ }
+    setLocalBoolBestEffort(() => localStorage, key, value);
 }
 
 /** Map file extension → CodeMirror language extension. */
@@ -1091,21 +1091,7 @@ export class StandaloneEditorInstance implements PaneInstance {
 
     /** Restore view state (cursor position + scroll). */
     restoreViewState(viewState: { cursorLine?: number; cursorCol?: number; scrollTop?: number } | null): void {
-        if (!viewState || !this.view) return;
-        try {
-            const { cursorLine, cursorCol, scrollTop } = viewState;
-            if (cursorLine && cursorLine > 0 && cursorLine <= this.view.state.doc.lines) {
-                const line = this.view.state.doc.line(cursorLine);
-                const col = Math.min(cursorCol || 1, line.length + 1);
-                const pos = line.from + col - 1;
-                this.view.dispatch({ selection: { anchor: pos } });
-            }
-            if (typeof scrollTop === 'number' && scrollTop > 0) {
-                requestAnimationFrame(() => {
-                    if (this.view?.scrollDOM) this.view.scrollDOM.scrollTop = scrollTop;
-                });
-            }
-        } catch { /* expected: view-state restoration can race with editor disposal/reconfiguration. */ }
+        restoreEditorViewStateBestEffort(this.view, viewState, requestAnimationFrame);
     }
 
     /** Get the file path this instance is editing. */

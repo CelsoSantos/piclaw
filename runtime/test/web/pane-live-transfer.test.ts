@@ -111,6 +111,33 @@ test('claimPaneLiveTransfer accepts map-like registries across window realms', a
   })).resolves.toBe(instance);
 });
 
+test('claimPaneLiveTransfer tolerates release callbacks that throw', async () => {
+  const runtimeWindow = createWindowLike();
+  const instance = {
+    moveHost: async () => true,
+  } as any;
+
+  expect(registerPaneLiveTransfer({
+    panePath: '/workspace/notes.md',
+    paneInstanceId: 'pane-inst-1',
+    paneWindowId: 'pane-win-1',
+    instance,
+    releaseSourceHost: () => {
+      throw new Error('blocked');
+    },
+  }, runtimeWindow)).toBe(true);
+
+  await expect(claimPaneLiveTransfer(runtimeWindow, {
+    panePath: '/workspace/notes.md',
+    paneInstanceId: 'pane-inst-1',
+    paneWindowId: 'pane-win-1',
+  }, {} as any, {
+    path: '/workspace/notes.md',
+    hostMode: 'popout',
+    transferState: null,
+  })).resolves.toBe(instance);
+});
+
 test('clearPaneLiveTransferForPath removes stale live transfer registrations', async () => {
   const runtimeWindow = createWindowLike();
   registerPaneLiveTransfer({

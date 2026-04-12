@@ -279,3 +279,50 @@ test('popOutChat opens a provisional popup and navigates it after branch creatio
   expect(openedWindow.lastUrl).toContain('chat_jid=web%3Anew');
   expect(toastCalls).toEqual([]);
 });
+
+test('popOutChat tolerates refresh races and still navigates the provisional popup', async () => {
+  const openedWindow = {
+    document: { title: '', body: { innerHTML: '' } },
+    location: {
+      replace: (url: string) => {
+        openedWindow.lastUrl = url;
+      },
+    },
+    close: () => {
+      openedWindow.closed = true;
+    },
+    lastUrl: '',
+    closed: false,
+  } as any;
+
+  globalThis.window = {
+    open: () => openedWindow,
+    matchMedia: () => ({ matches: false }),
+    navigator: { userAgent: 'Desktop', maxTouchPoints: 0 },
+  } as any;
+
+  const activeSets: unknown[] = [];
+  const branchSets: unknown[] = [];
+  const ok = await popOutChat({
+    hasWindow: true,
+    isWebAppMode: false,
+    currentChatJid: 'web:root',
+    currentRootChatJid: 'web:root',
+    forkChatBranch: async () => ({ branch: { chat_jid: 'web:new' } }),
+    getActiveChatAgents: async () => {
+      throw new Error('active refresh raced');
+    },
+    getChatBranches: async () => {
+      throw new Error('branch refresh raced');
+    },
+    setActiveChatAgents: (rows: unknown) => activeSets.push(rows),
+    setCurrentChatBranches: (rows: unknown) => branchSets.push(rows),
+    showIntentToast: () => undefined,
+    baseHref: 'https://example.test/?chat_jid=web%3Aroot',
+  });
+
+  expect(ok).toBe(true);
+  expect(activeSets).toEqual([]);
+  expect(branchSets).toEqual([]);
+  expect(openedWindow.lastUrl).toContain('chat_jid=web%3Anew');
+});

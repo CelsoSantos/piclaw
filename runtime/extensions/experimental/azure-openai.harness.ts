@@ -29,6 +29,12 @@ import { streamSimpleOpenAICompletions } from "@mariozechner/pi-ai";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import {
+  tryNormalizeFoundryServiceBase,
+  tryParseJsonRecord,
+  tryRewriteProxyFoundryImageEndpoint,
+} from "./azure-openai-harness-helpers.ts";
+
 const PROVIDER = "azure-openai";
 const FOUNDRY_PROVIDER = "azure-foundry";
 // Use custom API names so we don't override global handlers.
@@ -840,37 +846,12 @@ function getFoundryImageEndpoint(): string {
   // services endpoint (not the OpenAI endpoint).
   // e.g. http://proxy:3100/foundry/v1 → http://proxy:3100/bfl
   if (STATIC_API_KEY) {
-    try {
-      const u = new URL(FOUNDRY_BASE_URL);
-      // Strip /foundry/v1 or /foundry path and replace with /bfl
-      u.pathname = u.pathname.replace(/\/foundry(\/v\d+)?\/?$/, "/bfl");
-      if (!u.pathname.endsWith("/bfl")) {
-        // Fallback: just append /bfl to the proxy origin
-        u.pathname = "/bfl";
-      }
-      return u.toString().replace(/\/+$/, "");
-    } catch {
-      // Fall through to hostname-based rewrite
-    }
+    const rewrittenProxyEndpoint = tryRewriteProxyFoundryImageEndpoint(FOUNDRY_BASE_URL);
+    if (rewrittenProxyEndpoint) return rewrittenProxyEndpoint;
   }
 
   const base = getAzureEndpoint(FOUNDRY_BASE_URL);
-  try {
-    const url = new URL(base);
-    // Strip /openai/v1 path for direct access
-    url.pathname = url.pathname.replace(/\/openai(\/v\d+)?\/?$/, "");
-    if (url.hostname.endsWith(".cognitiveservices.azure.com")) {
-      url.hostname = url.hostname.replace(".cognitiveservices.azure.com", ".services.ai.azure.com");
-      return url.toString().replace(/\/+$/, "");
-    }
-    if (url.hostname.endsWith(".openai.azure.com")) {
-      url.hostname = url.hostname.replace(".openai.azure.com", ".services.ai.azure.com");
-      return url.toString().replace(/\/+$/, "");
-    }
-    return url.toString().replace(/\/+$/, "");
-  } catch {
-    return base;
-  }
+  return tryNormalizeFoundryServiceBase(base) || base;
 }
 
 function parseSize(size?: string): { width: number; height: number } {
@@ -1417,26 +1398,26 @@ export default function (pi: ExtensionAPI) {
       // Try to extract structured API error details
       const jsonMatch = raw.match(/\{[\s\S]*"error"[\s\S]*\}/);
       if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = tryParseJsonRecord(jsonMatch[0], "structured API error body");
+        if (parsed) {
           const err = parsed.error || parsed;
           const code = err.code || err.statusCode || "";
           const msg = err.message || err.error || raw;
           return `❌ ${prefix}: ${code ? `[${code}] ` : ""}${msg}`;
-        } catch { /* fall through */ }
+        }
       }
       // Extract HTTP status prefix like "400 ..." or "500 ..."
       const httpMatch = raw.match(/^(\d{3})\s+(.+)/s);
       if (httpMatch) {
         const [, status, body] = httpMatch;
         // Try parsing body as JSON
-        try {
-          const parsed = JSON.parse(body);
+        const parsed = tryParseJsonRecord(body, "HTTP error body");
+        if (parsed) {
           const err = parsed.error || parsed;
           const code = err.code || status;
           const msg = err.message || body;
           return `❌ ${prefix}: [${code}] ${msg}`;
-        } catch { /* fall through */ }
+        }
         return `❌ ${prefix}: HTTP ${status} — ${body.slice(0, 300)}`;
       }
       // ZlibError or other named errors

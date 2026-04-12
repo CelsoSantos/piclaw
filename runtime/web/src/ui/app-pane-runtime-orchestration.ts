@@ -35,6 +35,7 @@ import {
   shouldHidePanePopoutControls,
   shouldShowEditorPaneContainer,
 } from './app-pane-state.js';
+import { closeWindowBestEffort, postMessageToWindowBestEffort } from './window-bridge-safety.js';
 
 interface UsePaneRuntimeOrchestrationOptions {
   panePopoutMode: boolean;
@@ -449,11 +450,7 @@ export function usePaneRuntimeOrchestration(options: UsePaneRuntimeOrchestration
     }
 
     if (options.closeDetachedWindow !== false && handle && typeof handle.close === 'function') {
-      try {
-        handle.close();
-      } catch {
-        /* expected: detached window may already be closing or gone. */
-      }
+      closeWindowBestEffort(handle);
     }
 
     return true;
@@ -627,11 +624,7 @@ export function usePaneRuntimeOrchestration(options: UsePaneRuntimeOrchestration
     if (typeof window === 'undefined' || !window.opener || window.opener.closed) return false;
     if (panePopoutReattachSentRef.current) {
       if (closeWindow) {
-        try {
-          window.close();
-        } catch {
-          /* expected: some browsers ignore scripted close attempts. */
-        }
+        closeWindowBestEffort(window);
       }
       return true;
     }
@@ -662,19 +655,13 @@ export function usePaneRuntimeOrchestration(options: UsePaneRuntimeOrchestration
       }
     }
 
-    try {
-      window.opener.postMessage(payload, window.location.origin);
-      panePopoutReattachSentRef.current = true;
-    } catch {
+    if (!postMessageToWindowBestEffort(window.opener, payload, window.location.origin)) {
       return false;
     }
+    panePopoutReattachSentRef.current = true;
 
     if (closeWindow) {
-      try {
-        window.close();
-      } catch {
-        /* expected: some browsers ignore scripted close attempts. */
-      }
+      closeWindowBestEffort(window);
     }
     return true;
   }, [panePopoutMode, panePopoutPath, tabPaneOverrides, terminalTabPath]);
@@ -956,16 +943,12 @@ export function usePaneRuntimeOrchestration(options: UsePaneRuntimeOrchestration
     const detachState = paneDetachTransferRef.current;
     if (!hasPaneDetachTransferState(detachState)) return;
     if (typeof window === 'undefined' || !window.opener || window.opener.closed) return;
-    try {
-      window.opener.postMessage({
-        type: 'piclaw-pane-detach-claim',
-        panePath: detachState.panePath,
-        paneInstanceId: detachState.paneInstanceId,
-        paneWindowId: detachState.paneWindowId,
-      }, window.location.origin);
-    } catch {
-      /* expected: opener can disappear before the popout completes boot. */
-    }
+    postMessageToWindowBestEffort(window.opener, {
+      type: 'piclaw-pane-detach-claim',
+      panePath: detachState.panePath,
+      paneInstanceId: detachState.paneInstanceId,
+      paneWindowId: detachState.paneWindowId,
+    }, window.location.origin);
   }, [panePopoutMode]);
 
   useEffect(() => {

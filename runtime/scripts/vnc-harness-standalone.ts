@@ -5,6 +5,13 @@ import { createConnection, type Socket } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+    closeHarnessWebSocket,
+    destroyHarnessUpstream,
+    parseHarnessControlMessage,
+    sendHarnessPayload,
+} from './vnc-harness-bridge-helpers.ts';
+
 const DEFAULT_TARGET = '192.168.1.10:5917';
 const DEFAULT_PASSWORD = 'cd8a99cd';
 const DEFAULT_PORT = 8791;
@@ -301,41 +308,44 @@ async function main() {
                 ws.data.upstream = upstream;
 
                 upstream.on('connect', () => {
-                    try {
-                        ws.send(JSON.stringify({ type: 'vnc.connected', target: { id: parsedTarget.label, label: parsedTarget.label } }));
-                    } catch { /* expected: harness websocket may close before the connect ack is delivered. */ }
+                    sendHarnessPayload(
+                        ws,
+                        JSON.stringify({ type: 'vnc.connected', target: { id: parsedTarget.label, label: parsedTarget.label } }),
+                        { target: parsedTarget.label, eventType: 'vnc.connected' },
+                    );
                 });
 
                 upstream.on('data', (chunk) => {
-                    ws.data.bytesIn = Number(ws.data.bytesIn || 0) + (typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.byteLength);
-                    try { ws.send(chunk); } catch { /* expected: harness websocket may disappear while upstream bytes are draining. */ }
+                    const byteLength = typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.byteLength;
+                    ws.data.bytesIn = Number(ws.data.bytesIn || 0) + byteLength;
+                    sendHarnessPayload(ws, chunk, { target: parsedTarget.label, eventType: 'vnc.data', byteLength });
                 });
 
                 upstream.on('error', (error) => {
                     const message = error instanceof Error ? error.message : String(error || 'Unknown upstream error');
-                    try { ws.send(JSON.stringify({ type: 'vnc.error', error: message })); } catch { /* expected: harness websocket may already be gone while surfacing upstream errors. */ }
-                    try { ws.close(1011, 'upstream-error'); } catch { /* expected: websocket may already be closed when the upstream errors. */ }
+                    sendHarnessPayload(ws, JSON.stringify({ type: 'vnc.error', error: message }), {
+                        target: parsedTarget.label,
+                        eventType: 'vnc.error',
+                    });
+                    closeHarnessWebSocket(ws, 1011, 'upstream-error', { target: parsedTarget.label });
                 });
 
                 upstream.on('close', () => {
-                    try { ws.close(1000, 'upstream-closed'); } catch { /* expected: websocket may already be closed when the upstream ends first. */ }
+                    closeHarnessWebSocket(ws, 1000, 'upstream-closed', { target: parsedTarget.label });
                 });
             },
             message(ws, message) {
                 if (!ws.data.upstream) return;
 
                 if (typeof message === 'string') {
-                    let handled = false;
-                    try {
-                        const payload = JSON.parse(message);
-                        if (payload?.type === 'ping') {
-                            handled = true;
-                            try { ws.send(JSON.stringify({ type: 'pong' })); } catch { /* expected: websocket may already be closed while answering a ping. */ }
-                        }
-                    } catch {
-                        /* expected: malformed control payloads should fall through to raw upstream forwarding. */
+                    const payload = parseHarnessControlMessage(message);
+                    if (payload?.type === 'ping') {
+                        sendHarnessPayload(ws, JSON.stringify({ type: 'pong' }), {
+                            target: parsedTarget.label,
+                            eventType: 'pong',
+                        });
+                        return;
                     }
-                    if (handled) return;
                     ws.data.bytesOut = Number(ws.data.bytesOut || 0) + Buffer.byteLength(message);
                     ws.data.upstream.write(message);
                     return;
@@ -346,7 +356,7 @@ async function main() {
                 ws.data.upstream.write(chunk);
             },
             close(ws) {
-                try { ws.data.upstream?.destroy?.(); } catch { /* expected: upstream socket may already be torn down during websocket close. */ }
+                destroyHarnessUpstream(ws.data.upstream, { target: parsedTarget.label });
                 ws.data.upstream = null;
             },
         },

@@ -13,7 +13,7 @@
  *   - ensureSessionDir() is also used by agent-control/handlers/session.ts.
  */
 
-import { mkdirSync, existsSync, symlinkSync } from "fs";
+import { mkdirSync, existsSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
@@ -33,6 +33,7 @@ import {
 import { SESSIONS_DIR, WORKSPACE_DIR } from "../core/config.js";
 import { builtinExtensionFactories } from "../extensions/index.js";
 import { bindImmediateToolActivation } from "./tool-activation-live-update.js";
+import { ensureExtensionNodeModulesLink } from "./session-node-modules-link.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -110,10 +111,7 @@ function getBundledExtensionPaths(): string[] {
 
   // Ensure a node_modules symlink exists next to the extensions dir
   // so jiti can resolve deep package imports.
-  const link = join(EXTENSIONS_DIR, "node_modules");
-  if (!existsSync(link) && nodeModulesDir) {
-    try { symlinkSync(nodeModulesDir, link); } catch { /* may already exist or read-only */ }
-  }
+  ensureExtensionNodeModulesLink(EXTENSIONS_DIR, nodeModulesDir);
   return paths;
 }
 

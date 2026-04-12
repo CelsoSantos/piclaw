@@ -65,6 +65,15 @@ function measureInboundSize(value: unknown): number {
     return Number(value?.size || 0);
 }
 
+function closeWebSocketBestEffort(socket: { close?: () => void } | null | undefined): boolean {
+    try {
+        socket?.close?.();
+        return true;
+    } catch (_error) {
+        return false;
+    }
+}
+
 export class WebSocketRemoteDisplayBoundary {
     private socket: WebSocket | null = null;
     private disposed = false;
@@ -78,7 +87,7 @@ export class WebSocketRemoteDisplayBoundary {
 
     connect(): void {
         if (this.disposed) return;
-        try { this.socket?.close?.(); } catch { /* expected: previous websocket may already be closing during reconnect. */ }
+        closeWebSocketBestEffort(this.socket);
         const socket = new WebSocket(this.options.url);
         socket.binaryType = this.options.binaryType || 'arraybuffer';
         socket.addEventListener('open', () => {
@@ -141,7 +150,7 @@ export class WebSocketRemoteDisplayBoundary {
     dispose(): void {
         if (this.disposed) return;
         this.disposed = true;
-        try { this.socket?.close?.(); } catch { /* expected: websocket may already be torn down during pane disposal. */ }
+        closeWebSocketBestEffort(this.socket);
         this.socket = null;
     }
 

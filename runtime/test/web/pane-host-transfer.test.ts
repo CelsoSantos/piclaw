@@ -51,6 +51,31 @@ test('createPaneHostTransferPayload stores generic pane host transfer state', ()
   expect(localStorage.size()).toBe(0);
 });
 
+test('consumePaneHostTransferState tolerates cleanup failures after reading state', () => {
+  const localStorage = createStorage();
+  const token = 'tok-throwing-remove';
+  localStorage.setItem(`piclaw:pane-host-transfer:${token}`, JSON.stringify({
+    path: 'piclaw://terminal',
+    payload: { kind: 'terminal', live: true },
+    capturedAt: 1_000,
+  }));
+  const runtime = {
+    localStorage: {
+      getItem: localStorage.getItem,
+      setItem: localStorage.setItem,
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    },
+  } as any;
+
+  expect(consumePaneHostTransferState(token, runtime, 1_100)).toEqual({
+    path: 'piclaw://terminal',
+    payload: { kind: 'terminal', live: true },
+    capturedAt: 1_000,
+  });
+});
+
 test('consumePaneHostTransferFromLocation reads and clears pane_transfer query params', () => {
   const localStorage = createStorage();
   localStorage.setItem('piclaw:pane-host-transfer:tok-1', JSON.stringify({

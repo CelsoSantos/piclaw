@@ -11,6 +11,7 @@ import { buildAdaptiveCardSubmissionFallbackText, describeAdaptiveCardSubmission
 import { buildGeneratedWidgetPayload, canRenderGeneratedWidget } from '../ui/generated-widget.js';
 import { ImageModal } from './image-modal.js';
 import { FilePill } from './file-pill.js';
+import { readSessionStorageFlagBestEffort, resolveLinkPreviewSiteName, writeClipboardTextBestEffort, writeSessionStorageFlagBestEffort } from './post-runtime-safety.js';
 
 /**
  * File attachment component - keeps single-click download on the main card while
@@ -245,13 +246,9 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
         if (postTime && (Date.now() - postTime) > 10_000) return;
         // Prevent re-open across page refreshes using sessionStorage
         const key = `widget_opened_${block.widget_id || post?.id || ''}`;
-        try { if (sessionStorage.getItem(key)) return; } catch {
-            // sessionStorage may be unavailable in some embedded/browser modes.
-        }
+        if (readSessionStorageFlagBestEffort(sessionStorage, key)) return;
         autoOpened.current = true;
-        try { sessionStorage.setItem(key, '1'); } catch {
-            // sessionStorage may be unavailable in some embedded/browser modes.
-        }
+        writeSessionStorageFlagBestEffort(sessionStorage, key, '1');
         onOpenWidget?.(payload);
     }, [block?.auto_open, payload, supportsRender]);
 
@@ -302,14 +299,7 @@ function LinkPreview({ preview }) {
     const bgStyle = safeImage
         ? `background-image: url('${safeImage}')`
         : '';
-    let siteName = preview.site_name;
-    if (!siteName && safeUrl) {
-        try {
-            siteName = new URL(safeUrl).hostname;
-        } catch {
-            siteName = safeUrl;
-        }
-    }
+    const siteName = resolveLinkPreviewSiteName(preview.site_name, safeUrl);
 
     return html`
         <a
@@ -360,13 +350,8 @@ async function copyTextToClipboard(text) {
     const value = typeof text === 'string' ? text : '';
     if (!value) return false;
 
-    if (navigator.clipboard?.writeText) {
-        try {
-            await navigator.clipboard.writeText(value);
-            return true;
-        } catch {
-            // Fall through to execCommand fallback.
-        }
+    if (await writeClipboardTextBestEffort(navigator.clipboard, value)) {
+        return true;
     }
 
     try {

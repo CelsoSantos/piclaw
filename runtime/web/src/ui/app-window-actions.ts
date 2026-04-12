@@ -15,6 +15,15 @@ type ToastKind = 'info' | 'warning' | 'error' | 'success';
 type ToastFn = (title: string, message: string, kind: ToastKind, timeout: number) => void;
 type NavigateFn = (url: string, options?: unknown) => void;
 
+async function runOptionalRefresh<T>(refresh: (() => Promise<T> | T) | null | undefined): Promise<T | null> {
+  if (typeof refresh !== 'function') return null;
+  try {
+    return await refresh();
+  } catch {
+    return null;
+  }
+}
+
 interface BranchRecord {
   chat_jid?: string;
   agent_name?: string;
@@ -206,18 +215,14 @@ export async function popOutChat(options: PopOutChatOptions): Promise<boolean> {
       throw new Error('Branch fork did not return a chat id.');
     }
 
-    try {
-      const active = await getActiveChatAgents?.();
+    const active = await runOptionalRefresh(() => getActiveChatAgents?.());
+    if (active) {
       setActiveChatAgents?.(Array.isArray(active?.chats) ? active.chats : []);
-    } catch {
-      /* expected: branch-window bootstrap can proceed even if active-agent refresh races. */
     }
 
-    try {
-      const branches = await getChatBranches?.(currentRootChatJid);
+    const branches = await runOptionalRefresh(() => getChatBranches?.(currentRootChatJid));
+    if (branches) {
       setCurrentChatBranches?.(Array.isArray(branches?.chats) ? branches.chats : []);
-    } catch {
-      /* expected: branch-window bootstrap can proceed even if branch-list refresh races. */
     }
 
     const url = buildChatWindowUrl(baseHref, nextChatJid, { chatOnly: true });

@@ -27,7 +27,7 @@ function writeRuntimeStorageBoolean(runtime: any, key: string, value: boolean): 
   try {
     runtimeWindow.localStorage.setItem(key, String(Boolean(value)));
   } catch {
-    // ignore restricted storage failures
+    return;
   }
 }
 

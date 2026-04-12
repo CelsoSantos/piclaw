@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test, beforeEach } from "bun:test";
+import { tryRun } from "../helpers.js";
 
 // Inline copy of TabStore (pure logic, no browser deps)
 
@@ -38,7 +39,7 @@ class TabStoreImpl {
         const tabs = this.getTabs();
         const activeId = this.activeId;
         for (const listener of this.listeners) {
-            try { listener(tabs, activeId); } catch { /* expected: this test helper intentionally mirrors listener isolation semantics. */ }
+            tryRun(() => listener(tabs, activeId));
         }
     }
 

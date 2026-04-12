@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import "../helpers.js";
-import { importFresh, withTempWorkspaceEnv } from "../helpers.js";
+import { closeDbQuietly, importFresh, withTempWorkspaceEnv } from "../helpers.js";
 
 type DbModule = typeof import("../../src/db.js");
 
@@ -42,11 +42,7 @@ test("stores, updates, lists, and deletes per-chat Portainer configs", async () 
       expect(db.deletePortainerConfig("web:other")).toBe(false);
       expect(db.getPortainerConfig("web:other")).toBeNull();
     } finally {
-      try {
-        db.getDb().close();
-      } catch {
-        // ignore close races in tests
-      }
+      closeDbQuietly(db);
     }
   });
 });

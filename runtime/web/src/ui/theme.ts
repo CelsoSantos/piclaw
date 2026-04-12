@@ -340,6 +340,21 @@ function parseHexColor(input) {
     };
 }
 
+function resolveComputedCssColor(el, fallbackColor) {
+    try {
+        if (document.body) {
+            el.style.display = 'none';
+            document.body.appendChild(el);
+            const computed = getComputedStyle(el).color || el.style.color;
+            document.body.removeChild(el);
+            return computed;
+        }
+    } catch {
+        return fallbackColor;
+    }
+    return fallbackColor;
+}
+
 function parseCssColor(input) {
     if (!input || typeof document === 'undefined') return null;
     const raw = String(input).trim();
@@ -350,17 +365,7 @@ function parseCssColor(input) {
     el.style.color = raw;
     if (!el.style.color) return null;
 
-    let computed = el.style.color;
-    try {
-        if (document.body) {
-            el.style.display = 'none';
-            document.body.appendChild(el);
-            computed = getComputedStyle(el).color || el.style.color;
-            document.body.removeChild(el);
-        }
-    } catch {
-        // fallback to inline style
-    }
+    const computed = resolveComputedCssColor(el, el.style.color);
 
     const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
     if (!match) return null;
