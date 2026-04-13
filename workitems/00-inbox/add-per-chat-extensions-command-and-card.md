@@ -4,7 +4,7 @@ title: Add per-chat /extensions command and adaptive-card extension manager
 status: inbox
 priority: medium
 created: 2026-03-31
-updated: 2026-04-12
+updated: 2026-04-13
 target_release: next
 estimate: L
 risk: high
@@ -364,6 +364,10 @@ When a new chat is created:
 
 ## Updates
 
+### 2026-04-13
+- Added `tunnckoCore/pi-runtime-extensions` as an external reference for comparative analysis of extension/runtime tool-management patterns and tradeoffs.
+- Reference: https://github.com/tunnckoCore/pi-runtime-extensions
+
 ### 2026-04-06
 - Board quality review: added the missing readiness score for the current refined shape.
 - Quality: ★★★★☆ 8/10 (problem: 2, scope: 2, test: 2, deps: 1, risk: 1)
@@ -387,3 +391,4 @@ When a new chat is created:
 - `runtime/web/src/app.ts`
 - `runtime/web/src/components/post.ts`
 - `workitems/50-done/autoresearch-sub-agent-supervisor.md`
+- https://github.com/tunnckoCore/pi-runtime-extensions

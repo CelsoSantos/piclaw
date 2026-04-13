@@ -4,7 +4,7 @@ title: "Master: suspendable runtime architecture and Cloudflare hosting target"
 status: inbox
 priority: high
 created: 2026-04-08
-updated: 2026-04-08
+updated: 2026-04-13
 target_release: later
 estimate: XL
 risk: high
@@ -170,6 +170,10 @@ These ideas are valuable even outside Cloudflare.
 
 ## Updates
 
+### 2026-04-13
+- Added Cloudflare Sandbox Auth as a reference for the hosting/auth boundary analysis, especially around brokered identity/session patterns that may inform the Worker/Container split and operator story.
+- Reference: https://blog.cloudflare.com/sandbox-auth/
+
 ### 2026-04-08
 - Created after reviewing `24601/piclawflare` and identifying both reusable host-agnostic runtime ideas and a plausible Cloudflare deployment shape.
 - Scope intentionally split between core abstractions and the Cloudflare-specific adapter so the work can land incrementally.
@@ -188,3 +192,4 @@ These ideas are valuable even outside Cloudflare.
 - `workitems/00-inbox/mailbox-system-for-inter-instance-ipc.md`
 - `https://github.com/24601/piclawflare`
 - `https://github.com/24601/piclawflare/pull/2`
+- `https://blog.cloudflare.com/sandbox-auth/`
