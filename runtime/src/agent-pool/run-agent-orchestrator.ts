@@ -197,6 +197,56 @@ export async function runAgentPrompt(
     const timeoutMs = typeof runOptions.timeoutMs === "number" ? runOptions.timeoutMs : getAgentRuntimeConfig().timeoutMs;
     const { timeoutId, timedOutRef } = options.turnCoordinator.startPromptTimeout(session, chatJid, timeoutMs);
 
+    const toolCallCapRef = { exceeded: false };
+    let toolCallUnsub: (() => void) | undefined;
+    if (typeof runOptions.maxToolCalls === "number" && runOptions.maxToolCalls > 0) {
+      let toolCallCount = 0;
+      const cap = runOptions.maxToolCalls;
+      toolCallUnsub = session.subscribe((event) => {
+        if (event.type === "tool_execution_end") {
+          toolCallCount += 1;
+          if (toolCallCount >= cap) {
+            toolCallCapRef.exceeded = true;
+            session.abort().catch(() => { /* best-effort */ });
+          }
+        }
+      });
+    }
+
+    // Tool ceiling enforcement – clamp active tools and prevent LLM self-escalation.
+    type SessionWithToolControl = {
+      setActiveToolsByName?: (toolNames: string[]) => void;
+      getActiveToolNames?: () => string[];
+    };
+    const sessionCtrl = session as unknown as SessionWithToolControl;
+    let savedToolNames: string[] | null = null;
+    let originalSetActiveToolsByName: ((names: string[]) => void) | null = null;
+
+    if (runOptions.toolCeilingFilter) {
+      const ceilingFilter = runOptions.toolCeilingFilter;
+      if (typeof sessionCtrl.getActiveToolNames === "function") {
+        savedToolNames = sessionCtrl.getActiveToolNames();
+        originalSetActiveToolsByName =
+          typeof sessionCtrl.setActiveToolsByName === "function"
+            ? sessionCtrl.setActiveToolsByName.bind(session)
+            : null;
+
+        if (originalSetActiveToolsByName) {
+          // Apply ceiling to the initial active set.
+          originalSetActiveToolsByName(savedToolNames.filter(ceilingFilter));
+          // Patch to block the LLM from re-escalating via activate_tools.
+          sessionCtrl.setActiveToolsByName = (names: string[]) => {
+            originalSetActiveToolsByName!(names.filter(ceilingFilter));
+          };
+        }
+      } else {
+        options.onWarn?.("Tool ceiling requested but session lacks getActiveToolNames; ceiling not enforced", {
+          operation: "run_agent.tool_ceiling",
+          chatJid,
+        });
+      }
+    }
+
     const channel = detectChannel(chatJid);
     return await withChatContext(chatJid, channel, async () => {
       try {
@@ -205,6 +255,12 @@ export async function runAgentPrompt(
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
         unsub();
+        toolCallUnsub?.();
+        // Restore tool controls regardless of how the run ended.
+        if (savedToolNames !== null && originalSetActiveToolsByName) {
+          sessionCtrl.setActiveToolsByName = originalSetActiveToolsByName;
+          originalSetActiveToolsByName(savedToolNames);
+        }
       }
 
       const duration = Date.now() - startTime;
@@ -215,6 +271,10 @@ export async function runAgentPrompt(
 
       if (timedOut) {
         return { status: "error", result: null, error: `Timed out after ${formatTimeoutDuration(timeoutMs)}` };
+      }
+
+      if (toolCallCapRef.exceeded) {
+        return { status: "error", result: null, error: "Tool call limit exceeded." };
       }
 
       const turnError = tracker.getError();
