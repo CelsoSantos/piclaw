@@ -250,6 +250,16 @@ if [ -d "/workspace" ]; then
     mkdir -p "$WORKSPACE_SUPERVISOR_DIR/conf.d"
     chown agent:agent /workspace/.piclaw "$WORKSPACE_SUPERVISOR_DIR" "$WORKSPACE_SUPERVISOR_DIR/conf.d" 2>/dev/null || true
 
+    # Ensure runtime-writable workspace subdirs exist with agent ownership.
+    # These are created here rather than by the agent process so the workspace
+    # root can remain root-owned while still allowing the agent to write.
+    for _wdir in logs output tmp; do
+        if [ ! -d "/workspace/$_wdir" ]; then
+            mkdir -p "/workspace/$_wdir"
+            chown agent:agent "/workspace/$_wdir"
+        fi
+    done
+
     if [ -f "$SUPERVISOR_DEFAULTS_DIR/supervisord.conf" ] && [ ! -f "$WORKSPACE_SUPERVISOR_DIR/supervisord.conf" ]; then
         cp "$SUPERVISOR_DEFAULTS_DIR/supervisord.conf" "$WORKSPACE_SUPERVISOR_DIR/supervisord.conf"
         chown agent:agent "$WORKSPACE_SUPERVISOR_DIR/supervisord.conf"
