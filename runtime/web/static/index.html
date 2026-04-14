@@ -33,7 +33,8 @@
     <meta id="theme-color-dark" name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <style>/* iOS standalone viewport fix: 1px overflow triggers immediate viewport recalculation before first paint */html,body{height:calc(100dvh + 1px)}</style>
+    <script>/* iOS standalone: set correct viewport height before first paint */
+    (function(){try{var s=navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);if(s&&screen.height>0){var h=screen.height+'px';document.documentElement.style.setProperty('--app-height',h)}}catch(e){}})()</script>
     <title>PiClaw</title>
     <meta name="apple-mobile-web-app-title" content="PiClaw">
     <link rel="stylesheet" href="/static/dist/app.bundle.css?v=__APP_ASSET_VERSION__">
