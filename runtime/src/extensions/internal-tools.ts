@@ -43,7 +43,7 @@ export const internalTools: ExtensionFactory = (pi: ExtensionAPI) => {
   pi.registerTool({
     name: "list_internal_tools",
     label: "list_internal_tools",
-    description: "List available internal tools with brief descriptions.",
+    description: "List available internal tools with brief descriptions. Each result includes capability metadata (kind: read-only/mutating/mixed, weight: lightweight/standard/heavy, activation: default/on-demand) and toolset groupings. Use the query parameter to filter by name, description, or capability domain.",
     promptSnippet: "list_internal_tools: Discover available internal tools and their schemas.",
     parameters: InternalToolsSchema,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
