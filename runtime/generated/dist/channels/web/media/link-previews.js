@@ -13,7 +13,7 @@ import { createMedia, deleteUnreferencedMedia, getLinkPreviewImageCache, getMess
 import { lookup } from "dns/promises";
 import { extname } from "path";
 import { isIP } from "net";
-import { createLogger } from "../../../utils/logger.js";
+import { createLogger, debugSuppressedError } from "../../../utils/logger.js";
 const log = createLogger("web.link-previews");
 const MAX_URLS = 3;
 const FETCH_TIMEOUT_MS = 8000;
@@ -272,8 +272,8 @@ async function cachePreviewImage(imageUrl) {
                 effectiveContentType = optimized.mimeType;
             }
         }
-        catch {
-            // sharp unavailable or processing failed — use original
+        catch (error) {
+            debugSuppressedError(log, "Link preview image optimisation failed; using original.", error);
         }
         const mediaId = createMedia(buildCachedPreviewFilename(imageUrl, effectiveContentType), effectiveContentType, bytes, null, {
             size: bytes.byteLength,

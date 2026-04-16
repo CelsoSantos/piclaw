@@ -38,7 +38,6 @@ export async function runSidePrompt(chatJid, prompt, options, deps) {
             ],
         }, {
             apiKey: auth.apiKey,
-            headers: auth.headers,
             reasoning: toSideReasoning(session.thinkingLevel),
             signal: options.signal,
         });

@@ -703,11 +703,21 @@ export const smartCompaction = (pi) => {
         const { messagesToSummarize, tokensBefore, firstKeptEntryId, previousSummary, settings, } = preparation;
         if (messagesToSummarize.length === 0)
             return;
+        // Capture the signal reference from the event. The upstream
+        // `_compactionAbortController` can be cleared by a concurrent `compact()`
+        // call's finally block while our async handler is in flight. By capturing
+        // the signal here we can check `.aborted` reliably and return `{ cancel }`
+        // instead of falling through — which would crash upstream when it accesses
+        // the already-cleared controller.
+        const abortSignal = signal;
         // ── Compute topic-shift signal once for all downstream paths ──────
         // Both tryNoOpCompaction (to gate the minimal-content fast path) and
         // buildSelectivePrompt (to annotate the compaction prompt) need this.
         // Computing it once avoids a redundant full scan of the message array.
         const llmMessages = convertToLlm(messagesToSummarize);
+        // Check abort early — a concurrent compact() may have already cancelled us.
+        if (abortSignal.aborted)
+            return { cancel: true };
         const topicShift = detectRecentTopicShift(llmMessages);
         log.debug("Pivot detection result", {
             detected: !!topicShift,
@@ -747,8 +757,8 @@ export const smartCompaction = (pi) => {
         ];
         const maxTokens = Math.floor(0.8 * settings.reserveTokens);
         const completionOptions = model.reasoning
-            ? { maxTokens, signal, apiKey: auth.apiKey, headers: auth.headers, reasoning: "high" }
-            : { maxTokens, signal, apiKey: auth.apiKey, headers: auth.headers };
+            ? { maxTokens, signal: abortSignal, apiKey: auth.apiKey, reasoning: "high" }
+            : { maxTokens, signal: abortSignal, apiKey: auth.apiKey };
         try {
             const response = await completeSimple(model, { systemPrompt: SYSTEM_PROMPT, messages }, completionOptions);
             if (response.stopReason === "error") {
@@ -764,8 +774,8 @@ export const smartCompaction = (pi) => {
                 ctx.ui.notify("Smart compaction summary too short, falling back to built-in", "warning");
                 return;
             }
-            if (signal.aborted)
-                return;
+            if (abortSignal.aborted)
+                return { cancel: true };
             // Append deterministic file sections (same format as built-in)
             const { readFiles, modifiedFiles } = fileListsFromOps(preparation.fileOps);
             let fullSummary = summary;
@@ -792,9 +802,13 @@ export const smartCompaction = (pi) => {
         }
         catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            if (!signal.aborted) {
+            if (!abortSignal.aborted) {
                 ctx.ui.notify(`Smart compaction error: ${msg}`, "warning");
             }
+            // If aborted, return cancel so upstream doesn't access the
+            // potentially-cleared _compactionAbortController.
+            if (abortSignal.aborted)
+                return { cancel: true };
             return; // fall through to built-in
         }
     });

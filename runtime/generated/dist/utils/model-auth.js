@@ -1,24 +1,28 @@
 /**
- * Resolve per-request auth in a way that works with current upstream Pi and older test doubles.
+ * Resolve per-request auth from the Pi model registry.
  *
- * Upstream `ModelRegistry.getApiKey()` was replaced by `getApiKeyAndHeaders()`. Piclaw still has
- * tests and lightweight stubs that only implement the older method, so this helper preserves a
- * compatibility path while forwarding headers when available.
+ * Upstream 0.67.6 replaced `getApiKeyAndHeaders()` with a simpler `getApiKey()`.
+ * Provider-specific headers (e.g. Azure API-Management keys) now live on the
+ * model object itself (`model.headers`) and are merged by the provider layer,
+ * so we no longer need to thread them through here.
+ *
+ * We keep a fallback check for `getApiKeyAndHeaders` so older test doubles that
+ * still implement the pre-0.67.6 surface don't break.
  */
 export async function resolveModelRequestAuth(registry, model) {
-    const registryWithHeaders = registry;
-    if (typeof registryWithHeaders.getApiKeyAndHeaders === "function") {
-        const auth = await registryWithHeaders.getApiKeyAndHeaders(model);
-        if (auth.ok) {
-            return { ok: true, apiKey: auth.apiKey, headers: auth.headers };
-        }
+    const reg = registry;
+    // Pre-0.67.6 compat path (test doubles may still use this)
+    if (typeof reg.getApiKeyAndHeaders === "function") {
+        const auth = await reg.getApiKeyAndHeaders(model);
+        if (auth.ok)
+            return { ok: true, apiKey: auth.apiKey };
         return { ok: false, error: auth.error || `No credentials available for ${model.provider}/${model.id}.` };
     }
-    if (typeof registryWithHeaders.getApiKey === "function") {
-        const apiKey = await registryWithHeaders.getApiKey(model);
-        if (apiKey) {
+    // Current upstream surface (0.67.6+)
+    if (typeof reg.getApiKey === "function") {
+        const apiKey = await reg.getApiKey(model);
+        if (apiKey)
             return { ok: true, apiKey };
-        }
     }
     return { ok: false, error: `No credentials available for ${model.provider}/${model.id}.` };
 }

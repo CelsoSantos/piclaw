@@ -106,7 +106,7 @@ function getSessionStateErrorMessage(session) {
     const errorMessage = session.agent?.state?.errorMessage;
     return typeof errorMessage === "string" && errorMessage.trim() ? errorMessage.trim() : null;
 }
-async function maybeAutoCompactSessionBeforePrompt(session, chatJid, options) {
+async function maybeAutoCompactSessionBeforePrompt(session, chatJid, options, onEvent) {
     if (session.isStreaming || session.isCompacting || session.isRetrying)
         return;
     const contextWindow = getModelContextWindow(session);
@@ -129,7 +129,33 @@ async function maybeAutoCompactSessionBeforePrompt(session, chatJid, options) {
             contextWindow,
             reserveTokens: settings.reserveTokens ?? null,
         });
-        await session.compact();
+        // Upstream 0.67.6 removed compaction_start/end events from the manual
+        // compact() path. Emit them locally so the web UI still shows the
+        // "Compacting context" status pill during what can be a 30-60s operation.
+        onEvent?.({ type: "compaction_start", reason: "threshold" });
+        try {
+            await session.compact();
+            onEvent?.({
+                type: "compaction_end",
+                reason: "threshold",
+                result: undefined,
+                aborted: false,
+                willRetry: false,
+            });
+        }
+        catch (compactError) {
+            const aborted = compactError instanceof Error &&
+                (compactError.message === "Compaction cancelled" || compactError.name === "AbortError");
+            onEvent?.({
+                type: "compaction_end",
+                reason: "threshold",
+                result: undefined,
+                aborted,
+                willRetry: false,
+                errorMessage: aborted ? undefined : `Pre-prompt compaction failed: ${compactError instanceof Error ? compactError.message : String(compactError)}`,
+            });
+            throw compactError;
+        }
     }
     catch (error) {
         options.onWarn?.("Pre-prompt auto-compaction skipped", {
@@ -147,7 +173,7 @@ export async function runAgentPrompt(prompt, chatJid, runOptions, options) {
         const runtime = await options.getOrCreateRuntime(chatJid);
         const session = runtime.session;
         await maybeAutoRotateSession(session, runtime, chatJid, options);
-        await maybeAutoCompactSessionBeforePrompt(session, chatJid, options);
+        await maybeAutoCompactSessionBeforePrompt(session, chatJid, options, runOptions.onEvent);
         pruneOrphanToolResults(session, chatJid);
         const forkBaseLeafId = typeof session.sessionManager?.getLeafId === "function"
             ? session.sessionManager.getLeafId()

@@ -451,13 +451,13 @@ test("agent pool can run a side prompt with the current model and thinking level
   expect(seen).toEqual([{ model: "openai/gpt-test", reasoning: "high", prompt: "Side question" }]);
 });
 
-test("agent pool forwards header-based auth for side prompts", async () => {
+test("agent pool forwards API key auth for side prompts", async () => {
   const ws = getTestWorkspace();
   restoreEnv = setEnv({ PICLAW_WORKSPACE: ws.workspace, PICLAW_STORE: ws.store, PICLAW_DATA: ws.data });
 
   const { AgentPool } = await importFresh<typeof import("../src/agent-pool.js")>("../src/agent-pool.js");
 
-  const seen: Array<{ apiKey: unknown; headers: unknown }> = [];
+  const seen: Array<{ apiKey: unknown }> = [];
   class StubSession {
     model = {
       provider: "openai",
@@ -481,23 +481,20 @@ test("agent pool forwards header-based auth for side prompts", async () => {
   const pool = new AgentPool({
     createSession: async () => createRuntime(new StubSession()) as any,
     modelRegistry: {
-      getApiKeyAndHeaders: async () => ({
-        ok: true,
-        headers: { Authorization: "Bearer side-token", "X-Test": "1" },
-      }),
+      getApiKey: async () => "side-api-key",
       find: () => undefined,
       getAll: () => [],
       getAvailable: () => [],
     } as any,
     sideStreamSimple: (_model: any, _context: any, options: any) => {
-      seen.push({ apiKey: options?.apiKey, headers: options?.headers });
+      seen.push({ apiKey: options?.apiKey });
       return (async function* () {
         yield {
           type: "done",
           reason: "stop",
           message: {
             role: "assistant",
-            content: [{ type: "text", text: "header answer" }],
+            content: [{ type: "text", text: "key answer" }],
             api: "openai-responses",
             provider: "openai",
             model: "gpt-test",
@@ -512,8 +509,8 @@ test("agent pool forwards header-based auth for side prompts", async () => {
 
   const result = await pool.runSidePrompt("web:default", "Side question");
   expect(result.status).toBe("success");
-  expect(result.result).toBe("header answer");
-  expect(seen).toEqual([{ apiKey: undefined, headers: { Authorization: "Bearer side-token", "X-Test": "1" } }]);
+  expect(result.result).toBe("key answer");
+  expect(seen).toEqual([{ apiKey: "side-api-key" }]);
 });
 
 test("agent pool forks active chats from the previous stable turn boundary", async () => {

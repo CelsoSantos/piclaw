@@ -10,6 +10,8 @@
 import { readFileSync, statSync } from "fs";
 import { basename, extname } from "path";
 import { createMedia, getMediaById, getMediaInfoById } from "../../../db.js";
+import { createLogger, debugSuppressedError } from "../../../utils/logger.js";
+const log = createLogger("web.media");
 /**
  * Max upload size: 10 MB.
  * This is enforced at the application level. The Bun.serve()
@@ -83,8 +85,8 @@ export class MediaService {
                 if (thumb)
                     thumbnail = new Uint8Array(thumb.data);
             }
-            catch {
-                // sharp unavailable or processing failed — skip thumbnail
+            catch (error) {
+                debugSuppressedError(log, "Thumbnail generation failed; skipping.", error);
             }
         }
         const mediaId = createMedia(file.name || "upload", contentType, data, thumbnail, { size: file.size });
@@ -129,8 +131,8 @@ export class MediaService {
                 if (thumb)
                     thumbnail = new Uint8Array(thumb.data);
             }
-            catch {
-                // sharp unavailable or processing failed — skip thumbnail
+            catch (error) {
+                debugSuppressedError(log, "Thumbnail generation failed; skipping.", error);
             }
         }
         const mediaId = createMedia(filenameOverride || basename(filePath), contentType, data, thumbnail, { size: stats.size });
