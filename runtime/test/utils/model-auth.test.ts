@@ -4,44 +4,25 @@ import { resolveModelRequestAuth } from "../../src/utils/model-auth.js";
 describe("model auth helper", () => {
   const model = { provider: "openai", id: "gpt-test" } as any;
 
-  test("prefers getApiKeyAndHeaders when available", async () => {
+  test("prefers getApiKeyAndHeaders compat path when available", async () => {
     const auth = await resolveModelRequestAuth({
       getApiKeyAndHeaders: async () => ({
         ok: true,
         apiKey: "header-key",
-        headers: { Authorization: "Bearer token", "X-Test": "1" },
       }),
       getApiKey: async () => "legacy-key",
     } as any, model);
 
-    expect(auth).toEqual({
-      ok: true,
-      apiKey: "header-key",
-      headers: { Authorization: "Bearer token", "X-Test": "1" },
-    });
+    // Should use getApiKeyAndHeaders and return apiKey (headers no longer forwarded)
+    expect(auth).toEqual({ ok: true, apiKey: "header-key" });
   });
 
-  test("supports header-only auth payloads from getApiKeyAndHeaders", async () => {
+  test("uses getApiKey for current upstream surface (0.67.6+)", async () => {
     const auth = await resolveModelRequestAuth({
-      getApiKeyAndHeaders: async () => ({
-        ok: true,
-        headers: { cookie: "session=abc" },
-      }),
+      getApiKey: async () => "direct-key",
     } as any, model);
 
-    expect(auth).toEqual({
-      ok: true,
-      apiKey: undefined,
-      headers: { cookie: "session=abc" },
-    });
-  });
-
-  test("falls back to legacy getApiKey for older test doubles", async () => {
-    const auth = await resolveModelRequestAuth({
-      getApiKey: async () => "legacy-key",
-    } as any, model);
-
-    expect(auth).toEqual({ ok: true, apiKey: "legacy-key" });
+    expect(auth).toEqual({ ok: true, apiKey: "direct-key" });
   });
 
   test("returns a stable error when no credentials are available", async () => {
@@ -50,5 +31,13 @@ describe("model auth helper", () => {
     } as any, model);
 
     expect(auth).toEqual({ ok: false, error: "missing auth" });
+  });
+
+  test("returns error when getApiKey returns undefined", async () => {
+    const auth = await resolveModelRequestAuth({
+      getApiKey: async () => undefined,
+    } as any, model);
+
+    expect(auth).toEqual({ ok: false, error: "No credentials available for openai/gpt-test." });
   });
 });

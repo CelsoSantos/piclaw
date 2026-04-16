@@ -945,8 +945,8 @@ export const smartCompaction: ExtensionFactory = (pi: ExtensionAPI) => {
 
     const maxTokens = Math.floor(0.8 * settings.reserveTokens);
     const completionOptions = (model as any).reasoning
-      ? { maxTokens, signal: abortSignal, apiKey: auth.apiKey, headers: auth.headers, reasoning: "high" as const }
-      : { maxTokens, signal: abortSignal, apiKey: auth.apiKey, headers: auth.headers };
+      ? { maxTokens, signal: abortSignal, apiKey: auth.apiKey, reasoning: "high" as const }
+      : { maxTokens, signal: abortSignal, apiKey: auth.apiKey };
 
     try {
       const response = await completeSimple(

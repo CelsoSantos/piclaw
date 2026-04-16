@@ -76,7 +76,6 @@ export async function runSidePrompt(
       },
       {
         apiKey: auth.apiKey,
-        headers: auth.headers,
         reasoning: toSideReasoning((session as AgentSession & { thinkingLevel?: unknown }).thinkingLevel),
         signal: options.signal,
       },
