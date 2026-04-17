@@ -689,7 +689,7 @@ async function handleSaveRequest(req: Request): Promise<Response> {
   }
 }
 
-function handleRoute(req: Request, pathname: string): Response | Promise<Response> | null {
+export function handleRoute(req: Request, pathname: string): Response | Promise<Response> | null {
   if (req.method === "POST" && pathname === "/drawio/save") {
     return handleSaveRequest(req);
   }

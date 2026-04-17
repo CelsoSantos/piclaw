@@ -429,7 +429,26 @@ Why last:
   - `runtime/test/agent-pool/session-manager.test.ts`
   - `runtime/test/agent-pool/agent-pool.test.ts`
   - `bun run typecheck`
-- Measurement refresh is still pending for this tranche; the performance log now notes that fresh live-service snapshots should be captured after reload/settle.
+- Replaced the web-session viewer load path so session bootstrap now loads lightweight tool shims instead of the heavy route-serving viewer extensions:
+  - `runtime/extensions/viewers/office-viewer-tool/index.ts`
+  - `runtime/extensions/viewers/drawio-editor-tool/index.ts`
+- Added lazy route registration at web startup so the actual viewer modules are imported only when `/office-viewer/*` or `/drawio/*` is first requested:
+  - `runtime/src/channels/web/http/lazy-viewer-routes.ts`
+  - `runtime/src/runtime/startup.ts`
+- Updated the viewer session-gating regression to prove the old route-registration warnings no longer appear during session bootstrap while web chats still expose the viewer tools.
+- Added lazy-route integration coverage for the on-demand viewer import path:
+  - `runtime/test/channels/web/lazy-viewer-routes.test.ts`
+- Re-ran focused verification after this tranche:
+  - `runtime/test/agent-pool/session-bundled-extension-gating.test.ts`
+  - `runtime/test/channels/web/lazy-viewer-routes.test.ts`
+  - `runtime/test/channels/web/extension-routes.test.ts`
+  - `runtime/test/workspace-index-process.test.ts`
+  - `runtime/test/runtime/startup.test.ts`
+  - `runtime/test/extensions/optional-bundled-extensions.test.ts`
+  - `runtime/test/channels/web/tool-status-hints.test.ts`
+  - `bunx tsc --noEmit -p runtime/tsconfig.json`
+- Fresh-process spot check from the workspace source tree against an archived `web:default` session file measured roughly **172 ms / 33.4 MB RSS delta** with background workspace indexing disabled for the harness.
+- Measurement refresh for the live installed service is still pending; the performance log now notes that fresh post-reload snapshots should be captured after install/restart and settle.
 
 ## Notes
 

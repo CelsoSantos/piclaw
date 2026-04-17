@@ -82,7 +82,7 @@ function getMimeType(path: string): string {
   return MIME_TYPES[extname(path).toLowerCase()] || "application/octet-stream";
 }
 
-function handleRoute(req: Request, pathname: string): Response | null {
+export function handleRoute(req: Request, pathname: string): Response | null {
   if (req.method !== "GET" && req.method !== "HEAD") {
     return new Response("Method Not Allowed", { status: 405, headers: HEADERS });
   }

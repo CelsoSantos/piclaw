@@ -7,15 +7,18 @@ import "../helpers.js";
 import { createSessionInDir } from "../../src/agent-pool/session.ts";
 
 describe("bundled extension gating by channel/platform", () => {
-  test("web viewer extensions are only loaded for web chats", async () => {
+  test("web viewer tools stay web-only without importing the heavy route extensions during session bootstrap", async () => {
     const authStorage = AuthStorage.create();
     const modelRegistry = ModelRegistry.inMemory(authStorage);
     const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-session-gating-"));
     const webSessionDir = join(tempRoot, "web-session");
     const whatsappSessionDir = join(tempRoot, "wa-session");
+    const warnings: string[] = [];
     const originalWarn = console.warn;
-    console.warn = () => {};
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map((value) => String(value)).join(" "));
+    };
 
     try {
       const webRuntime = await createSessionInDir(webSessionDir, {
@@ -44,6 +47,8 @@ describe("bundled extension gating by channel/platform", () => {
 
       expect(webSession._toolRegistry.has("powershell")).toBe(false);
       expect(whatsappSession._toolRegistry.has("powershell")).toBe(false);
+      expect(warnings.some((line) => line.includes("[office-viewer] WARNING"))).toBe(false);
+      expect(warnings.some((line) => line.includes("[drawio-editor] WARNING"))).toBe(false);
 
       webRuntime.dispose?.();
       whatsappRuntime.dispose?.();
