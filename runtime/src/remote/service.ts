@@ -6,6 +6,7 @@ import type { AgentPool } from "../agent-pool.js";
 import { getRemoteInteropConfig, DATA_DIR, type RemoteInteropConfig } from "../core/config.js";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import { createLogger } from "../utils/logger.js";
 import {
   DEFAULT_NONCE_CACHE_SIZE,
   DEFAULT_NONCE_TTL_MS,
@@ -38,6 +39,8 @@ import {
   handleRevoke,
   type RemoteOperationHandlersContext,
 } from "./service-operations.js";
+
+const log = createLogger("remote.service");
 
 function isRemoteInteropEnabled(config: Readonly<RemoteInteropConfig>): boolean {
   if (config.enabled) return true;
@@ -117,44 +120,55 @@ export class RemoteInteropService {
       return jsonResponse({ error: "Not found" }, 404);
     }
 
-    const url = new URL(req.url);
-    const pathname = url.pathname;
+    try {
+      const url = new URL(req.url);
+      const pathname = url.pathname;
 
-    if (req.method === "POST" && pathname === "/api/remote/pair-request") {
-      return handlePairRequest(req, this.pairingContext());
+      if (req.method === "POST" && pathname === "/api/remote/pair-request") {
+        return handlePairRequest(req, this.pairingContext());
+      }
+
+      if (req.method === "POST" && pathname === "/api/remote/pair-confirm") {
+        return handlePairConfirm(req, this.pairingContext());
+      }
+
+      // pair-callback is the URL-ownership proof endpoint called by the receiver
+      // back to the initiator during pairing (Step C). It echoes the challenge
+      // signed with the initiator's private key so the receiver can verify URL control.
+      if (req.method === "POST" && pathname === "/api/remote/pair-callback") {
+        return handlePairCallback(req, this.pairingContext());
+      }
+
+      if (req.method === "POST" && pathname === "/api/remote/revoke") {
+        return handleRevoke(req, this.operationContext());
+      }
+
+      if (req.method === "GET" && pathname === "/api/remote/ping") {
+        return handlePing(req, this.operationContext());
+      }
+
+      if (req.method === "POST" && pathname === "/api/remote/proposal") {
+        return handleProposal(req, this.operationContext());
+      }
+
+      if (req.method === "POST" && pathname === "/api/remote/execute") {
+        return handleExecute(req, this.operationContext());
+      }
+
+      if (req.method === "POST" && pathname === "/api/remote/result") {
+        return handleResult(req, this.operationContext());
+      }
+
+      return jsonResponse({ error: "Not found" }, 404);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.error("Unhandled error in remote interop handler", {
+        operation: "handleRequest",
+        method: req.method,
+        url: req.url,
+        error: msg,
+      });
+      return jsonResponse({ error: "Internal server error." }, 500);
     }
-
-    if (req.method === "POST" && pathname === "/api/remote/pair-confirm") {
-      return handlePairConfirm(req, this.pairingContext());
-    }
-
-    // pair-callback is the URL-ownership proof endpoint called by the receiver
-    // back to the initiator during pairing (Step C). It echoes the challenge
-    // signed with the initiator's private key so the receiver can verify URL control.
-    if (req.method === "POST" && pathname === "/api/remote/pair-callback") {
-      return handlePairCallback(req, this.pairingContext());
-    }
-
-    if (req.method === "POST" && pathname === "/api/remote/revoke") {
-      return handleRevoke(req, this.operationContext());
-    }
-
-    if (req.method === "GET" && pathname === "/api/remote/ping") {
-      return handlePing(req, this.operationContext());
-    }
-
-    if (req.method === "POST" && pathname === "/api/remote/proposal") {
-      return handleProposal(req, this.operationContext());
-    }
-
-    if (req.method === "POST" && pathname === "/api/remote/execute") {
-      return handleExecute(req, this.operationContext());
-    }
-
-    if (req.method === "POST" && pathname === "/api/remote/result") {
-      return handleResult(req, this.operationContext());
-    }
-
-    return jsonResponse({ error: "Not found" }, 404);
   }
 }

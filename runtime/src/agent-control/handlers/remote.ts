@@ -12,10 +12,9 @@ import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import type { AgentControlCommand, AgentControlResult } from "../agent-control-types.js";
 import { getRemoteInteropConfig } from "../../core/config.js";
 import { getRemotePeer, getRemotePeerByDisplayName, getRemotePeerByFingerprint } from "../../db/remote-interop.js";
-import { loadOrCreateIdentity } from "../../remote/identity.js";
-import { buildCanonicalRequest, hashBody, signRequest } from "../../remote/signature.js";
-import { deriveFingerprint } from "../../remote/identity.js";
-import { createUuid } from "../../utils/ids.js";
+import { loadOrCreateIdentity, deriveFingerprint } from "../../remote/identity.js";
+import { buildSignedRequestHeaders } from "../../extensions/remote-pair.js";
+import { randomUUID } from "crypto";
 
 type AskCommand = Extract<AgentControlCommand, { type: "ask" }>;
 
@@ -84,42 +83,19 @@ export async function handleAsk(_session: AgentSession, command: AskCommand): Pr
   const remotePath = isShortCircuit ? "/api/remote/execute" : "/api/remote/proposal";
   const targetUrl = `${peer.base_url.replace(/\/$/, "")}${remotePath}`;
 
-  // Build signed outbound request.
+  // Build signed outbound request using the shared signing helper.
   const identity = loadOrCreateIdentity();
   const body = JSON.stringify({ prompt });
   const bodyBytes = new TextEncoder().encode(body);
-  const timestamp = new Date().toISOString();
-  const nonce = createUuid("nonce");
-  const pathWithQuery = remotePath;
-
-  const canonical = buildCanonicalRequest({
-    method: "POST",
-    pathWithQuery,
-    contentType: "application/json",
-    bodyHash: hashBody(bodyBytes),
-    timestamp,
-    nonce,
-    instanceId: identity.instance_id,
-    sigVersion: "v1",
-    trustEpoch: String(peer.trust_epoch),
-  });
-
-  const signature = signRequest(identity, canonical);
+  const headers = buildSignedRequestHeaders(identity, remotePath, bodyBytes, peer.trust_epoch ?? undefined);
+  headers["X-Request-Hop"] = "0";
+  headers["X-Request-Chain-Id"] = randomUUID();
 
   let response: Response;
   try {
     response = await fetch(targetUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Instance-Id": identity.instance_id,
-        "X-Timestamp": timestamp,
-        "X-Nonce": nonce,
-        "X-Sig-Version": "v1",
-        "X-Signature": signature,
-        "X-Trust-Epoch": String(peer.trust_epoch),
-        "X-Request-Hop": "1",
-      },
+      headers,
       body,
     });
   } catch (err) {
