@@ -30,6 +30,7 @@ let getRemoteRequestById: (id: string) => any;
 let updatePairRequestStatus: (id: string, status: string) => void;
 let updateRemotePeer: (id: string, updates: any) => void;
 let upsertRemotePeer: (peer: any) => void;
+let createOutboundPairRequest: (record: any) => void;
 let initDatabase: () => void;
 let RemoteInteropService: any;
 let handlePairRequest: (req: Request, context: any) => Promise<Response>;
@@ -163,6 +164,7 @@ describe("remote interop", () => {
     updatePairRequestStatus = remoteDbMod.updatePairRequestStatus;
     updateRemotePeer = remoteDbMod.updateRemotePeer;
     upsertRemotePeer = remoteDbMod.upsertRemotePeer;
+    createOutboundPairRequest = remoteDbMod.createOutboundPairRequest;
 
     const serviceMod = await importFresh("../src/remote/service.js");
     RemoteInteropService = serviceMod.RemoteInteropService;
@@ -1013,5 +1015,276 @@ describe("remote interop", () => {
 
     const stored = getRemotePeer(peer.instance_id);
     expect(stored?.base_url).toBe(TEST_REMOTE_BASE_URL);
+  });
+
+  // ─── pair-callback endpoint ─────────────────────────────────────────────────
+
+  test("pair-callback returns signed proof for valid outbound request", async () => {
+    const receiver = makeIdentity();
+    const outbound = {
+      id: "pair-outbound-ok",
+      instance_id: receiver.instance_id,
+      public_key: receiver.public_key,
+      fingerprint: "test-fp",
+      base_url: TEST_REMOTE_BASE_URL,
+      nonce: "test-challenge",
+      status: "pending",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    createOutboundPairRequest(outbound);
+
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: outbound.id,
+          challenge: outbound.nonce,
+          receiver_instance_id: receiver.instance_id,
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.request_id).toBe(outbound.id);
+    expect(body.challenge).toBe(outbound.nonce);
+    expect(body.instance_id).toBeTruthy();
+    expect(body.signature).toBeTruthy();
+  });
+
+  test("pair-callback rejects challenge mismatch", async () => {
+    const receiver = makeIdentity();
+    createOutboundPairRequest({
+      id: "pair-outbound-mismatch",
+      instance_id: receiver.instance_id,
+      public_key: receiver.public_key,
+      fingerprint: "test-fp",
+      base_url: TEST_REMOTE_BASE_URL,
+      nonce: "correct-challenge",
+      status: "pending",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: "pair-outbound-mismatch",
+          challenge: "wrong-challenge",
+          receiver_instance_id: receiver.instance_id,
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Challenge mismatch");
+  });
+
+  test("pair-callback rejects expired outbound request", async () => {
+    const receiver = makeIdentity();
+    createOutboundPairRequest({
+      id: "pair-outbound-expired",
+      instance_id: receiver.instance_id,
+      public_key: receiver.public_key,
+      fingerprint: "test-fp",
+      base_url: TEST_REMOTE_BASE_URL,
+      nonce: "challenge",
+      status: "pending",
+      expires_at: new Date(Date.now() - 1000).toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: "pair-outbound-expired",
+          challenge: "challenge",
+          receiver_instance_id: receiver.instance_id,
+        }),
+      })
+    );
+
+    expect(res.status).toBe(410);
+    const body = await res.json();
+    expect(body.error).toContain("expired");
+  });
+
+  test("pair-callback rejects receiver_instance_id mismatch", async () => {
+    const receiver = makeIdentity();
+    createOutboundPairRequest({
+      id: "pair-outbound-rcv-mismatch",
+      instance_id: receiver.instance_id,
+      public_key: receiver.public_key,
+      fingerprint: "test-fp",
+      base_url: TEST_REMOTE_BASE_URL,
+      nonce: "challenge",
+      status: "pending",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: "pair-outbound-rcv-mismatch",
+          challenge: "challenge",
+          receiver_instance_id: "wrong-receiver-id",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Receiver instance_id mismatch");
+  });
+
+  test("pair-callback returns 404 for unknown request", async () => {
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: "nonexistent",
+          challenge: "challenge",
+          receiver_instance_id: "some-id",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  // ─── revoke endpoint ────────────────────────────────────────────────────────
+
+  test("revoke marks peer as revoked and increments trust_epoch", async () => {
+    const peer = makeIdentity();
+    // First establish pairing
+    const pairRes = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instance_id: peer.instance_id,
+          public_key: peer.public_key,
+          display_name: "peer",
+          callback_url: `${TEST_REMOTE_BASE_URL}/api/remote/pair-confirm`,
+          protocol_version: "1",
+          nonce: "challenge",
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      })
+    );
+    expect(pairRes.status).toBe(202);
+    const pairBody = await pairRes.json();
+
+    const restoreFetch = installCallbackStub(peer);
+    const confirmRes = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/pair-confirm", {
+        request_id: pairBody.request_id,
+        challenge: "challenge",
+      })
+    );
+    restoreFetch();
+    expect(confirmRes.status).toBe(200);
+
+    const stored = getRemotePeer(peer.instance_id);
+    expect(stored?.status).toBe("paired");
+    const originalEpoch = stored?.trust_epoch ?? 1;
+
+    // Now revoke
+    const revokeRes = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/revoke", {})
+    );
+
+    expect(revokeRes.status).toBe(200);
+    const revokeBody = await revokeRes.json();
+    expect(revokeBody.status).toBe("revoked");
+    expect(revokeBody.trust_epoch).toBe(originalEpoch + 1);
+
+    const revoked = getRemotePeer(peer.instance_id);
+    expect(revoked?.status).toBe("revoked");
+  });
+
+  // ─── blocked peer rejection on operation endpoints ──────────────────────────
+
+  test("proposal rejects blocked peer", async () => {
+    const peer = makeIdentity();
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: "blocked",
+      status: "blocked",
+      mode: "mediated",
+      profile: "restricted",
+      trust_epoch: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_seen_at: null,
+      blocked_reason: null,
+      base_url: TEST_REMOTE_BASE_URL,
+    });
+
+    const res = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/proposal", { prompt: "test" })
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  test("ping rejects blocked peer", async () => {
+    const peer = makeIdentity();
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: "blocked",
+      status: "blocked",
+      mode: "mediated",
+      profile: "restricted",
+      trust_epoch: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_seen_at: null,
+      blocked_reason: null,
+      base_url: TEST_REMOTE_BASE_URL,
+    });
+
+    const res = await service.handleRequest(
+      buildSignedRequest(peer, "GET", "/api/remote/ping")
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  test("execute rejects blocked peer", async () => {
+    const peer = makeIdentity();
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: "blocked",
+      status: "blocked",
+      mode: "short-circuit",
+      profile: "full",
+      trust_epoch: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_seen_at: null,
+      blocked_reason: null,
+      base_url: TEST_REMOTE_BASE_URL,
+    });
+
+    const res = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/execute", { prompt: "test" })
+    );
+
+    expect(res.status).toBe(403);
   });
 });
