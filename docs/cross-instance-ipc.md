@@ -440,7 +440,6 @@ These defaults are recommended for first implementation.
 ## 15) Command UX (Proposed)
 
 ```text
-/pair discover <url>
 /pair request <url>
 /pair accept <instance_id|fingerprint>
 /pair deny <instance_id|fingerprint>
