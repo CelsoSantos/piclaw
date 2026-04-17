@@ -64,7 +64,7 @@ const DEFAULT_TEMPLATE: TemplateConfig = {
   live_summary_title: "Latest live service snapshot",
   cold_rss_title: "Cold-session RSS delta (MB)",
   cold_elapsed_title: "Cold-session elapsed time (ms)",
-  max_bars: 8,
+  max_bars: 10,
 };
 
 function parseArgs(argv: string[]) {
@@ -161,6 +161,8 @@ function shortScenarioLabel(scenario: string): [string, string] {
   if (value.includes("bundled-extension gating") && value.includes("non-web")) return ["Gate", "non-web"];
   if (value.includes("bundled-extension gating") && value.includes("web")) return ["Gate", "web"];
   if (value.includes("lazy-loading") || value.includes("lazy-loaded") || value.includes("office/cdp")) return ["Lazy", "heavy"];
+  if (value.includes("provider-bootstrap") || (value.includes("session-shim") && value.includes("azure"))) return ["Azure", "bootstrap"];
+  if (value.includes("azure image") || value.includes("image helpers") || value.includes("provider module")) return ["Azure", "images"];
   if (value.includes("aggressive") && value.includes("index")) return ["Indexer", "trim"];
 
   const words = stripMarkdown(scenario)

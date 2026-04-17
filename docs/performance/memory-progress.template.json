@@ -6,5 +6,5 @@
   "live_summary_title": "Current live service snapshot",
   "cold_rss_title": "Cold-session RSS delta (MB)",
   "cold_elapsed_title": "Cold-session elapsed time (ms)",
-  "max_bars": 8
+  "max_bars": 10
 }
