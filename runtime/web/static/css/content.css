@@ -560,10 +560,15 @@
     opacity: 0.65;
 }
 .post-content table {
+    display: block;
     border-collapse: collapse;
     margin: 0.5em 0;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
     font-size: 0.9em;
+    table-layout: auto;
 }
 
 .post-content th,
@@ -571,15 +576,15 @@
     border: 1px solid var(--border-color);
     padding: 0.4em 0.6em;
     text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
 }
 
 .post-content th:first-child,
 .post-content td:first-child {
     width: auto;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    hyphens: auto;
 }
 
 .post-content th {
