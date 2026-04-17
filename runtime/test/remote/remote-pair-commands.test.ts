@@ -214,7 +214,50 @@ describe("remote pair commands", () => {
     expect(successMsg).toBeTruthy();
   });
 
-  // ─── tus: "paired",
+  // ─── /pair revoke (runUnpairFlow) ─────────────────────────────────────────
+
+  test("runUnpairFlow sends revoke to remote and marks peer revoked", async () => {
+    const now = new Date().toISOString();
+    const peer = makeIdentity();
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: "test",
+      status: "paired",
+      mode: "mediated",
+      profile: "restricted",
+      trust_epoch: 1,
+      created_at: now,
+      updated_at: now,
+      last_seen_at: now,
+      blocked_reason: null,
+      base_url: TEST_REMOTE_BASE_URL,
+    });
+
+    const fetchedUrls: string[] = [];
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      fetchedUrls.push(typeof input === "string" ? input : (input instanceof URL ? input.href : (input as Request).url));
+      return new Response(JSON.stringify({ status: "revoked" }), { status: 200 });
+    };
+
+    const pi = makeMockPi();
+    await runUnpairFlow(peer.instance_id, pi);
+
+    expect(fetchedUrls.some((u) => u.includes("/api/remote/revoke"))).toBe(true);
+    const stored = getRemotePeer(peer.instance_id);
+    expect(stored?.status).toBe("revoked");
+    expect(pi.messages[0]).toContain("Revoked pairing");
+  });
+
+  test("runUnpairFlow by fingerprint resolves peer", async () => {
+    const now = new Date().toISOString();
+    const peer = makeIdentity();
+    const fp = `${peer.instance_id.slice(0, 6)}-${peer.instance_id.slice(6, 12)}-${peer.instance_id.slice(12, 18)}`;
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: null,
+      status: "paired",
       mode: "mediated",
       profile: "restricted",
       trust_epoch: 1,
