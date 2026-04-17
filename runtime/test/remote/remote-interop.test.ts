@@ -28,6 +28,7 @@ let signRequest: (identity: InteropIdentity, canonical: string) => string;
 let getRemotePeer: (id: string) => any;
 let getRemoteRequestById: (id: string) => any;
 let updatePairRequestStatus: (id: string, status: string) => void;
+let upsertRemotePeer: (peer: any) => void;
 let initDatabase: () => void;
 let RemoteInteropService: any;
 
@@ -151,6 +152,7 @@ describe("remote interop", () => {
     getRemotePeer = remoteDbMod.getRemotePeer;
     getRemoteRequestById = remoteDbMod.getRemoteRequestById;
     updatePairRequestStatus = remoteDbMod.updatePairRequestStatus;
+    upsertRemotePeer = remoteDbMod.upsertRemotePeer;
 
     const serviceMod = await importFresh("../src/remote/service.js");
     RemoteInteropService = serviceMod.RemoteInteropService;
@@ -378,6 +380,42 @@ describe("remote interop", () => {
     );
 
     expect(res2.status).toBe(409);
+  });
+
+  test("pair request rejected for blocked peer before callback validation", async () => {
+    const peer = makeIdentity();
+    upsertRemotePeer({
+      instance_id: peer.instance_id,
+      public_key: peer.public_key,
+      display_name: "blocked-peer",
+      status: "blocked",
+      mode: "mediated",
+      profile: "restricted",
+      base_url: `${TEST_REMOTE_BASE_URL}`,
+      paired_at: new Date().toISOString(),
+    });
+
+    // Use a private-network URL that would fail callback validation –
+    // if the blocked check runs first this never reaches validateCallbackUrl.
+    const res = await service.handleRequest(
+      new Request("http://localhost/api/remote/pair-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instance_id: peer.instance_id,
+          public_key: peer.public_key,
+          display_name: "blocked-peer",
+          callback_url: "https://10.0.0.1/api/remote/pair-confirm",
+          protocol_version: "1",
+          nonce: "nonce-blocked",
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      })
+    );
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("blocked");
   });
 
   test("pair request + confirm establishes peer", async () => {

@@ -75,6 +75,12 @@ export async function handlePairRequest(req: Request, context: RemotePairingHand
     return jsonResponse({ error: "instance_id does not match public_key." }, 400);
   }
 
+  const peer = getRemotePeer(instanceId);
+  if (peer?.status === "blocked") {
+    logAudit(peer, "/api/remote/pair-request", "blocked", "blocked");
+    return jsonResponse({ error: "Peer is blocked." }, 403);
+  }
+
   const callbackCheck = await validateCallbackUrl(callbackUrl);
   if (!callbackCheck.ok) {
     return jsonResponse({ error: callbackCheck.error }, 400);
@@ -88,12 +94,6 @@ export async function handlePairRequest(req: Request, context: RemotePairingHand
   const maxExpiry = now + 24 * 60 * 60 * 1000;
   if (expiresAt <= now || expiresAt > maxExpiry) {
     return jsonResponse({ error: "expires_at is out of range." }, 400);
-  }
-
-  const peer = getRemotePeer(instanceId);
-  if (peer?.status === "blocked") {
-    logAudit(peer, "/api/remote/pair-request", "blocked", "blocked");
-    return jsonResponse({ error: "Peer is blocked." }, 403);
   }
 
   const pending = getPendingPairRequest(instanceId);
