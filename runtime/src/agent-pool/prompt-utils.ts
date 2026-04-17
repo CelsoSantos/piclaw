@@ -60,6 +60,16 @@ export interface SessionIdleWaitResult {
 
 export const DEFAULT_SESSION_IDLE_SETTLE_TICKS = 20;
 export const DEFAULT_SESSION_IDLE_MAX_WAIT_MS = 10_000;
+export const DEFAULT_SESSION_IDLE_COMPACTION_MAX_WAIT_MS = 30_000;
+
+export function resolveSessionIdleMaxWaitMs(
+  session: { isCompacting?: boolean },
+  defaultMaxWaitMs = DEFAULT_SESSION_IDLE_MAX_WAIT_MS,
+  compactionMaxWaitMs = DEFAULT_SESSION_IDLE_COMPACTION_MAX_WAIT_MS,
+): number {
+  if (!session.isCompacting) return defaultMaxWaitMs;
+  return Math.max(defaultMaxWaitMs, compactionMaxWaitMs);
+}
 
 /** Wait until a session fully settles after a prompt completes. */
 export async function waitForSessionIdle(

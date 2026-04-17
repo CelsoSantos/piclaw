@@ -66,7 +66,7 @@ describe("web recovery helpers", () => {
     expect(cleared).toEqual(["web:1", "web:2"]);
     expect(rolledBack).toEqual([{ chatJid: "web:3", prevTs: "t3" }]);
     expect(enqueued.map(({ key, laneKey }) => ({ key, laneKey }))).toEqual([
-      { key: "resume:web:3", laneKey: "web-recovery" },
+      { key: "resume:web:3", laneKey: "chat:web:3" },
     ]);
   });
 

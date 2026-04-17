@@ -89,8 +89,8 @@ describe("web runtime state service", () => {
       { chatJid: "web:pending", since: "t1", assistantName: "Pi live" },
     ]);
     expect(enqueued.map(({ key, laneKey }) => ({ key, laneKey }))).toEqual([
-      { key: "resume:web:replay", laneKey: "web-recovery" },
-      { key: "resume:web:pending", laneKey: "web-recovery" },
+      { key: "resume:web:replay", laneKey: "chat:web:replay" },
+      { key: "resume:web:pending", laneKey: "chat:web:pending" },
     ]);
 
     await enqueued[0].task();

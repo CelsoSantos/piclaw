@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
 
 import {
+  DEFAULT_SESSION_IDLE_COMPACTION_MAX_WAIT_MS,
   DEFAULT_SESSION_IDLE_MAX_WAIT_MS,
   DEFAULT_SESSION_IDLE_SETTLE_TICKS,
   extractAssistantText,
   extractAssistantThinking,
   formatTimeoutDuration,
+  resolveSessionIdleMaxWaitMs,
   toSideReasoning,
   waitForSessionIdle,
 } from "../../src/agent-pool/prompt-utils.js";
@@ -34,6 +36,13 @@ test("prompt utils extract assistant text and thinking blocks", () => {
 test("waitForSessionIdle uses a 1s default settle window", () => {
   expect(DEFAULT_SESSION_IDLE_SETTLE_TICKS).toBe(20);
   expect(DEFAULT_SESSION_IDLE_MAX_WAIT_MS).toBe(10_000);
+  expect(DEFAULT_SESSION_IDLE_COMPACTION_MAX_WAIT_MS).toBe(30_000);
+});
+
+test("resolveSessionIdleMaxWaitMs extends the wait budget for compaction", () => {
+  expect(resolveSessionIdleMaxWaitMs({ isCompacting: false }, 120, 500)).toBe(120);
+  expect(resolveSessionIdleMaxWaitMs({ isCompacting: true }, 120, 500)).toBe(500);
+  expect(resolveSessionIdleMaxWaitMs({ isCompacting: true }, 800, 500)).toBe(800);
 });
 
 test("waitForSessionIdle does not settle during a 600ms mid-run idle gap", async () => {

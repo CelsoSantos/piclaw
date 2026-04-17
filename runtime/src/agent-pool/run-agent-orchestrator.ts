@@ -12,7 +12,11 @@ import { pruneOrphanToolResults } from "./orphan-tool-results.js";
 import { writeAgentLog } from "./logging.js";
 import { getSessionFileSize, rotateSession } from "../session-rotation.js";
 import { withChatContext } from "../core/chat-context.js";
-import { formatTimeoutDuration, waitForSessionIdle } from "./prompt-utils.js";
+import {
+  formatTimeoutDuration,
+  resolveSessionIdleMaxWaitMs,
+  waitForSessionIdle,
+} from "./prompt-utils.js";
 import type { AgentTurnCoordinator } from "./turn-coordinator.js";
 import type { AgentOutput, RunAgentOptions } from "./contracts.js";
 
@@ -243,13 +247,15 @@ export async function runAgentPrompt(
           sessionIsCompacting: Boolean(session.isCompacting),
           sessionIsRetrying: Boolean(session.isRetrying),
         });
+        const idleMaxWaitMs = resolveSessionIdleMaxWaitMs(session);
         await waitForSessionIdle(session, 10, (result) => {
           options.onInfo?.("Session settled after prompt", {
             operation: "run_agent.wait_for_session_idle",
             chatJid,
+            maxWaitMs: idleMaxWaitMs,
             ...result,
           });
-        });
+        }, idleMaxWaitMs);
       } finally {
         completedRef.value = true;
         if (timeoutId) clearTimeout(timeoutId);
