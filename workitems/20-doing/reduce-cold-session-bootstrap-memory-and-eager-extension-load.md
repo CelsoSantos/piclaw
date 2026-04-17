@@ -448,7 +448,12 @@ Why last:
   - `runtime/test/channels/web/tool-status-hints.test.ts`
   - `bunx tsc --noEmit -p runtime/tsconfig.json`
 - Fresh-process spot check from the workspace source tree against an archived `web:default` session file measured roughly **172 ms / 33.4 MB RSS delta** with background workspace indexing disabled for the harness.
-- Measurement refresh for the live installed service is still pending; the performance log now notes that fresh post-reload snapshots should be captured after install/restart and settle.
+- Installed the tranche with `make local-install`, restarted `piclaw.service` via `systemctl --user`, and verified the service came back cleanly.
+- Recorded fresh post-restart memory evidence for the installed build:
+  - startup snapshot: `.piclaw/data/startup-memory-snapshots/2026-04-17T22-03-03-224Z_post-web-start.json`
+  - clean post-start sample: **218.3 MB RSS / 39.4 MB heap / 15.8 MB external / 0 active chats**
+  - settled live sample: **217.7 MB RSS / 216.2 MB PSS / 44.8 MB heap / 14.0 MB external / 1 cached main / 1 active chat**
+- Updated `docs/performance/memory-footprint-history.md` with the new live-service snapshot for commit `49fae082`.
 
 ## Notes
 
