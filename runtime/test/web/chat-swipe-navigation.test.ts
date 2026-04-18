@@ -40,9 +40,28 @@ test('isEligibleChatSwipeTarget ignores compose and interactive controls', () =>
     closest: (_selector: string) => null,
   };
   const blockedTarget = {
-    closest: (selector: string) => selector.includes('.compose-box') ? ({} as Element) : null,
+    closest: (selector: string) => {
+      if (selector.includes('.compose-box')) {
+        // Return an element that is NOT inside a passthrough container
+        return { closest: (_s: string) => null } as unknown as Element;
+      }
+      return null;
+    },
   };
 
   expect(isEligibleChatSwipeTarget(allowedTarget)).toBe(true);
   expect(isEligibleChatSwipeTarget(blockedTarget)).toBe(false);
+});
+
+test('isEligibleChatSwipeTarget allows swipe on agent-thinking buttons', () => {
+  // Simulates a button inside .agent-thinking (draft/thought/intent panel)
+  const thinkingButton = {
+    closest: (selector: string) => {
+      if (selector.includes('button')) return {
+        closest: (s: string) => s.includes('.agent-thinking') ? ({} as Element) : null,
+      } as unknown as Element;
+      return null;
+    },
+  };
+  expect(isEligibleChatSwipeTarget(thinkingButton)).toBe(true);
 });

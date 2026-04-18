@@ -62,7 +62,7 @@ const INTERACTIVE_SELECTOR = [
   'select',
   'button',
   'label',
-  'a',
+  'a[href]',
   '[contenteditable="true"]',
   '[role="button"]',
   '[data-no-chat-swipe]',
@@ -82,9 +82,23 @@ const INTERACTIVE_SELECTOR = [
   '.adaptive-card-container button',
 ].join(', ');
 
+/**
+ * Elements inside the timeline that should NOT block swipe.
+ * If the interactive match is inside one of these containers, allow swipe.
+ */
+const SWIPE_PASSTHROUGH_ANCESTOR = [
+  '.agent-thinking',
+  '.agent-status-panel',
+  '.agent-thinking-intent',
+].join(', ');
+
 export function isEligibleChatSwipeTarget(target: unknown): boolean {
   if (!target || !hasClosest(target)) return false;
-  return !target.closest(INTERACTIVE_SELECTOR);
+  const interactiveMatch = target.closest(INTERACTIVE_SELECTOR);
+  if (!interactiveMatch) return true;
+  // Allow swipe if the interactive element is inside a passthrough container
+  // (drafts, thoughts, intents have buttons but should still be swipeable)
+  return Boolean(interactiveMatch.closest(SWIPE_PASSTHROUGH_ANCESTOR));
 }
 
 export function resolveSwipeableChatAgents(candidates: unknown, currentChatJid: string): string[] {
@@ -148,24 +162,27 @@ function ensureIndicatorElement(container: HTMLElement): HTMLElement {
   if (!indicator) {
     indicator = document.createElement('div');
     indicator.className = 'chat-swipe-indicator';
-    indicator.innerHTML = '<span class="chat-swipe-chevron"></span>';
-    container.appendChild(indicator);
+    indicator.innerHTML = '<span class="chat-swipe-chevron"></span><span class="chat-swipe-label"></span>';
+    // Attach to document.body so it's above everything
+    document.body.appendChild(indicator);
   }
   return indicator;
 }
 
-function showIndicator(indicator: HTMLElement, dx: number, containerWidth: number): void {
+function showIndicator(indicator: HTMLElement, dx: number, _containerWidth: number): void {
   const progress = Math.min(Math.abs(dx) / 120, 1);
-  const side = dx < 0 ? 'right' : 'left';
-  const otherSide = dx < 0 ? 'left' : 'right';
   indicator.style.display = 'flex';
-  indicator.style[side as any] = '0';
-  indicator.style[otherSide as any] = 'auto';
-  indicator.style.opacity = String(Math.min(progress * 1.2, 1));
+  indicator.style.opacity = String(Math.min(progress * 1.5, 1));
   const chevron = indicator.querySelector('.chat-swipe-chevron') as HTMLElement | null;
   if (chevron) {
     chevron.textContent = dx < 0 ? '›' : '‹';
-    chevron.style.transform = `translateX(${dx < 0 ? -1 : 1}px) scale(${0.7 + progress * 0.3})`;
+    chevron.style.transform = `scale(${0.8 + progress * 0.4})`;
+  }
+  const label = indicator.querySelector('.chat-swipe-label') as HTMLElement | null;
+  if (label) {
+    const ready = progress >= 0.85;
+    label.textContent = dx < 0 ? (ready ? 'Next' : '') : (ready ? 'Previous' : '');
+    label.style.opacity = ready ? '1' : '0';
   }
 }
 
@@ -225,9 +242,7 @@ export function attachChatSwipeNavigation(options: UseChatSwipeNavigationOptions
 
   function getIndicator(): HTMLElement {
     if (!indicator) {
-      // attach to the timeline's parent (.container) so it overlays correctly
-      const host = el!.parentElement ?? el!;
-      indicator = ensureIndicatorElement(host);
+      indicator = ensureIndicatorElement(el!);
     }
     return indicator;
   }
