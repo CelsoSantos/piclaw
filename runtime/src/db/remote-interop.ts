@@ -397,3 +397,30 @@ export function logRemoteAudit(entry: RemoteAuditRecord): void {
     entry.created_at
   );
 }
+
+/** Row shape for received result callbacks (requesting side). */
+export interface RemoteResultCallbackRecord {
+  negotiation_id: string;
+  peer_instance_id: string;
+  decision: string;
+  result: string | null;
+  reason: string | null;
+  received_at: string;
+}
+
+/** Store a result callback received from a remote peer. */
+export function storeResultCallback(record: RemoteResultCallbackRecord): void {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO remote_result_callbacks
+       (negotiation_id, peer_instance_id, decision, result, reason, received_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(
+    record.negotiation_id,
+    record.peer_instance_id,
+    record.decision,
+    record.result,
+    record.reason,
+    record.received_at
+  );
+}

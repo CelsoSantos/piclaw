@@ -5,7 +5,7 @@
 import { createUuid } from "../utils/ids.js";
 import type { AgentPool } from "../agent-pool.js";
 import { formatRecoverySummary } from "../agent-pool/automatic-recovery.js";
-import { getRemotePeer, getRemoteRequestById, storeRemoteRequest, updateRemoteRequestDecision, updateRemotePeer, type RemotePeerRecord } from "../db/remote-interop.js";
+import { getRemotePeer, getRemoteRequestById, storeRemoteRequest, storeResultCallback, updateRemoteRequestDecision, updateRemotePeer, type RemotePeerRecord } from "../db/remote-interop.js";
 import type { RemoteInteropConfig } from "../core/config.js";
 import { verifySignedRequest } from "./auth.js";
 import type { RemoteNonceCache } from "./nonce-cache.js";
@@ -303,6 +303,16 @@ export async function handleResult(req: Request, context: RemoteOperationHandler
   const reason = typeof data.reason === "string" ? data.reason : null;
 
   logAudit(peer, "/api/remote/result", decision, decision);
+
+  // Store the result callback so the requesting side has a queryable record.
+  storeResultCallback({
+    negotiation_id: negotiationId,
+    peer_instance_id: peer.instance_id,
+    decision,
+    result,
+    reason,
+    received_at: new Date().toISOString(),
+  });
 
   const peerLabel = peer.display_name ?? `${peer.instance_id.slice(0, 6)}…`;
   if (decision === "accept_execute" && result) {

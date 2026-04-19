@@ -337,6 +337,18 @@ function createSchema(database: Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_remote_audit_created_at ON remote_audit_logs(created_at);
 
+    -- Received result callbacks (requesting side) for mediated proposals.
+    CREATE TABLE IF NOT EXISTS remote_result_callbacks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      negotiation_id TEXT NOT NULL,
+      peer_instance_id TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      result TEXT,
+      reason TEXT,
+      received_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_result_callbacks_neg ON remote_result_callbacks(negotiation_id);
+
     -- Pending outbound pairing requests (initiator side).
     CREATE TABLE IF NOT EXISTS remote_pair_outbound_requests (
       id TEXT PRIMARY KEY,
