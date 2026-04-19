@@ -285,6 +285,10 @@ export function attachChatSwipeNavigation(options: UseChatSwipeNavigationOptions
   const wheelState = createChatSwipeWheelState();
   let indicator: HTMLElement | null = null;
   let neighbours: SwipeNeighbours = { prev: null, next: null };
+  // Track whether the current contact was initiated by a pen/stylus.
+  // Apple Pencil on iPad fires both pointer and touch events; swipe
+  // navigation should only respond to finger touches.
+  let lastPointerDownWasPen = false;
 
   function refreshNeighbours() {
     neighbours = resolveSwipeNeighbours({
@@ -309,11 +313,18 @@ export function attachChatSwipeNavigation(options: UseChatSwipeNavigationOptions
 
   /* ── touch handlers (iOS) ── */
 
+  function onPointerDown(event: PointerEvent) {
+    lastPointerDownWasPen = String(event.pointerType || '').toLowerCase() === 'pen';
+  }
+
   function onTouchStart(event: TouchEvent) {
     resetChatSwipeTouchState(state);
     refreshNeighbours();
     if (!isIOS) return;
     if (event.touches.length !== 1) return;
+    // Apple Pencil generates touch events alongside pointer events;
+    // swipe navigation should only respond to finger touches.
+    if (lastPointerDownWasPen) return;
     if (!isEligibleChatSwipeTarget(event.target)) return;
     const touch = event.touches[0];
     state.active = true;
@@ -390,6 +401,7 @@ export function attachChatSwipeNavigation(options: UseChatSwipeNavigationOptions
 
   /* ── attach listeners ── */
 
+  el.addEventListener('pointerdown', onPointerDown, { passive: true });
   el.addEventListener('touchstart', onTouchStart, { passive: true });
   el.addEventListener('touchmove', onTouchMove, { passive: false });
   el.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -397,6 +409,7 @@ export function attachChatSwipeNavigation(options: UseChatSwipeNavigationOptions
   el.addEventListener('wheel', onWheel, { passive: false });
 
   return () => {
+    el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('touchstart', onTouchStart);
     el.removeEventListener('touchmove', onTouchMove);
     el.removeEventListener('touchend', onTouchEnd);
