@@ -769,7 +769,7 @@ class VncPaneInstance implements PaneInstance {
             }
         };
 
-        const armIdleReleaseTimer = (event, delayMs = 140) => {
+        const armIdleReleaseTimer = (event, delayMs = 80) => {
             const pointerType = String(event?.pointerType || '').toLowerCase();
             if (!shouldArmVncImplicitReleaseTimer(pointerType)) return;
             const pointerId = Number(event?.pointerId);
@@ -844,6 +844,14 @@ class VncPaneInstance implements PaneInstance {
                 releasePointer(event, { resetAll: true });
                 return;
             }
+            // Cross-pointer release: after Apple Pencil lifts, hover events may
+            // arrive with a different pointerId (contact vs hover streams).  If
+            // those events show buttons=0 while we still have a pressed VNC mask,
+            // release everything so the server does not see a stuck button.
+            if (this.pointerButtonMask && !pressedMaskByPointer.has(event.pointerId) && shouldReleaseVncPointerContact(event)) {
+                releaseAllPointers(point);
+                return;
+            }
             if (pressedMaskByPointer.has(event.pointerId)) {
                 armIdleReleaseTimer(event);
             }
@@ -855,7 +863,11 @@ class VncPaneInstance implements PaneInstance {
             event.preventDefault();
             this.canvas?.focus?.();
             lastPointByPointer.set(event.pointerId, point);
-            try { this.canvas?.setPointerCapture?.(event.pointerId); } catch { /* expected: pointer capture can fail when Safari drops the stream mid-gesture. */ }
+            // Only capture for mouse; touch/pen capture on iPad Safari can
+            // suppress pointerup entirely (WebKit bug), leaving clicks stuck.
+            if (String(event?.pointerType || '').toLowerCase() === 'mouse') {
+                try { this.canvas?.setPointerCapture?.(event.pointerId); } catch { /* expected: pointer capture can fail when Safari drops the stream mid-gesture. */ }
+            }
             const bit = resolveVncPointerPressMask(event);
             if (!bit) return;
             pressedMaskByPointer.set(event.pointerId, (pressedMaskByPointer.get(event.pointerId) ?? 0) | bit);
