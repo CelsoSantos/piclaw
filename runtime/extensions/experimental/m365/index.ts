@@ -194,6 +194,79 @@ export default function (pi: ExtensionAPI) {
 		throw new Error(`${actionLabel} requires confirm='true'. Use dryRun='true' to preview without changing anything.`);
 	};
 
+	// ── Mail attachment helpers ──────────────────────────────────────────
+
+	function guessMimeType(filename: string): string {
+		const ext = path.extname(filename).toLowerCase();
+		const map: Record<string, string> = {
+			".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+			".pdf": "application/pdf",
+			".png": "image/png",
+			".jpg": "image/jpeg",
+			".jpeg": "image/jpeg",
+			".gif": "image/gif",
+			".webp": "image/webp",
+			".svg": "image/svg+xml",
+			".txt": "text/plain",
+			".md": "text/markdown",
+			".csv": "text/csv",
+			".json": "application/json",
+			".zip": "application/zip",
+			".html": "text/html",
+			".htm": "text/html",
+		};
+		return map[ext] || "application/octet-stream";
+	}
+
+	async function attachFilesToDraft(
+		messageId: string,
+		attachmentPaths: string,
+	): Promise<Array<{ name: string; ok: boolean; error?: string }>> {
+		const paths = attachmentPaths.split(";").map((p) => p.trim()).filter(Boolean);
+		const results: Array<{ name: string; ok: boolean; error?: string }> = [];
+
+		for (const filePath of paths) {
+			const resolved = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+			const name = path.basename(resolved);
+
+			try {
+				const bytes = fs.readFileSync(resolved);
+
+				// Graph inline attachment limit is 3MB
+				if (bytes.length > 3 * 1024 * 1024) {
+					results.push({ name, ok: false, error: `File too large (${(bytes.length / 1024 / 1024).toFixed(1)}MB). Graph inline limit is 3MB.` });
+					continue;
+				}
+
+				const contentBytes = bytes.toString("base64");
+				const contentType = guessMimeType(name);
+
+				await graphFetch(`me/messages/${messageId}/attachments`, {
+					method: "POST",
+					body: {
+						"@odata.type": "#microsoft.graph.fileAttachment",
+						name,
+						contentType,
+						contentBytes,
+					},
+				});
+
+				results.push({ name, ok: true });
+			} catch (err: any) {
+				results.push({ name, ok: false, error: (err.message || String(err)).substring(0, 200) });
+			}
+		}
+
+		return results;
+	}
+
+	function formatAttachmentSummary(results: Array<{ name: string; ok: boolean; error?: string }>): string {
+		if (!results.length) return "";
+		return "\nAttachments: " + results.map((a) => a.ok ? `✅ ${a.name}` : `❌ ${a.name}: ${a.error}`).join(", ");
+	}
+
 
 	// =======================================================================
 	// TEAMS CHATSVC TOOLS
@@ -687,7 +760,7 @@ export default function (pi: ExtensionAPI) {
 			"action=list: Latest messages. Use folder param for other folders. Use filter for OData like 'isRead eq false'.",
 			"action=search: KQL query across all folders. E.g. 'from:john subject:report hasattachments:true received>=2026-01-01'.",
 			"action=read: Full message body + attachments list by ID.",
-			"action=draft: Create draft. to/subject required. NEVER sends.",
+			"action=draft: Create draft. to/subject required. attachments='path1;path2' for file attachments (max 3MB each). NEVER sends.",
 			"action=reply: Reply draft. messageId required. replyAll='true' for reply-all.",
 			"action=forward: Forward draft. messageId + to required.",
 			"action=delete: Delete by messageId.",
@@ -716,6 +789,7 @@ export default function (pi: ExtensionAPI) {
 			body: Type.Optional(Type.String({ description: "Email body (HTML)" })),
 			importance: Type.Optional(Type.String({ description: "low | normal | high" })),
 			replyAll: Type.Optional(Type.String({ description: "'true' for reply-all" })),
+			attachments: Type.Optional(Type.String({ description: "Semicolon-separated workspace file paths to attach to draft/reply/forward (max 3MB each)" })),
 			// flag
 			flagValue: Type.Optional(Type.String({ description: "'true' to flag, 'false' to unflag" })),
 			// batch / safety
@@ -804,9 +878,15 @@ export default function (pi: ExtensionAPI) {
 				if (params.cc) msg.ccRecipients = params.cc.split(";").map((e: string) => e.trim()).filter(Boolean).map((email: string) => ({ emailAddress: { address: email } }));
 				if (params.importance) msg.importance = params.importance;
 				const created: any = await graphFetch("me/messages", { method: "POST", body: msg });
+				let attachSummary = "";
+				let attachResults: any[] = [];
+				if (params.attachments) {
+					attachResults = await attachFilesToDraft(created.id, params.attachments);
+					attachSummary = formatAttachmentSummary(attachResults);
+				}
 				return {
-					content: [{ type: "text", text: `Draft created: **${created.subject}** (to: ${toList.join(", ")})\nOpen Outlook to review and send.` }],
-					details: { action: "draft", messageId: created.id, subject: created.subject, to: toList },
+					content: [{ type: "text", text: `Draft created: **${created.subject}** (to: ${toList.join(", ")})${attachSummary}\nOpen Outlook to review and send.` }],
+					details: { action: "draft", messageId: created.id, subject: created.subject, to: toList, attachments: attachResults.length ? attachResults : undefined },
 				};
 			}
 
@@ -821,9 +901,15 @@ export default function (pi: ExtensionAPI) {
 						body: { contentType: "HTML", content: params.body },
 					}});
 				}
+				let attachSummary = "";
+				let attachResults: any[] = [];
+				if (params.attachments) {
+					attachResults = await attachFilesToDraft(draft.id, params.attachments);
+					attachSummary = formatAttachmentSummary(attachResults);
+				}
 				return {
-					content: [{ type: "text", text: `Reply draft created for: **${draft.subject}**\nOpen Outlook to review and send.` }],
-					details: { action: "reply", draftId: draft.id, replyAll: params.replyAll === "true", originalId: params.messageId },
+					content: [{ type: "text", text: `Reply draft created for: **${draft.subject}**${attachSummary}\nOpen Outlook to review and send.` }],
+					details: { action: "reply", draftId: draft.id, replyAll: params.replyAll === "true", originalId: params.messageId, attachments: attachResults.length ? attachResults : undefined },
 				};
 			}
 
@@ -836,9 +922,15 @@ export default function (pi: ExtensionAPI) {
 				const patch: any = { toRecipients: toList.map((email: string) => ({ emailAddress: { address: email } })) };
 				if (params.body) patch.body = { contentType: "HTML", content: params.body };
 				await graphFetch(`me/messages/${draft.id}`, { method: "PATCH", body: patch });
+				let attachSummary = "";
+				let attachResults: any[] = [];
+				if (params.attachments) {
+					attachResults = await attachFilesToDraft(draft.id, params.attachments);
+					attachSummary = formatAttachmentSummary(attachResults);
+				}
 				return {
-					content: [{ type: "text", text: `Forward draft created: **${draft.subject}** (to: ${toList.join(", ")})\nOpen Outlook to review and send.` }],
-					details: { action: "forward", draftId: draft.id, to: toList, originalId: params.messageId },
+					content: [{ type: "text", text: `Forward draft created: **${draft.subject}** (to: ${toList.join(", ")})${attachSummary}\nOpen Outlook to review and send.` }],
+					details: { action: "forward", draftId: draft.id, to: toList, originalId: params.messageId, attachments: attachResults.length ? attachResults : undefined },
 				};
 			}
 
