@@ -170,6 +170,51 @@ describe("keychain-tools extension", () => {
     expect(keychainPassthrough).toBeUndefined();
   });
 
+  test("tool_result redacts nested arrays while preserving non-text blocks and scalar types", async () => {
+    const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
+    const keychain = await importFresh<typeof import("../src/secure/keychain.js")>("../src/secure/keychain.js");
+    db.initDatabase();
+    await keychain.setKeychainEntry({
+      name: "service/api-token",
+      type: "token",
+      secret: "super-secret-token",
+    });
+
+    const fake = await registerKeychainExtension();
+    const toolResult = fake.handlers.find((entry) => entry.event === "tool_result")?.handler;
+    const imageBlock = { type: "image", image: "attachment:1" };
+    const result = await toolResult?.({
+      toolName: "bash",
+      content: [
+        { type: "text", text: "token=super-secret-token" },
+        imageBlock,
+      ],
+      details: {
+        nested: [
+          "super-secret-token",
+          { deeper: "super-secret-token", ok: true, count: 2 },
+        ],
+        untouched: 42,
+      },
+      input: {},
+      isError: false,
+      toolCallId: "tool-3",
+      type: "tool_result",
+    });
+
+    expect(result?.content).toEqual([
+      { type: "text", text: "token=[REDACTED]" },
+      imageBlock,
+    ]);
+    expect(result?.details).toEqual({
+      nested: [
+        "[REDACTED]",
+        { deeper: "[REDACTED]", ok: true, count: 2 },
+      ],
+      untouched: 42,
+    });
+  });
+
   test("set/delete actions validate required fields", async () => {
     const tool = await getTool();
 

@@ -123,7 +123,8 @@ Likely beneficiaries:
 - Added focused regression coverage for the packaged `context-mode` integration in `runtime/test/extensions/context-mode.test.ts`.
 - Captured the large-bash-output storage/search path with a `fullOutputPath`-backed event, proving the extension stores the full file content and points the agent at `search_tool_output`.
 - Fixed a user-facing naming drift in `runtime/extensions/integrations/context-mode.ts` where the summary text still referenced the obsolete `tool_output_search` name instead of the actual `search_tool_output` tool.
-- This closes one concrete slice of the “large bash outputs still flow through stored-output compaction/search correctly” audit item.
+- Extended `runtime/test/extensions/extensions-keychain-tools.test.ts` to prove the `tool_result` redaction hook still walks nested arrays/objects while preserving non-text content blocks and non-secret scalar values.
+- This closes one concrete slice of the “large bash outputs still flow through stored-output compaction/search correctly” audit item and strengthens the hook/redaction audit for `keychain-tools`.
 
 ## Links
 
