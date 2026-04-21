@@ -658,6 +658,34 @@ describe("remote interop", () => {
     expect(stored?.request_type).toBe("proposal");
   });
 
+  test("proposal rejects read-only peers", async () => {
+    const peer = makeIdentity();
+    insertPairedPeer(peer, { profile: "read-only" });
+
+    const proposalRes = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/proposal", {
+        prompt: "Check disk usage",
+      })
+    );
+    expect(proposalRes.status).toBe(403);
+    const body = await proposalRes.json();
+    expect(body.error).toContain("read-only");
+  });
+
+  test("proposal accepts non-mutating peers", async () => {
+    const peer = makeIdentity();
+    insertPairedPeer(peer, { profile: "non-mutating" });
+
+    const proposalRes = await service.handleRequest(
+      buildSignedRequest(peer, "POST", "/api/remote/proposal", {
+        prompt: "List files",
+      })
+    );
+    expect(proposalRes.status).toBe(200);
+    const body = await proposalRes.json();
+    expect(body.decision).toBe("human_required");
+  });
+
   test("execute requires JSON content type", async () => {
     const peer = makeIdentity();
     insertPairedPeer(peer, { mode: "short-circuit", profile: "full" });
