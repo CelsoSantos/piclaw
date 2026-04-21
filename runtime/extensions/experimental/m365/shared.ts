@@ -954,8 +954,8 @@ async function acquireConsumerGraphToken(): Promise<string | null> {
 					});
 					try {
 						await httpPut(`http://127.0.0.1:${cdpPort}/json/close/${authTabId}`, 3000);
-					} catch {
-						// ignore cleanup failure and continue with the interactive fallback
+					} catch (e) {
+						logSuppressedM365("Failed to close auth tab during cleanup", e, { cdpPort, authTabId });
 					}
 					const interactiveTab: any = await httpPut(`http://127.0.0.1:${cdpPort}/json/new?${encodeURIComponent(buildAuthUrl(false))}`, 5000);
 					if (interactiveTab?.id) {
@@ -972,8 +972,8 @@ async function acquireConsumerGraphToken(): Promise<string | null> {
 						}
 						try {
 							await httpPut(`http://127.0.0.1:${cdpPort}/json/close/${interactiveTab.id}`, 3000);
-						} catch {
-							// best-effort cleanup only
+						} catch (e) {
+							logSuppressedM365("Failed to close interactive auth tab during cleanup", e, { cdpPort, tabId: interactiveTab.id });
 						}
 					}
 					break;
