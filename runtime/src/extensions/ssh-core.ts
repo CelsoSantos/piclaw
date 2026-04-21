@@ -1000,6 +1000,27 @@ function formatSshShutdownMessage(event?: { reason?: string; targetSessionFile?:
   return `[ssh-core] session shutdown (${event?.reason ?? "unknown"})${event?.targetSessionFile ? ` → ${event.targetSessionFile}` : ""}`;
 }
 
+function rewriteSystemPromptForSshContext(
+  systemPrompt: string,
+  localCwd: string,
+  connection: Pick<SshConnection, "remoteCwd" | "sshTarget" | "port">,
+  promptOptions?: { cwd?: string } | null,
+): string | null {
+  const remotePrefix = `Current working directory: ${connection.remoteCwd} (via SSH ${connection.sshTarget}, port ${connection.port})`;
+  const candidateLocalCwds = [...new Set([
+    typeof promptOptions?.cwd === "string" && promptOptions.cwd.trim() ? promptOptions.cwd.trim() : null,
+    localCwd,
+  ].filter((value): value is string => Boolean(value)))];
+
+  for (const cwd of candidateLocalCwds) {
+    const localPrefix = `Current working directory: ${cwd}`;
+    if (!systemPrompt.includes(localPrefix)) continue;
+    return systemPrompt.replace(localPrefix, remotePrefix);
+  }
+
+  return null;
+}
+
 function registerSshCoreExtension(pi: ExtensionAPI, resolveConfig: (pi: ExtensionAPI) => SshCoreResolvedConfig | null): void {
   pi.registerFlag("ssh", {
     description: "SSH target as user@host or user@host:/absolute/remote/path",
@@ -1133,10 +1154,14 @@ function registerSshCoreExtension(pi: ExtensionAPI, resolveConfig: (pi: Extensio
 
   pi.on("before_agent_start", async (event) => {
     if (!connection) return;
-    const localPrefix = `Current working directory: ${localCwd}`;
-    const remotePrefix = `Current working directory: ${connection.remoteCwd} (via SSH ${connection.sshTarget}, port ${connection.port})`;
-    if (!event.systemPrompt.includes(localPrefix)) return;
-    return { systemPrompt: event.systemPrompt.replace(localPrefix, remotePrefix) };
+    const rewritten = rewriteSystemPromptForSshContext(
+      event.systemPrompt,
+      localCwd,
+      connection,
+      event.systemPromptOptions,
+    );
+    if (!rewritten) return;
+    return { systemPrompt: rewritten };
   });
 }
 
@@ -1268,10 +1293,14 @@ export function createChatSshCoreExtension(
     pi.on("before_agent_start", async (event) => {
       const state = getLiveChatSshState(chatJid);
       if (!state?.connection) return;
-      const localPrefix = `Current working directory: ${localCwd}`;
-      const remotePrefix = `Current working directory: ${state.connection.remoteCwd} (via SSH ${state.connection.sshTarget}, port ${state.connection.port})`;
-      if (!event.systemPrompt.includes(localPrefix)) return;
-      return { systemPrompt: event.systemPrompt.replace(localPrefix, remotePrefix) };
+      const rewritten = rewriteSystemPromptForSshContext(
+        event.systemPrompt,
+        localCwd,
+        state.connection,
+        event.systemPromptOptions,
+      );
+      if (!rewritten) return;
+      return { systemPrompt: rewritten };
     });
   };
 }

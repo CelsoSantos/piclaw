@@ -276,6 +276,41 @@ describe("ssh-core extension registration", () => {
     expect(uiCalls.indicators[uiCalls.indicators.length - 1]).toEqual({ frames: [] });
   });
 
+  test("before_agent_start uses systemPromptOptions.cwd for configured SSH sessions", async () => {
+    const fake = createFakeApi();
+
+    setSshConnectionResolverForTests(async (_rawTarget, localCwd, localHome, port) => ({
+      sshTarget: "agent@example.com",
+      port,
+      remoteCwd: "/srv/project",
+      remoteHome: "/home/agent",
+      localCwd,
+      localHome,
+      privateKeyPath: "/tmp/test-key",
+      controlPath: "/tmp/test-control",
+      strictHostKeyChecking: "yes",
+      tempDir: "/tmp/piclaw-ssh-test",
+    }) as any);
+
+    createSshCoreExtension({
+      target: "agent@example.com:/srv/project",
+      port: 22,
+      privateKeyKeychain: "ssh/piclaw",
+      strictHostKeyChecking: "yes",
+    })(fake.api);
+
+    await fake.state.handlers.get("session_start")?.({}, { hasUI: false });
+
+    const result = await fake.state.handlers.get("before_agent_start")?.({
+      systemPrompt: "Current working directory: /workspace/branches/demo",
+      systemPromptOptions: { cwd: "/workspace/branches/demo" },
+    });
+
+    expect(result).toEqual({
+      systemPrompt: "Current working directory: /srv/project (via SSH agent@example.com, port 22)",
+    });
+  });
+
   test("chat session lifecycle logs shutdown metadata and unregisters live state", async () => {
     const fake = createFakeApi();
     const logs: string[] = [];
@@ -305,6 +340,14 @@ describe("ssh-core extension registration", () => {
 
       await fake.state.handlers.get("session_start")?.({}, { hasUI: false });
       expect(hasLiveChatSshSession("web:test")).toBe(true);
+
+      const beforeAgentStart = await fake.state.handlers.get("before_agent_start")?.({
+        systemPrompt: "Current working directory: /workspace/branches/chat-demo",
+        systemPromptOptions: { cwd: "/workspace/branches/chat-demo" },
+      });
+      expect(beforeAgentStart).toEqual({
+        systemPrompt: "Current working directory: /srv/project (via SSH agent@example.com, port 22)",
+      });
 
       await fake.state.handlers.get("session_shutdown")?.({
         type: "session_shutdown",
