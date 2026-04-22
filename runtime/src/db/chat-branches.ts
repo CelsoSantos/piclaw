@@ -378,6 +378,8 @@ export function renameChatJid(oldJid: string, newJid: string): RenameChatJidResu
     db.exec(`INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')`);
   } catch (_ftsErr) {
     // Non-fatal: search may lag until the next natural rebuild.
+    // eslint-disable-next-line no-console
+    console.debug("[chat-branches] FTS rebuild after rename failed — search may lag", _ftsErr);
   }
 
   return {

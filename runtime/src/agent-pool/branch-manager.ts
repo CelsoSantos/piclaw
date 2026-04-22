@@ -25,6 +25,7 @@ import { sanitiseJid } from "./session.js";
 import { existsSync, renameSync } from "fs";
 import { join } from "path";
 import { createUuid } from "../utils/ids.js";
+import { createLogger, debugSuppressedError } from "../utils/logger.js";
 import { createDeferredBranchSeed, writeDeferredBranchSeed } from "./branch-seeding.js";
 import type { PoolEntry } from "./session-manager.js";
 
@@ -107,6 +108,8 @@ function isSessionActive(session: AgentSession): boolean {
 /**
  * Coordinates chat-branch registration, branch lookup, and fork/prune behavior.
  */
+const log = createLogger("agent-pool.branch-manager");
+
 export class AgentBranchManager {
   constructor(private readonly options: AgentBranchManagerOptions) {}
 
@@ -197,12 +200,12 @@ export class AgentBranchManager {
     // 1. Evict from in-memory pools.
     const mainEntry = this.options.pool.get(old);
     if (mainEntry) {
-      try { await mainEntry.runtime.dispose(); } catch (_) { /* best-effort */ }
+    try { await mainEntry.runtime.dispose(); } catch (e) { log.debug("best-effort dispose failed for main session", { jid: old, err: e }); }
       this.options.pool.delete(old);
     }
     const sideEntry = this.options.sidePool.get(old);
     if (sideEntry) {
-      try { await sideEntry.runtime.dispose(); } catch (_) { /* best-effort */ }
+      try { await sideEntry.runtime.dispose(); } catch (e) { debugSuppressedError(log, "best-effort dispose failed for side session", e, { jid: old }); }
       this.options.sidePool.delete(old);
     }
     this.options.activeForkBaseLeafByChat.delete(old);
@@ -212,13 +215,13 @@ export class AgentBranchManager {
     const childPrefix = old + ":branch:";
     for (const [jid, entry] of this.options.pool) {
       if (jid.startsWith(childPrefix)) {
-        try { await entry.runtime.dispose(); } catch (_) { /* best-effort */ }
+        try { await entry.runtime.dispose(); } catch (e) { debugSuppressedError(log, "best-effort dispose failed for child pool session", e, { jid }); }
         this.options.pool.delete(jid);
       }
     }
     for (const [jid, entry] of this.options.sidePool) {
       if (jid.startsWith(childPrefix)) {
-        try { await entry.runtime.dispose(); } catch (_) { /* best-effort */ }
+        try { await entry.runtime.dispose(); } catch (e) { debugSuppressedError(log, "best-effort dispose failed for child side-pool session", e, { jid }); }
         this.options.sidePool.delete(jid);
       }
     }
@@ -251,7 +254,7 @@ export class AgentBranchManager {
           if (!existsSync(dst)) renameSync(src, dst);
         }
       }
-    } catch (_) { /* best-effort */ }
+    } catch (e) { debugSuppressedError(log, "best-effort child branch directory rename failed", e, { old, next }); }
 
     return result;
   }
