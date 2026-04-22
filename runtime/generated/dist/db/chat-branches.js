@@ -265,6 +265,8 @@ export function renameChatJid(oldJid, newJid) {
     }
     catch (_ftsErr) {
         // Non-fatal: search may lag until the next natural rebuild.
+        // eslint-disable-next-line no-console
+        console.debug("[chat-branches] FTS rebuild after rename failed — search may lag", _ftsErr);
     }
     return {
         oldJid: old,
