@@ -2,7 +2,7 @@
  * agent-pool/contracts.ts – Shared public contracts for AgentPool and its helpers.
  */
 
-import type { AgentSessionEvent, AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
+import type { AgentSessionEvent, AgentSessionRuntime, SettingsManager } from "@mariozechner/pi-coding-agent";
 import type {
   Api,
   AssistantMessageEvent,
@@ -90,6 +90,10 @@ export interface RunAgentOptions {
    * LLM-driven self-escalation beyond the ceiling.
    */
   toolCeilingFilter?: (toolName: string) => boolean;
+}
+
+export interface RetrySettingsProvider {
+  getRetrySettings?: SettingsManager["getRetrySettings"];
 }
 
 /** Construction options for creating an AgentPool. */

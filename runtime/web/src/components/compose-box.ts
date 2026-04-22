@@ -198,7 +198,7 @@ export function resolveComposeExtensionWorkingDisplay(workingState, frameIndex =
  * Tiny SVG pie chart showing context window usage.
  * Green when <75%, amber 75–90%, red >90%. Tooltip shows exact numbers.
  */
-function ContextPie({ usage, onCompact }) {
+function ContextPie({ usage, onCompact, compactionLabel = '', compactionTitle = '' }) {
     const pct = Math.min(100, Math.max(0, usage.percent || 0));
     const tokens = usage.tokens;
     const window = usage.contextWindow;
@@ -206,7 +206,11 @@ function ContextPie({ usage, onCompact }) {
     const label = tokens != null
         ? `Context: ${formatK(tokens)} / ${formatK(window)} tokens (${pct.toFixed(0)}%)`
         : `Context: ${pct.toFixed(0)}%`;
-    const title = `${label} — ${compactLabel}`;
+    const activeCompactionLabel = typeof compactionLabel === 'string' ? compactionLabel.trim() : '';
+    const activeCompactionTitle = typeof compactionTitle === 'string' ? compactionTitle.trim() : '';
+    const title = activeCompactionLabel
+        ? `${label} — ${activeCompactionTitle || 'Smart compaction'} · ${activeCompactionLabel}`
+        : `${label} — ${compactLabel}`;
 
     // Pie arc: SVG circle with stroke-dasharray trick.
     // Circle circumference = 2πr = 2π×9 ≈ 56.55
@@ -220,10 +224,10 @@ function ContextPie({ usage, onCompact }) {
 
     return html`
         <button
-            class="compose-context-pie icon-btn"
+            class=${`compose-context-pie icon-btn${activeCompactionLabel ? ' is-compacting' : ''}`}
             type="button"
             title=${title}
-            aria-label="Compact context"
+            aria-label=${activeCompactionLabel ? `Smart compaction ${activeCompactionLabel}` : 'Compact context'}
             onClick=${(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -243,6 +247,7 @@ function ContextPie({ usage, onCompact }) {
                     stroke-linecap="round"
                     transform="rotate(-90 12 12)" />
             </svg>
+            ${activeCompactionLabel && html`<span class="compose-context-pie-timer">${activeCompactionLabel}</span>`}
         </button>
     `;
 }
@@ -1941,15 +1946,15 @@ export function ComposeBox({
                     </div>
                 </div>
             `}
-            ${statusNotice && html`
+            ${statusNotice && !statusNoticeIsCompaction && html`
                 <div
-                    class=${`compose-inline-status${statusNoticeIsCompaction ? ' compaction' : ''}`}
+                    class="compose-inline-status"
                     role="status"
                     aria-live="polite"
                     title=${statusNoticeDetail || ''}
                 >
                     <div class="compose-inline-status-row">
-                        <span class=${buildComposeStatusDotClass({ pulsing: statusNoticeIsCompaction })} aria-hidden="true"></span>
+                        <span class=${buildComposeStatusDotClass({ pulsing: false })} aria-hidden="true"></span>
                         <span class="compose-inline-status-title">${statusNoticeTitle}</span>
                         ${statusNoticeElapsedLabel && html`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
                     </div>
@@ -2243,7 +2248,12 @@ export function ComposeBox({
                             </div>
                         `}
                         ${!searchMode && contextUsage && contextUsage.percent != null && html`
-                            <${ContextPie} usage=${contextUsage} onCompact=${handleContextCompact} />
+                            <${ContextPie}
+                                usage=${contextUsage}
+                                onCompact=${handleContextCompact}
+                                compactionLabel=${statusNoticeIsCompaction ? statusNoticeElapsedLabel || '0:00' : ''}
+                                compactionTitle=${statusNoticeIsCompaction ? (statusNoticeTitle || 'Smart compaction') : ''}
+                            />
                         `}
                     </div>
                     `}

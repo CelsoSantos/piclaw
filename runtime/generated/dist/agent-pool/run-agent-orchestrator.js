@@ -1,7 +1,7 @@
 /**
  * agent-pool/run-agent-orchestrator.ts – Main runAgent prompt lifecycle orchestration.
  */
-import { decideAutomaticRecovery, getAutomaticRecoveryConfig, } from "./automatic-recovery.js";
+import { decideAutomaticRecovery, getAutomaticRecoveryConfig, getAutomaticRecoveryDelayMs, } from "./automatic-recovery.js";
 import { getAgentRuntimeConfig, getSessionStorageConfig } from "../core/config.js";
 import { detectChannel } from "../router.js";
 import { pruneOrphanToolResults } from "./orphan-tool-results.js";
@@ -12,6 +12,11 @@ import { withChatContext } from "../core/chat-context.js";
 import { formatTimeoutDuration, resolveSessionIdleMaxWaitMs, waitForSessionIdle, } from "./prompt-utils.js";
 import { inspectBlankTurnSessionDelta, isBlankTurnSessionDelta, snapshotSessionEntryCount, } from "./blank-turn-detection.js";
 const log = createLogger("agent-pool.run-orchestrator");
+async function sleep(ms) {
+    if (ms <= 0)
+        return;
+    await Bun.sleep(ms);
+}
 async function maybeAutoRotateSession(session, runtime, chatJid, options) {
     const sessionStorageConfig = getSessionStorageConfig();
     const autoRotateEnabled = sessionStorageConfig.autoRotate
@@ -339,7 +344,15 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
     let hadCompletedTurnOutput = false;
     let compactionErrorMessage = null;
     let sawCompactionIntent = false;
+    let sawAssistantToolCallMessage = false;
+    let onlyReadOnlyToolActivity = true;
+    let assistantToolUseMessageCount = 0;
+    let toolUseBudgetExceeded = false;
     const sessionEntryBaseline = snapshotSessionEntryCount(session);
+    const configuredToolUseBudget = Number.parseInt(process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES || "", 10);
+    const toolUseMessageBudget = Number.isFinite(configuredToolUseBudget) && configuredToolUseBudget > 0
+        ? configuredToolUseBudget
+        : 24;
     const originalOnTurnComplete = runOptions.onTurnComplete;
     const onTurnComplete = originalOnTurnComplete
         ? ((turn) => {
@@ -348,6 +361,14 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
         })
         : undefined;
     const tracker = options.turnCoordinator.createTracker(chatJid, onTurnComplete);
+    const isRetrySafeToolName = (toolName) => typeof toolName === "string" && [
+        "read",
+        "read_attachment",
+        "search_workspace",
+        "introspect_sql",
+        "list_tools",
+        "list_scripts",
+    ].includes(toolName);
     const wrappedOnEvent = (event) => {
         if (event.type === "message_update") {
             const messageEvent = event.assistantMessageEvent;
@@ -359,6 +380,32 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
             || event.type === "tool_execution_update"
             || event.type === "tool_execution_end") {
             hadToolActivity = true;
+            const toolName = event.toolName;
+            if (!isRetrySafeToolName(toolName)) {
+                onlyReadOnlyToolActivity = false;
+            }
+        }
+        if (event.type === "message_end") {
+            const message = event.message;
+            if (message?.role === "assistant" && Array.isArray(message.content)) {
+                const hasToolCall = message.content.some((block) => block && typeof block === "object" && block.type === "toolCall");
+                sawAssistantToolCallMessage = sawAssistantToolCallMessage || hasToolCall;
+                if (hasToolCall && message.stopReason === "toolUse") {
+                    assistantToolUseMessageCount += 1;
+                    if (!toolUseBudgetExceeded && assistantToolUseMessageCount > toolUseMessageBudget) {
+                        toolUseBudgetExceeded = true;
+                        void session.abort().catch((err) => {
+                            options.onWarn?.("Failed to abort tool-loop budget overflow", {
+                                operation: "run_agent.tool_use_budget_abort",
+                                chatJid,
+                                assistantToolUseMessageCount,
+                                toolUseMessageBudget,
+                                err,
+                            });
+                        });
+                    }
+                }
+            }
         }
         if (event.type === "compaction_start") {
             sawCompactionIntent = true;
@@ -412,10 +459,18 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
     hadPartialOutput = hadPartialOutput || !!finalText;
     const finalAttachments = options.takeAttachments(chatJid);
     const timedOut = timedOutRef.value;
+    const lastAssistantState = tracker.getLastAssistantState();
     const latentStateError = !finalText ? getSessionStateErrorMessage(session) : null;
     let output;
     if (timedOut) {
         output = { status: "error", result: null, error: `Timed out after ${formatTimeoutDuration(timeoutMs)}` };
+    }
+    else if (toolUseBudgetExceeded && !finalText && finalAttachments.length === 0) {
+        output = {
+            status: "error",
+            result: null,
+            error: `Tool-use budget exceeded before finalization (${assistantToolUseMessageCount}/${toolUseMessageBudget} tool steps).`,
+        };
     }
     else if (promptThrownError) {
         output = { status: "error", result: null, error: promptThrownError };
@@ -446,9 +501,15 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
                     });
                 }
                 else {
+                    const providerStoppedAfterToolUse = hadToolActivity
+                        && sawAssistantToolCallMessage
+                        && lastAssistantState?.stopReason === "stop"
+                        && !lastAssistantState?.hadTextContent;
                     detail = [
+                        providerStoppedAfterToolUse ? "provider stopped after tool use without a final assistant reply" : null,
                         hadPartialOutput ? "partial output seen" : null,
                         hadToolActivity ? "tool activity seen" : null,
+                        lastAssistantState?.stopReason ? `last stop reason: ${lastAssistantState.stopReason}` : null,
                         blankTurnDelta ? `session delta: ${blankTurnDelta.appendedEntryCount} appended entries` : null,
                     ].filter(Boolean).join(", ") || "no completed assistant turn was emitted";
                     options.onWarn?.("Prompt resolved without a completed assistant reply", {
@@ -497,6 +558,8 @@ async function runPromptAttempt(prompt, chatJid, session, timeoutMs, runOptions,
             hadCompletedTurnOutput,
             compactionErrorMessage,
             sawCompactionIntent,
+            sawAssistantToolCall: sawAssistantToolCallMessage,
+            onlyReadOnlyToolActivity,
         },
     };
 }
@@ -521,7 +584,8 @@ export async function runAgentPrompt(prompt, chatJid, runOptions, options) {
         });
         const timeoutMs = typeof runOptions.timeoutMs === "number" ? runOptions.timeoutMs : getAgentRuntimeConfig().timeoutMs;
         const channel = detectChannel(chatJid);
-        const baseRecoveryConfig = getAutomaticRecoveryConfig();
+        const retrySettings = (runtime.services?.settingsManager?.getRetrySettings?.()) || undefined;
+        const baseRecoveryConfig = getAutomaticRecoveryConfig(retrySettings);
         const recoveryConfig = timeoutMs > 0
             ? { ...baseRecoveryConfig, totalBudgetMs: Math.min(baseRecoveryConfig.totalBudgetMs, timeoutMs) }
             : baseRecoveryConfig;
@@ -608,6 +672,9 @@ export async function runAgentPrompt(prompt, chatJid, runOptions, options) {
                 }
                 recoveryAttemptsUsed += 1;
                 strategyHistory.push(decision.strategy);
+                const retryDelayMs = decision.strategy === "retry"
+                    ? getAutomaticRecoveryDelayMs(recoveryConfig, recoveryAttemptsUsed)
+                    : 0;
                 emitAgentSessionEvent(runOptions.onEvent, {
                     type: "recovery_start",
                     classifier: decision.classifier,
@@ -615,8 +682,12 @@ export async function runAgentPrompt(prompt, chatJid, runOptions, options) {
                     attempt: recoveryAttemptsUsed,
                     maxAttempts: recoveryConfig.maxAttempts,
                     totalBudgetMs: recoveryConfig.totalBudgetMs,
+                    delayMs: retryDelayMs,
                     reason: decision.reason,
                 });
+                if (retryDelayMs > 0) {
+                    await sleep(retryDelayMs);
+                }
                 if (decision.strategy === "compact_then_retry") {
                     const compactionResult = await runRecoveryCompaction(session, chatJid, runOptions, options);
                     if (!compactionResult.ok) {
