@@ -9,6 +9,7 @@ import type { AttachmentInfo } from "./attachments.js";
 import {
   decideAutomaticRecovery,
   getAutomaticRecoveryConfig,
+  getAutomaticRecoveryDelayMs,
   type RecoveryAttemptSnapshot,
   type RecoveryClassifier,
   type RecoveryStrategy,
@@ -31,7 +32,7 @@ import {
   snapshotSessionEntryCount,
 } from "./blank-turn-detection.js";
 import type { AgentTurnCoordinator } from "./turn-coordinator.js";
-import type { AgentOutput, AgentRecoveryDiagnosticEntry, AgentRecoveryMetadata, RunAgentOptions } from "./contracts.js";
+import type { AgentOutput, AgentRecoveryDiagnosticEntry, AgentRecoveryMetadata, RetrySettingsProvider, RunAgentOptions } from "./contracts.js";
 
 const log = createLogger("agent-pool.run-orchestrator");
 
@@ -47,6 +48,11 @@ export interface RunAgentOrchestratorOptions {
   onInfo?: (message: string, details: Record<string, unknown>) => void;
   onWarn?: (message: string, details: Record<string, unknown>) => void;
   onError?: (message: string, details: Record<string, unknown>) => void;
+}
+
+async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await Bun.sleep(ms);
 }
 
 async function maybeAutoRotateSession(
@@ -677,7 +683,8 @@ export async function runAgentPrompt(
 
     const timeoutMs = typeof runOptions.timeoutMs === "number" ? runOptions.timeoutMs : getAgentRuntimeConfig().timeoutMs;
     const channel = detectChannel(chatJid);
-    const baseRecoveryConfig = getAutomaticRecoveryConfig();
+    const retrySettings = ((runtime.services?.settingsManager as RetrySettingsProvider | undefined)?.getRetrySettings?.()) || undefined;
+    const baseRecoveryConfig = getAutomaticRecoveryConfig(retrySettings);
     const recoveryConfig = timeoutMs > 0
       ? { ...baseRecoveryConfig, totalBudgetMs: Math.min(baseRecoveryConfig.totalBudgetMs, timeoutMs) }
       : baseRecoveryConfig;
@@ -805,6 +812,9 @@ export async function runAgentPrompt(
 
         recoveryAttemptsUsed += 1;
         strategyHistory.push(decision.strategy);
+        const retryDelayMs = decision.strategy === "retry"
+          ? getAutomaticRecoveryDelayMs(recoveryConfig, recoveryAttemptsUsed)
+          : 0;
         emitAgentSessionEvent(runOptions.onEvent, {
           type: "recovery_start",
           classifier: decision.classifier,
@@ -812,8 +822,13 @@ export async function runAgentPrompt(
           attempt: recoveryAttemptsUsed,
           maxAttempts: recoveryConfig.maxAttempts,
           totalBudgetMs: recoveryConfig.totalBudgetMs,
+          delayMs: retryDelayMs,
           reason: decision.reason,
         });
+
+        if (retryDelayMs > 0) {
+          await sleep(retryDelayMs);
+        }
 
         if (decision.strategy === "compact_then_retry") {
           const compactionResult = await runRecoveryCompaction(session, chatJid, runOptions, options);
