@@ -3,8 +3,8 @@ import { test, expect } from '../support/world';
 // US-12: Thoughts panel expand/collapse and scroll behaviour
 //
 // The thoughts panel uses CSS to control scrollability:
-// - Collapsed: overflow-y: hidden, max-height clamped to N lines
-// - Expanded (thought panel): overflow-y: auto, max-height: min(52vh, 34rem)
+// - Collapsed: overflow-y: auto with max-height clamped to N lines
+// - Expanded (thought panel): overflow-y: auto with the expanded line cap
 // - data-expanded="true"/"false" on .agent-thinking element
 //
 // These tests use a deterministic DOM fixture instead of sending a real agent
@@ -72,7 +72,7 @@ async function getThoughtsPanelState(page: import('@playwright/test').Page) {
 }
 
 test.describe('US-12: Thoughts Panel Scroll Behaviour', () => {
-  test('collapsed panel is not scrollable and shows "more lines"', async ({ authedPage: page }) => {
+  test('collapsed panel keeps bounded scrolling and shows "more lines"', async ({ authedPage: page }) => {
     await mountThoughtPanelFixture(page);
     const state = await getThoughtsPanelState(page);
     expect(state).toBeTruthy();
@@ -80,7 +80,7 @@ test.describe('US-12: Thoughts Panel Scroll Behaviour', () => {
 
     // Collapsed state checks
     expect(state!.expanded).toBe('false');
-    expect(state!.overflowY).toBe('hidden');
+    expect(state!.overflowY).toBe('auto');
     expect(state!.moreButtonText).toContain('more lines');
   });
 
@@ -109,7 +109,7 @@ test.describe('US-12: Thoughts Panel Scroll Behaviour', () => {
     }
   });
 
-  test('clicking "show less" collapses and disables scrolling', async ({ authedPage: page }) => {
+  test('clicking "show less" collapses back to bounded scrolling', async ({ authedPage: page }) => {
     await mountThoughtPanelFixture(page, 80);
     const panel = page.locator('.agent-thinking[data-panel-key="thought"]');
     const moreBtn = panel.locator('.agent-thinking-truncation');
@@ -128,7 +128,7 @@ test.describe('US-12: Thoughts Panel Scroll Behaviour', () => {
     // Verify collapsed
     state = await getThoughtsPanelState(page);
     expect(state!.expanded).toBe('false');
-    expect(state!.overflowY).toBe('hidden');
+    expect(state!.overflowY).toBe('auto');
   });
 
   test('expand/collapse round-trip preserves content', async ({ authedPage: page }) => {
