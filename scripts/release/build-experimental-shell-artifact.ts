@@ -3,7 +3,7 @@
  * Build a platform-native experimental Piclaw desktop shell artifact.
  *
  * This wraps the Electrobun desktop shell build output in a release-friendly
- * archive with an -experimental suffix. Build on the target OS/architecture.
+ * archive with a piclaw-desktop prefix. Build on the target OS/architecture.
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -131,7 +131,7 @@ async function main(): Promise<void> {
   const version = readPackageVersion();
   const currentPlatform = platform();
   const currentArch = arch();
-  const outputName = `piclaw-${version}-${currentPlatform}-${currentArch}-experimental${artifactExtension(currentPlatform)}`;
+  const outputName = `piclaw-desktop-${version}-${currentPlatform}-${currentArch}${artifactExtension(currentPlatform)}`;
   const outputPath = join(options.outputDir, outputName);
 
   // Electrobun clears/recreates the repo-level artifacts directory during its

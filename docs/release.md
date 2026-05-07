@@ -16,12 +16,12 @@ The same workflow also builds portable YOLO upgrade artifacts and attaches them 
 
 These portable artifacts bundle Bun, Piclaw, built web assets, `skel/`, vendored runtime assets, and production `node_modules` for the target OS/architecture.
 
-The workflow also publishes the experimental Electrobun desktop shell for each release runner with an `-experimental` suffix:
+The workflow also publishes the experimental Electrobun desktop shell for each release runner with a `piclaw-desktop` prefix:
 
-- `piclaw-<version>-linux-x64-experimental.tar.gz`
-- `piclaw-<version>-linux-arm64-experimental.tar.gz`
-- `piclaw-<version>-macos-arm64-experimental.tar.gz`
-- `piclaw-<version>-windows-x64-experimental.zip`
+- `piclaw-desktop-<version>-linux-x64.tar.gz`
+- `piclaw-desktop-<version>-linux-arm64.tar.gz`
+- `piclaw-desktop-<version>-macos-arm64.tar.gz`
+- `piclaw-desktop-<version>-windows-x64.zip`
 
 ## Cutting a release
 
@@ -65,7 +65,7 @@ make portable       # current OS/arch portable runtime artifact
 make portable-linux # Linux-only .run alias
 make portable-mac   # macOS-only .tar.gz alias
 make portable-windows # Windows-only .zip alias
-make portable-experimental-shell # current OS/arch Electrobun shell artifact with -experimental suffix
+make portable-experimental-shell # current OS/arch Electrobun shell artifact with piclaw-desktop prefix
 ```
 
 Linux smoke-test example:

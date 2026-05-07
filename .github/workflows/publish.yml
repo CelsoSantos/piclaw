@@ -184,8 +184,8 @@ jobs:
       - name: Upload experimental shell artifact
         uses: actions/upload-artifact@v4
         with:
-          name: piclaw-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}-experimental
-          path: artifacts/release/*-experimental.*
+          name: piclaw-desktop-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: artifacts/release/piclaw-desktop-*
           if-no-files-found: error
 
   # Build/push remains workflow-native because it is GitHub-runner-specific Docker orchestration.
@@ -362,7 +362,7 @@ jobs:
       - name: Download experimental shell artifacts
         uses: actions/download-artifact@v6
         with:
-          pattern: piclaw-${{ github.ref_name }}-*-experimental
+          pattern: piclaw-desktop-${{ github.ref_name }}-*
           path: artifacts/release
           merge-multiple: true
 
