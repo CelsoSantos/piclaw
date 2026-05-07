@@ -26,6 +26,7 @@ describe('status dot helpers', () => {
     expect(resolveRunningStatusIndicator({ type: 'tool_call' })).toBe('spinner');
     expect(resolveRunningStatusIndicator({ type: 'tool_status' })).toBe('spinner');
     expect(resolveRunningStatusIndicator({ type: 'waiting', tool_name: 'bash' })).toBe('spinner');
+    expect(resolveRunningStatusIndicator({ type: 'intent', tool_name: 'bash' })).toBe('spinner');
     expect(resolveRunningStatusIndicator({ type: 'intent' })).toBe('dot');
     expect(resolveRunningStatusIndicator({ type: 'plan' })).toBe('dot');
     expect(resolveRunningStatusIndicator({ type: 'error' })).toBe('none');
@@ -39,6 +40,7 @@ describe('status dot helpers', () => {
     expect(shouldShowRunningStatusDot({ type: 'thinking' })).toBe(false);
     expect(shouldShowRunningStatusDot({ type: 'waiting', tool_name: 'bash' })).toBe(false);
     expect(shouldShowRunningStatusDot({ type: 'waiting', tool_args: { command: 'pwd' } })).toBe(false);
+    expect(shouldShowRunningStatusDot({ type: 'intent', tool_name: 'bash' })).toBe(false);
     expect(shouldShowRunningStatusDot({ type: 'tool_call' }, { isLastActivity: true })).toBe(false);
     expect(shouldShowRunningStatusDot({ type: 'error' })).toBe(false);
     expect(shouldShowRunningStatusDot({ type: 'plan' })).toBe(true);

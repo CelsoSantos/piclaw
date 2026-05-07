@@ -552,10 +552,13 @@ export function AgentStatus({ status, draft, plan, thought, pendingRequest, inte
 
     const activeTurn = status?.turn_id || turnId;
     const turnColor = getTurnColor(activeTurn);
-    const dotClass = buildTurnDotClass({ steerQueued });
     const panelTitle = (label) => label;
     const showRunningStatusDot = shouldShowRunningStatusDot(status, { isLastActivity });
     const runningIndicatorMode = resolveRunningStatusIndicator(status, { isLastActivity });
+    const dotClass = buildTurnDotClass({
+        steerQueued,
+        pulsing: showRunningStatusDot && runningIndicatorMode === 'dot' && !isLastActivity,
+    });
     const pendingIndicatorMode = resolveRunningStatusIndicator(null, { pendingRequest: true });
     const resolveIntentColor = (kind) => kind === 'warning'
         ? '#f59e0b'
@@ -660,6 +663,7 @@ export function AgentStatus({ status, draft, plan, thought, pendingRequest, inte
             steerQueued,
             pulsing: isCompactionStatus(payload) || Boolean(retryCountdownLabel),
         });
+        const intentIndicatorMode = resolveRunningStatusIndicator(payload);
 
         return html`
             <div
@@ -669,7 +673,8 @@ export function AgentStatus({ status, draft, plan, thought, pendingRequest, inte
                 title=${payload?.detail || ''}
             >
                 <div class="agent-thinking-title intent">
-                    ${color && html`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
+                    ${color && intentIndicatorMode === 'dot' && html`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
+                    ${intentIndicatorMode === 'spinner' && html`<div class="agent-status-spinner" aria-hidden="true"></div>`}
                     <span class="agent-thinking-title-text">${renderToolTitle(titleText, payload)}</span>
                     ${metaLabel && html`<span class="agent-status-elapsed">${metaLabel}</span>`}
                 </div>

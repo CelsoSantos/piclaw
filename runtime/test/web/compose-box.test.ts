@@ -452,6 +452,12 @@ test('resolveComposeExtensionWorkingDisplay renders default working state with a
   });
 });
 
+test('compose status notice rows use a spinner for active working state', () => {
+  const source = readFileSync(join(import.meta.dir, '../../web/src/components/compose-box.ts'), 'utf8');
+  expect(source).toContain('class="compose-inline-status-spinner"');
+  expect(source).not.toContain('buildComposeStatusDotClass({ pulsing: false })');
+});
+
 test('speech push-to-talk starts only on blank compose with native speech available', () => {
   const baseEvent = { key: ' ', code: 'Space', ctrlKey: false, metaKey: false, altKey: false, repeat: false };
   const baseOptions = { searchMode: false, speechButtonVisible: true, speechButtonActive: false, canStartSpeech: true };

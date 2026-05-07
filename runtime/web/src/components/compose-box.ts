@@ -2780,7 +2780,7 @@ export function ComposeBox({
                     title=${statusNoticeDetail || ''}
                 >
                     <div class="compose-inline-status-row">
-                        <span class=${buildComposeStatusDotClass({ pulsing: false })} aria-hidden="true"></span>
+                        <div class="compose-inline-status-spinner" aria-hidden="true"></div>
                         <span class="compose-inline-status-title">${statusNoticeTitle}</span>
                         ${statusNoticeElapsedLabel && html`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
                     </div>

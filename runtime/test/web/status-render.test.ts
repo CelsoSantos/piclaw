@@ -131,6 +131,7 @@ const originalDocument = (globalThis as any).document;
 const originalElement = (globalThis as any).Element;
 const originalDOMParser = (globalThis as any).DOMParser;
 const originalNodeFilter = (globalThis as any).NodeFilter;
+const originalGetComputedStyle = (globalThis as any).getComputedStyle;
 
 afterEach(() => {
   (globalThis as any).window = originalWindow;
@@ -138,6 +139,7 @@ afterEach(() => {
   (globalThis as any).Element = originalElement;
   (globalThis as any).DOMParser = originalDOMParser;
   (globalThis as any).NodeFilter = originalNodeFilter;
+  (globalThis as any).getComputedStyle = originalGetComputedStyle;
 });
 
 test('thought, draft, and live tool-output panels scroll with their configured line limits', () => {
@@ -191,6 +193,29 @@ test('collapsed tool output lines are capped at 132 characters with an ellipsis'
   expect(formatted).toBe(`short\n${'x'.repeat(132)}…`);
 });
 
+test('AgentStatus renders generic active Working rows with an animated indicator', async () => {
+  const fakeDocument = new FakeDocument();
+  installStatusDomStubs(fakeDocument);
+
+  const { AgentStatus } = await importFresh<typeof import('../../web/src/components/status.ts')>('../web/src/components/status.ts');
+  const { h, render } = await import('../../web/src/vendor/preact-htm.js');
+
+  const host = fakeDocument.createElement('div');
+  fakeDocument.body.appendChild(host);
+
+  render(h(AgentStatus, {
+    status: { type: 'active', title: 'Working...' },
+    turnId: 'turn-working',
+  }), host);
+
+  expect(collectText(host)).toContain('Working...');
+  const dots = findElements(host, (node) => getAttr(node, 'class').includes('turn-dot'));
+  expect(dots).toHaveLength(1);
+  expect(getAttr(dots[0], 'class')).toContain('turn-dot-pulsing');
+
+  render(null, host);
+});
+
 function collectInnerHtml(node: FakeNode | null): string[] {
   if (!node || !(node instanceof FakeElement)) return [];
   return [node.innerHTML, ...node.childNodes.flatMap((child) => collectInnerHtml(child))].filter(Boolean);
@@ -217,6 +242,10 @@ function installStatusDomStubs(fakeDocument: FakeDocument): void {
   (globalThis as any).document = fakeDocument;
   (globalThis as any).window = { document: fakeDocument };
   (globalThis as any).Element = FakeElement;
+  Object.defineProperty(globalThis, 'getComputedStyle', {
+    configurable: true,
+    value: () => ({ getPropertyValue: () => '' }),
+  });
   (globalThis as any).NodeFilter = { SHOW_TEXT: 4 };
   (globalThis as any).DOMParser = class DOMParserStub {
     parseFromString(text: string) {
@@ -376,6 +405,24 @@ test('AgentStatus renders trailing tool status text as lowercase pills', async (
   argumentSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-argument'));
   expect(argumentSpans).toHaveLength(1);
   expect(collectText(argumentSpans[0])).toBe(command);
+
+  render(h(AgentStatus, {
+    status: {
+      type: 'intent',
+      title: `bash: ${command}: Working...`,
+      status: 'Working...',
+      tool_name: 'bash',
+      tool_args: { command },
+    },
+  }), host);
+
+  let spinners = findElements(host, (node) => getAttr(node, 'class').includes('agent-status-spinner'));
+  let turnDots = findElements(host, (node) => getAttr(node, 'class').split(/\s+/).includes('turn-dot'));
+  pills = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-status-pill'));
+  expect(spinners).toHaveLength(1);
+  expect(turnDots).toHaveLength(0);
+  expect(pills).toHaveLength(1);
+  expect(collectText(pills[0])).toBe('working');
 
   render(h(AgentStatus, {
     status: {
