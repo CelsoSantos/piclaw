@@ -155,6 +155,13 @@ function normalizeToolName(payload) {
     return typeof raw === 'string' ? raw.trim().toLowerCase() : '';
 }
 
+function normalizeToolTitleArgument(value) {
+    const normalized = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+    if (!normalized) return '';
+    const maxLen = 120;
+    return normalized.length > maxLen ? `${normalized.slice(0, maxLen)}…` : normalized;
+}
+
 function extractStatusToolArgs(args) {
     if (!args) return null;
     if (typeof args === 'string') {
@@ -167,52 +174,97 @@ function extractStatusToolArgs(args) {
     }
     if (typeof args === 'object') {
         const record = args;
-        const nested = record.input || record.params || record.parameters || record.args || record.payload;
+        const nested = record.arguments || record.input || record.params || record.parameters || record.args || record.payload;
         return nested && typeof nested === 'object' ? nested : record;
     }
     return null;
 }
 
-export function resolveBashToolTitleParts(titleText, payload) {
-    const title = typeof titleText === 'string' ? titleText : '';
-    if (!title) return null;
-    const titleMatch = title.match(/^(bash:\s*)(.+)$/is);
-    if (titleMatch) {
-        return { prefix: titleMatch[1], command: titleMatch[2] };
+function getStatusToolTitleArgumentCandidates(payload) {
+    const args = extractStatusToolArgs(payload?.tool_args || payload?.toolArgs);
+    if (!args) return [];
+    const candidates = [];
+    const add = (value) => {
+        const normalized = normalizeToolTitleArgument(value);
+        if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
+    };
+
+    add(args.command);
+
+    if (Array.isArray(args.commands)) {
+        add(args.commands.filter((item) => typeof item === 'string').join(' && '));
     }
 
-    if (normalizeToolName(payload) !== 'bash') return null;
-    const args = extractStatusToolArgs(payload?.tool_args || payload?.toolArgs);
-    const command = typeof args?.command === 'string' ? args.command.replace(/\s+/g, ' ').trim() : '';
-    if (!command || !title.includes(command)) return null;
-    const commandStart = title.indexOf(command);
-    return {
-        prefix: title.slice(0, commandStart),
-        command,
-        suffix: title.slice(commandStart + command.length),
-    };
+    add(args.path || args.filePath || args.target);
+
+    if (Array.isArray(args.paths)) {
+        add(args.paths.filter((item) => typeof item === 'string').join(', '));
+    }
+
+    add(args.fileName || args.filename || args.file);
+    add(args.url);
+    add(args.query);
+
+    return candidates.sort((left, right) => right.length - left.length);
+}
+
+export function resolveToolTitleArgumentParts(titleText, payload) {
+    const title = typeof titleText === 'string' ? titleText : '';
+    if (!title) return null;
+
+    const candidates = getStatusToolTitleArgumentCandidates(payload);
+    for (const argument of candidates) {
+        const argumentStart = title.indexOf(argument);
+        if (argumentStart >= 0) {
+            return {
+                prefix: title.slice(0, argumentStart),
+                argument,
+                suffix: title.slice(argumentStart + argument.length),
+            };
+        }
+    }
+
+    const toolName = normalizeToolName(payload);
+    if (!toolName) return null;
+    const titleMatch = title.match(/^([^:]+:\s*)(.+)$/is);
+    if (!titleMatch || titleMatch[1].trim().replace(/:$/, '').toLowerCase() !== toolName) return null;
+    return { prefix: titleMatch[1], argument: titleMatch[2], suffix: '' };
+}
+
+export function resolveBashToolTitleParts(titleText, payload) {
+    const parts = resolveToolTitleArgumentParts(titleText, payload);
+    if (!parts?.argument) return null;
+    return { prefix: parts.prefix, command: parts.argument, suffix: parts.suffix };
+}
+
+function renderToolArgumentInText(text, payload) {
+    const value = typeof text === 'string' ? text : '';
+    const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
+    const parts = resolveToolTitleArgumentParts(title, payload);
+    if (!parts?.argument) return value;
+
+    const argumentStart = value.lastIndexOf(parts.argument);
+    if (argumentStart < 0) return value;
+    const argumentEnd = argumentStart + parts.argument.length;
+    return html`
+        ${value.slice(0, argumentStart)}<span class="agent-tool-command-line agent-tool-argument">${parts.argument}</span>${value.slice(argumentEnd)}
+    `;
 }
 
 function renderBashCommandInText(text, payload) {
-    const value = typeof text === 'string' ? text : '';
-    const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
-    const parts = resolveBashToolTitleParts(title, payload);
-    if (!parts?.command) return value;
+    return renderToolArgumentInText(text, payload);
+}
 
-    const commandStart = value.lastIndexOf(parts.command);
-    if (commandStart < 0) return value;
-    const commandEnd = commandStart + parts.command.length;
+function renderToolTitle(titleText, payload) {
+    const parts = resolveToolTitleArgumentParts(titleText, payload);
+    if (!parts?.argument) return titleText;
     return html`
-        ${value.slice(0, commandStart)}<span class="agent-tool-command-line">${parts.command}</span>${value.slice(commandEnd)}
+        ${parts.prefix}<span class="agent-tool-command-line agent-tool-argument">${parts.argument}</span>${parts.suffix || ''}
     `;
 }
 
 function renderBashToolTitle(titleText, payload) {
-    const parts = resolveBashToolTitleParts(titleText, payload);
-    if (!parts?.command) return titleText;
-    return html`
-        ${parts.prefix}<span class="agent-tool-command-line">${parts.command}</span>${parts.suffix || ''}
-    `;
+    return renderToolTitle(titleText, payload);
 }
 
 /** Preact component: agent status bar with draft/thought/plan panels. */

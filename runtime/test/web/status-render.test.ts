@@ -207,6 +207,7 @@ function installStatusDomStubs(fakeDocument: FakeDocument): void {
 test('AgentStatus renders bash tool command lines in monospace spans', async () => {
   const css = readFileSync(join(import.meta.dir, '../../web/static/css/agent.css'), 'utf8');
   expect(css).toContain('.agent-tool-command-line');
+  expect(css).toContain('.agent-tool-argument');
   expect(css).toContain('font-family: var(--font-mono, monospace);');
 
   const fakeDocument = new FakeDocument();
@@ -230,6 +231,7 @@ test('AgentStatus renders bash tool command lines in monospace spans', async () 
 
   let commandSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-command-line'));
   expect(commandSpans).toHaveLength(1);
+  expect(getAttr(commandSpans[0], 'class')).toContain('agent-tool-argument');
   expect(collectText(commandSpans[0])).toBe(command);
 
   render(h(AgentStatus, {
@@ -244,6 +246,60 @@ test('AgentStatus renders bash tool command lines in monospace spans', async () 
   commandSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-command-line'));
   expect(commandSpans).toHaveLength(1);
   expect(collectText(commandSpans[0])).toBe(command);
+
+  render(null, host);
+});
+
+test('AgentStatus renders non-bash tool title arguments in monospace spans', async () => {
+  const fakeDocument = new FakeDocument();
+  installStatusDomStubs(fakeDocument);
+
+  const { AgentStatus } = await importFresh<typeof import('../../web/src/components/status.ts')>('../web/src/components/status.ts');
+  const { h, render } = await import('../../web/src/vendor/preact-htm.js');
+
+  const host = fakeDocument.createElement('div');
+  fakeDocument.body.appendChild(host);
+  const path = '/workspace/piclaw/runtime/web/src/components/status.ts';
+
+  render(h(AgentStatus, {
+    status: {
+      type: 'intent',
+      title: `read: ${path}`,
+      tool_name: 'read',
+      tool_args: { path },
+    },
+  }), host);
+
+  let argumentSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-argument'));
+  expect(argumentSpans).toHaveLength(1);
+  expect(collectText(argumentSpans[0])).toBe(path);
+
+  render(h(AgentStatus, {
+    status: {
+      type: 'tool_call',
+      title: `read: ${path}`,
+      tool_name: 'read',
+      tool_args: { path },
+    },
+  }), host);
+
+  argumentSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-argument'));
+  expect(argumentSpans).toHaveLength(1);
+  expect(collectText(argumentSpans[0])).toBe(path);
+
+  const query = 'agent status monospace arguments';
+  render(h(AgentStatus, {
+    status: {
+      type: 'intent',
+      title: `grep: ${query}`,
+      tool_name: 'grep',
+      tool_args: { query },
+    },
+  }), host);
+
+  argumentSpans = findElements(host, (node) => getAttr(node, 'class').includes('agent-tool-argument'));
+  expect(argumentSpans).toHaveLength(1);
+  expect(collectText(argumentSpans[0])).toBe(query);
 
   render(null, host);
 });
