@@ -5,14 +5,25 @@ export function shouldUseStandaloneMobileViewportFix(runtime = {}) {
   return isStandaloneWebAppMode(runtime) && isMobileBrowserMode(runtime);
 }
 
-export function readViewportHeight(runtime = {}) {
+const STANDALONE_VISUAL_VIEWPORT_CHROME_GAP_MAX_PX = 96;
+
+export function readViewportHeight(runtime = {}, options = {}) {
   const win = runtime.window ?? (typeof window !== 'undefined' ? window : null);
   const viewportHeight = Number(win?.visualViewport?.height || 0);
-  if (Number.isFinite(viewportHeight) && viewportHeight > 0) {
+  const innerHeight = Number(win?.innerHeight || 0);
+  const hasViewportHeight = Number.isFinite(viewportHeight) && viewportHeight > 0;
+  const hasInnerHeight = Number.isFinite(innerHeight) && innerHeight > 0;
+
+  if (hasViewportHeight) {
+    if (options.ignoreStandaloneChromeGap === true && hasInnerHeight && innerHeight > viewportHeight) {
+      const gap = innerHeight - viewportHeight;
+      if (gap > 0 && gap <= STANDALONE_VISUAL_VIEWPORT_CHROME_GAP_MAX_PX) {
+        return Math.round(innerHeight);
+      }
+    }
     return Math.round(viewportHeight);
   }
-  const innerHeight = Number(win?.innerHeight || 0);
-  if (Number.isFinite(innerHeight) && innerHeight > 0) {
+  if (hasInnerHeight) {
     return Math.round(innerHeight);
   }
   return null;
@@ -29,7 +40,7 @@ export function syncStandaloneMobileViewport(runtime = {}, options = {}) {
     return null;
   }
 
-  const height = readViewportHeight({ window: win });
+  const height = readViewportHeight({ window: win }, { ignoreStandaloneChromeGap: true });
   if (height && height > 0) {
     doc.documentElement.style.setProperty('--app-height', `${height}px`);
   }

@@ -45,6 +45,62 @@ test('readViewportHeight prefers visualViewport height when available', () => {
   })).toBe(844);
 });
 
+test('syncStandaloneMobileViewport ignores small standalone visual viewport gaps that create bottom whitespace', () => {
+  const cssVars = new Map<string, string>();
+  const documentElement = {
+    style: {
+      setProperty: (name: string, value: string) => cssVars.set(name, value),
+    },
+  };
+
+  const height = syncStandaloneMobileViewport({
+    navigator: {
+      standalone: true,
+      userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)',
+      maxTouchPoints: 5,
+    },
+    window: {
+      matchMedia: () => ({ matches: true }),
+      visualViewport: { height: 741 },
+      innerHeight: 800,
+    },
+    document: {
+      documentElement,
+    },
+  });
+
+  expect(height).toBe(800);
+  expect(cssVars.get('--app-height')).toBe('800px');
+});
+
+test('syncStandaloneMobileViewport keeps large visual viewport shrink for virtual keyboard', () => {
+  const cssVars = new Map<string, string>();
+  const documentElement = {
+    style: {
+      setProperty: (name: string, value: string) => cssVars.set(name, value),
+    },
+  };
+
+  const height = syncStandaloneMobileViewport({
+    navigator: {
+      standalone: true,
+      userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)',
+      maxTouchPoints: 5,
+    },
+    window: {
+      matchMedia: () => ({ matches: true }),
+      visualViewport: { height: 430 },
+      innerHeight: 800,
+    },
+    document: {
+      documentElement,
+    },
+  });
+
+  expect(height).toBe(430);
+  expect(cssVars.get('--app-height')).toBe('430px');
+});
+
 test('syncStandaloneMobileViewport writes app height without resetting page scroll by default', () => {
   const cssVars = new Map<string, string>();
   const windowScrolls: Array<[number, number]> = [];
