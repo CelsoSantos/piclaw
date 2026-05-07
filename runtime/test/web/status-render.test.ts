@@ -327,6 +327,7 @@ test('AgentStatus labels tool output as Output and shows the tail while collapse
 
   const textOutput = collectText(host);
   expect(textOutput).toContain('Output');
+  expect(textOutput).not.toContain('bash: Streaming output...');
 
   const htmlOutput = collectInnerHtml(host).join('\n');
   expect(htmlOutput).toContain('line 3');

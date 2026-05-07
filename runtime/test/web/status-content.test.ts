@@ -5,6 +5,12 @@ import { resolveAgentStatusContent, resolveIntentElapsedLabel, resolveStatusActi
 test('resolveAgentStatusContent preserves the last visible tool activity label without inlining age text', () => {
   expect(resolveAgentStatusContent({ type: 'tool_call', title: 'bash', last_activity: true, last_event_at: '2026-04-22T06:00:00.000Z' })).toBe('Recent activity: Running: bash');
   expect(resolveAgentStatusContent({ type: 'tool_status', title: 'bash', status: 'Working...', last_activity: true, last_event_at: '2026-04-22T06:00:00.000Z' })).toBe('Recent activity: bash: Working...');
+  expect(resolveAgentStatusContent({ type: 'tool_status', title: 'bash', status: 'Streaming output...', last_activity: true, last_event_at: '2026-04-22T06:00:00.000Z' })).toBe('Recent activity: bash');
+});
+
+test('resolveAgentStatusContent omits redundant streaming-output suffixes when output is already shown below', () => {
+  expect(resolveAgentStatusContent({ type: 'tool_status', title: 'bash', status: 'Streaming output...' })).toBe('bash');
+  expect(resolveAgentStatusContent({ type: 'tool_status', title: 'read: /workspace/file.txt', status: 'Streaming output...' })).toBe('read: /workspace/file.txt');
 });
 
 test('resolveStatusActivityAgeLabel formats the activity age for recent activity and tool output meta rows after the clutter threshold', () => {

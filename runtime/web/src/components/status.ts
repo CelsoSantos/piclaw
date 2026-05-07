@@ -127,6 +127,10 @@ export function resolveIntentElapsedLabel(status, nowMs = Date.now()) {
     return getStatusElapsedLabel(status, nowMs);
 }
 
+function isRedundantToolStatusText(statusText) {
+    return typeof statusText === 'string' && /^streaming output\.{3}$/i.test(statusText.trim());
+}
+
 export function resolveAgentStatusContent(status, options = {}) {
     const isLastActivity = options?.isLastActivity ?? Boolean(status?.last_activity || status?.lastActivity);
     const title = status?.title;
@@ -137,7 +141,7 @@ export function resolveAgentStatusContent(status, options = {}) {
     } else if (status?.type === 'tool_call') {
         content = title ? `Running: ${title}` : 'Running tool...';
     } else if (status?.type === 'tool_status') {
-        content = title ? `${title}: ${statusText || 'Working...'}` : (statusText || 'Working...');
+        content = title && isRedundantToolStatusText(statusText) ? title : (title ? `${title}: ${statusText || 'Working...'}` : (statusText || 'Working...'));
     } else if (status?.type === 'error') {
         content = title || 'Agent error';
     } else {
