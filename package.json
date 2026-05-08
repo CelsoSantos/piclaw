@@ -6,7 +6,8 @@
   "license": "MIT",
   "main": "runtime/src/index.ts",
   "bin": {
-    "piclaw": "runtime/src/index.ts"
+    "piclaw": "runtime/src/index.ts",
+    "imgcat": "runtime/scripts/imgcat.ts"
   },
   "imports": {
     "#editor-vendor/codemirror": "./runtime/extensions/viewers/editor/vendor/codemirror.js"
