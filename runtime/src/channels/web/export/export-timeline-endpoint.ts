@@ -10,6 +10,7 @@ import { join } from "path";
 import { marked } from "marked";
 import { getWebRuntimeConfig } from "../../../core/config.js";
 import { getDb } from "../../../db.js";
+import { getMediaById } from "../../../db/media.js";
 import { isInternalSecretRequestAuthorized } from "../auth/internal-secret.js";
 import { jsonResponse } from "../http/http-utils.js";
 
@@ -209,14 +210,23 @@ function decodeHtmlAttribute(value: string): string {
     .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(parseInt(dec, 10)));
 }
 
-function isSafeExportUrl(raw: string): boolean {
-  const value = Array.from(decodeHtmlAttribute(raw || "").trim())
+function normalizeExportUrlAttribute(raw: string): string {
+  return Array.from(decodeHtmlAttribute(raw || "").trim())
     .filter((ch) => {
       const code = ch.charCodeAt(0);
       return code > 0x1f && code !== 0x7f && !/\s/u.test(ch);
     })
     .join("");
+}
+
+function isSafeExportDataImageUrl(value: string): boolean {
+  return /^data:image\/(?:png|jpe?g|gif|webp|bmp|x-icon|svg\+xml);base64,[a-z0-9+/]+=*$/i.test(value);
+}
+
+function isSafeExportUrl(raw: string): boolean {
+  const value = normalizeExportUrlAttribute(raw);
   if (!value) return false;
+  if (isSafeExportDataImageUrl(value)) return true;
   try {
     const url = new URL(value, "https://export.local/");
     return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol);
@@ -372,12 +382,25 @@ function renderAvatar(params: {
   return `<div class="${cls}"${style}>${initial}</div>`;
 }
 
-function renderMedia(media: NonNullable<ExportMessage["media"]>, origin: string): string {
+function mediaImageDataUri(id: number, contentType: string | null): string | null {
+  const type = String(contentType || "").trim().toLowerCase();
+  if (!type.startsWith("image/")) return null;
+  const media = getMediaById(id);
+  if (!media?.data?.length) return null;
+  const mime = String(media.content_type || type || "image/png").trim().toLowerCase();
+  if (!mime.startsWith("image/")) return null;
+  return `data:${mime};base64,${Buffer.from(media.data).toString("base64")}`;
+}
+
+function renderMedia(media: NonNullable<ExportMessage["media"]>, _origin: string): string {
   if (!media.length) return "";
   return `<div class="post-attachments" style="margin-top:6px">${media.map((item) => {
     const isImage = (item.content_type || "").startsWith("image/");
     if (isImage) {
-      return `<img src="${esc(`${origin}/media/${item.id}`)}" alt="${esc(item.filename || "")}" style="max-width:100%;border-radius:8px;margin:4px 0"/>`;
+      const src = mediaImageDataUri(item.id, item.content_type);
+      if (src) {
+        return `<img src="${esc(src)}" alt="${esc(item.filename || "")}" style="max-width:100%;border-radius:8px;margin:4px 0"/>`;
+      }
     }
     return `<div class="attachment-pill" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;margin:2px 4px 2px 0"><span>${esc(item.filename || `file-${item.id}`)}</span><span style="color:var(--text-secondary)">${esc(formatSize(item.size))}</span></div>`;
   }).join("")}</div>`;
@@ -537,10 +560,19 @@ function buildExportHtml(opts: {
       padding: 0 0 0 12px !important;
       border-left: 3px solid ${border} !important;
     }
+    .post-content img {
+      display: block !important;
+      max-width: 100% !important;
+      height: auto !important;
+      border-radius: 10px !important;
+      margin: 8px 0 !important;
+      border: 1px solid ${border} !important;
+    }
     .post-attachments { margin-top: 8px !important; }
     .post-attachments img {
       display: block !important;
       max-width: 100% !important;
+      height: auto !important;
       border-radius: 10px !important;
       margin: 6px 0 !important;
       border: 1px solid ${border} !important;
