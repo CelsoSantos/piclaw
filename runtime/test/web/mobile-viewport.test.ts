@@ -58,12 +58,13 @@ test('container CSS has a single --app-height height declaration', () => {
   expect(rule).not.toContain('height: 100%;');
 });
 
-test('body uses position:fixed + height:var(--app-height), not inset:0', () => {
+test('body stays in normal flow and uses --app-height (not fixed/inset)', () => {
   const css = readFileSync(new URL('../../web/static/css/base.css', import.meta.url), 'utf8');
   const rule = readCssRule(css, 'body');
   const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, '');
-  expect(declarations).toMatch(/position\s*:\s*fixed/);
   expect(declarations).toMatch(/height\s*:\s*var\(--app-height,\s*100dvh\)/);
+  expect(declarations).toMatch(/min-height\s*:\s*var\(--app-height,\s*100dvh\)/);
+  expect(declarations).not.toMatch(/position\s*:\s*fixed/);
   expect(declarations).not.toMatch(/inset\s*:\s*0/);
 });
 

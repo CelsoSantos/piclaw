@@ -227,11 +227,13 @@ html {
 }
 
 body {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    /* Keep body in normal document flow. On current iOS standalone WebKit,
+       `position: fixed` on the root body turns the app into the viewport-sized
+       clipping box and truncates the bottom of compose/timeline. The mobile
+       viewport fix still drives height via --app-height; body just must not be
+       the fixed containing block. */
     height: var(--app-height, 100dvh);
+    min-height: var(--app-height, 100dvh);
     font-family: var(--font-family);
     font-size: var(--font-size-md);
     line-height: var(--line-height);
