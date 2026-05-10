@@ -525,6 +525,15 @@ export class AgentSessionManager {
         });
       } finally {
         closeOpenAICodexWebSocketSessions(sessionId);
+        // C3: Break references to large session data immediately after disposal
+        // so GC can reclaim the fileEntries array and byId Map without waiting
+        // for all closure/reference paths to be collected.
+        try {
+          const sm = runtime.session.sessionManager as { fileEntries?: unknown[]; byId?: Map<unknown, unknown> };
+          if (sm.fileEntries) sm.fileEntries = [];
+          if (sm.byId) sm.byId.clear();
+          (runtime.session as { agent?: { state?: { messages?: unknown[] } } }).agent?.state && ((runtime.session as any).agent.state.messages = []);
+        } catch { void 0; }
       }
     })();
     this.runtimeDisposeInFlight.set(runtime, task);
