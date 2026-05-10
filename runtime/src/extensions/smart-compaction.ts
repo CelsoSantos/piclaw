@@ -1380,6 +1380,7 @@ async function mergeProgressiveSummaries(input: {
   abortSignal: AbortSignal;
   ctx: { ui: { setWorkingMessage?: (msg?: string) => void; notify?: (msg: string, level?: "info" | "warning" | "error") => void } };
   finalPromptExtras: Omit<Parameters<typeof buildMergePrompt>[0], "summaries" | "rangeLabel" | "final">;
+  publishEstimate?: (tokens: number, phase: string) => void;
 }): Promise<string> {
   let summaries = input.summaries;
   let pass = 1;
@@ -1391,6 +1392,7 @@ async function mergeProgressiveSummaries(input: {
       const nextChars = summary.length + 2;
       if (batch.length > 0 && chars + nextChars > input.budget.mergeBudgetChars) {
         input.ctx.ui.setWorkingMessage?.(`Smart compaction: merging pass ${pass}, batch ${next.length + 1}…`);
+        input.publishEstimate?.(estimateTokensFromChars(batch.join("\n\n")), `merge_pass_${pass}_batch_${next.length + 1}`);
         next.push(await completeCompactionPrompt(
           input.model,
           input.auth,
@@ -1406,6 +1408,7 @@ async function mergeProgressiveSummaries(input: {
     }
     if (batch.length > 0) {
       input.ctx.ui.setWorkingMessage?.(`Smart compaction: merging pass ${pass}, batch ${next.length + 1}…`);
+      input.publishEstimate?.(estimateTokensFromChars(batch.join("\n\n")), `merge_pass_${pass}_batch_${next.length + 1}`);
       next.push(await completeCompactionPrompt(
         input.model,
         input.auth,
@@ -1420,6 +1423,7 @@ async function mergeProgressiveSummaries(input: {
   }
 
   input.ctx.ui.setWorkingMessage?.("Smart compaction: final progressive merge…");
+  input.publishEstimate?.(estimateTokensFromChars(summaries.join("\n\n")), "merge_final");
   return await completeCompactionPrompt(
     input.model,
     input.auth,
@@ -1520,6 +1524,7 @@ async function runProgressiveCompaction(input: {
     maxTokens,
     abortSignal: input.abortSignal,
     ctx: input.ctx,
+    publishEstimate: input.publishEstimate,
     finalPromptExtras: {
       previousSummary: input.previousSummary,
       keptMessagesSummary: input.keptMessagesSummary,

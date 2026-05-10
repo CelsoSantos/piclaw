@@ -154,6 +154,8 @@ vi.mock("@earendil-works/pi-coding-agent", () => ({
 import { completeSimple } from "@earendil-works/pi-ai";
 import {
   buildProgressiveCompactionChunks,
+  clampKeepRecentTokens,
+  estimatePostCompactionFit,
   getProgressiveCompactionBudget,
   smartCompaction,
 } from "../../src/extensions/smart-compaction.js";
@@ -605,6 +607,25 @@ describe("smart-compaction", () => {
       expect(large.promptBudgetChars).toBeLessThanOrEqual(60_000);
     });
 
+    it("subtracts system prompt overhead from budget calculations", () => {
+      // A model with 8k context should have much less budget than one with 128k
+      // because overhead eats a larger fraction of the small window
+      const tiny = getProgressiveCompactionBudget({ contextWindow: 8_000 });
+      const large = getProgressiveCompactionBudget({ contextWindow: 128_000 });
+
+      // The tiny model budget should be substantially smaller due to overhead subtraction
+      expect(tiny.promptBudgetChars).toBeLessThan(large.promptBudgetChars / 4);
+      // Budget should never exceed the context window * 4 (chars) * fraction * safety margin
+      expect(large.promptBudgetChars).toBeLessThan(128_000 * 4 * 0.42 * 0.86);
+    });
+
+    it("applies safety margin to prompt budgets", () => {
+      const budget = getProgressiveCompactionBudget({ contextWindow: 128_000 });
+      // Without safety margin, 128k * 4 * 0.42 = 215,040 chars, capped at 60k
+      // With 0.85 margin, should be <= 60k * 0.85 = 51k
+      expect(budget.promptBudgetChars).toBeLessThanOrEqual(51_000);
+    });
+
     it("splits deterministic chunks in order without dropping key continuity facts", () => {
       const messages = Array.from({ length: 12 }, (_, i) => userMsg(`fact-${String(i).padStart(2, "0")} ${"x".repeat(180)}`));
       const chunks = buildProgressiveCompactionChunks(messages as any, 500, new Set(messages.map((_, i) => i)));
@@ -668,6 +689,41 @@ describe("smart-compaction", () => {
       expect(prompts.filter((prompt: string) => prompt.includes("deterministic chunk")).length).toBeGreaterThan(1);
       expect(prompts.at(-1)).toContain("Ordered Intermediate Summaries");
       expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Progressive compaction"), "info");
+    });
+  });
+
+  describe("overhead and safety guards", () => {
+    it("clampKeepRecentTokens limits to 50% of effective context window", () => {
+      // For a 128k window with 4k overhead, effective = 124k, max = 62k
+      expect(clampKeepRecentTokens(100_000, 128_000)).toBeLessThanOrEqual(62_000);
+      // Small value should pass through unchanged
+      expect(clampKeepRecentTokens(10_000, 128_000)).toBe(10_000);
+      // Zero stays zero
+      expect(clampKeepRecentTokens(0, 128_000)).toBe(0);
+    });
+
+    it("clampKeepRecentTokens handles tiny context windows", () => {
+      // With 8k window and 4k overhead, effective = 4k, max = 2k
+      const clamped = clampKeepRecentTokens(50_000, 8_000);
+      expect(clamped).toBeLessThanOrEqual(2_000);
+    });
+
+    it("estimatePostCompactionFit detects overflow", () => {
+      // Summary of 50k tokens + 50k kept + 4k overhead = 104k > 100k context
+      const summary = "x".repeat(200_000); // ~50k tokens
+      const fit = estimatePostCompactionFit(summary, 50_000, 100_000);
+      expect(fit.fits).toBe(false);
+      expect(fit.margin).toBeLessThan(0);
+      expect(fit.summaryTokens).toBeGreaterThan(0);
+      expect(fit.overheadTokens).toBeGreaterThan(0);
+    });
+
+    it("estimatePostCompactionFit passes when there is room", () => {
+      const summary = "x".repeat(4_000); // ~1k tokens
+      const fit = estimatePostCompactionFit(summary, 10_000, 128_000);
+      expect(fit.fits).toBe(true);
+      expect(fit.margin).toBeGreaterThan(0);
+      expect(fit.estimatedTotal).toBe(fit.summaryTokens + 10_000 + fit.overheadTokens);
     });
   });
 
