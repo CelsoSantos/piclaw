@@ -49,6 +49,42 @@ export function readViewportHeight(runtime = {}, options = {}) {
   return null;
 }
 
+function readCurrentScreenHeight(win: any): number | null {
+  const screenWidth = Number(win?.screen?.width || 0);
+  const screenHeight = Number(win?.screen?.height || 0);
+  if (!Number.isFinite(screenWidth) || !Number.isFinite(screenHeight) || screenWidth <= 0 || screenHeight <= 0) {
+    return null;
+  }
+
+  const innerWidth = Number(win?.innerWidth || 0);
+  const innerHeight = Number(win?.innerHeight || 0);
+  const isLandscape = Number.isFinite(innerWidth) && Number.isFinite(innerHeight) && innerWidth > innerHeight;
+  return Math.round(isLandscape ? Math.min(screenWidth, screenHeight) : Math.max(screenWidth, screenHeight));
+}
+
+function isVirtualKeyboardLikelyVisible(win: any): boolean {
+  const viewportHeight = Number(win?.visualViewport?.height || 0);
+  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return false;
+
+  const viewportOffsetTop = Number(win?.visualViewport?.offsetTop || 0);
+  const measuredViewportHeight = viewportHeight + Math.max(0, Number.isFinite(viewportOffsetTop) ? viewportOffsetTop : 0);
+  const screenHeight = readCurrentScreenHeight(win);
+  if (screenHeight && screenHeight > 0) {
+    // iOS standalone can keep focus on the textarea after the keyboard is hidden,
+    // while visualViewport/innerHeight are still the cold-start short values
+    // (screen height minus the top safe area). Treat that as "keyboard closed".
+    // A real software keyboard is a much larger shrink than the ~59px PWA chrome lie.
+    const keyboardThreshold = Math.max(120, Math.round(screenHeight * 0.16));
+    return measuredViewportHeight < screenHeight - keyboardThreshold;
+  }
+
+  const innerHeight = Number(win?.innerHeight || 0);
+  if (Number.isFinite(innerHeight) && innerHeight > 0) {
+    return measuredViewportHeight < innerHeight - 80;
+  }
+  return false;
+}
+
 export function syncStandaloneMobileViewport(runtime = {}, options = {}) {
   if (!shouldUseStandaloneMobileViewportFix(runtime)) {
     return null;
@@ -60,7 +96,8 @@ export function syncStandaloneMobileViewport(runtime = {}, options = {}) {
     return null;
   }
 
-  const keyboardActive = isTextEntryFocused(doc);
+  const textEntryFocused = isTextEntryFocused(doc);
+  const keyboardActive = textEntryFocused && isVirtualKeyboardLikelyVisible(win);
   const height = readViewportHeight({ window: win }, { ignoreStandaloneChromeGap: true, keyboardActive });
   if (keyboardActive) {
     if (height && height > 0) {

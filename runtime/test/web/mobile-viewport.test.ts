@@ -129,6 +129,37 @@ test('syncStandaloneMobileViewport does not persist false short standalone viewp
   expect(cssVars.get('--app-height')).toBe('100vh');
 });
 
+test('syncStandaloneMobileViewport ignores focused textarea when iOS standalone viewport only has the cold-start safe-area gap', () => {
+  const cssVars = new Map<string, string>();
+  const documentElement = {
+    style: {
+      setProperty: (name: string, value: string) => cssVars.set(name, value),
+    },
+  };
+
+  const height = syncStandaloneMobileViewport({
+    navigator: {
+      standalone: true,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+      maxTouchPoints: 5,
+    },
+    window: {
+      matchMedia: () => ({ matches: true }),
+      visualViewport: { height: 793, offsetTop: 0 },
+      innerHeight: 793,
+      innerWidth: 393,
+      screen: { width: 393, height: 852 },
+    },
+    document: {
+      documentElement,
+      activeElement: { tagName: 'TEXTAREA', type: 'textarea' },
+    },
+  });
+
+  expect(height).toBe(793);
+  expect(cssVars.get('--app-height')).toBe('100vh');
+});
+
 test('syncStandaloneMobileViewport keeps large visual viewport shrink for virtual keyboard', () => {
   const cssVars = new Map<string, string>();
   const documentElement = {

@@ -6,7 +6,7 @@
 
 This document captures every failure mode, attempted fix, and the final confirmed solution for the iOS standalone PWA viewport height bug. It exists to prevent regressions. **Read this before changing any layout CSS, viewport meta tags, or mobile-viewport JS.**
 
-> **2026-05 regression addendum:** the `100dvh` CSS default only remains safe if standalone mode sets `--app-height: 100vh` **before the bundled CSS can paint** and the runtime restores `100vh` whenever text entry is not focused. Do not remove the inline `index.html` bootstrap, the `mobile-viewport.ts` override, or the code comments pointing here without testing a freshly installed iOS standalone PWA. Also keep `.container` to a **single** `height: var(--app-height, ...)` declaration; a duplicate `height: 100%` can be reordered after it by the CSS minifier and silently disable every `--app-height` fix.
+> **2026-05 regression addendum:** the `100dvh` CSS default only remains safe if standalone mode sets `--app-height: 100vh` **before the bundled CSS can paint** and the runtime restores `100vh` whenever the software keyboard is not actually visible. Focus alone is not enough: iOS can leave the textarea focused after the keyboard is hidden while `visualViewport.height` is still the cold-start short value, recreating the bottom gap. Do not remove the inline `index.html` bootstrap, the `mobile-viewport.ts` override, or the code comments pointing here without testing a freshly installed iOS standalone PWA. Also keep `.container` to a **single** `height: var(--app-height, ...)` declaration; a duplicate `height: 100%` can be reordered after it by the CSS minifier and silently disable every `--app-height` fix.
 
 ---
 
@@ -473,7 +473,7 @@ index.html (meta tags + standalone pre-CSS --app-height: 100vh bootstrap)
       → mobile-viewport.ts (keeps --app-height at 100vh in standalone unless keyboard/text entry is active)
 ```
 
-**Critical invariant**: The CSS fallback (`100dvh`) must be correct for browser mode. The inline/runtime JS override (`100vh`) must run before standalone iOS paints and must be restored after keyboard/focusout. `.container` must not also declare `height: 100%`; duplicate height declarations can be reordered during bundling so the fixed value wins and the app-height override is ignored. If either side is wrong, one mode breaks.
+**Critical invariant**: The CSS fallback (`100dvh`) must be correct for browser mode. The inline/runtime JS override (`100vh`) must run before standalone iOS paints and must be restored whenever the software keyboard is not measurably shrinking the viewport. Text focus alone is not keyboard visibility on iOS PWA. `.container` must not also declare `height: 100%`; duplicate height declarations can be reordered during bundling so the fixed value wins and the app-height override is ignored. If either side is wrong, one mode breaks.
 
 ---
 
