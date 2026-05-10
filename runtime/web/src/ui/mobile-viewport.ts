@@ -175,7 +175,6 @@ export function installStandaloneMobileViewportFix(runtime = {}) {
   const innerH = Number(win.innerHeight || 0);
   if (screenH > 0 && innerH > 0 && screenH > innerH) {
     const gap = screenH - innerH;
-    doc.documentElement.style.setProperty('--standalone-bottom-gap', `${gap}px`);
   }
 
   let rafId = 0;

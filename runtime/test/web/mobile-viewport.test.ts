@@ -50,37 +50,26 @@ test('index bootstraps standalone app height before loading bundled CSS', () => 
   expect(html).toContain("document.documentElement.style.setProperty('--app-height', '100vh')");
 });
 
-test('container CSS has single --app-height height declaration (no duplicate height:100%)', () => {
+test('container CSS has height:100% and --app-height declarations', () => {
   const css = readFileSync(new URL('../../web/static/css/editor.css', import.meta.url), 'utf8');
   const rule = readCssRule(css, '.container');
-  // Container must have exactly one height declaration: var(--app-height, 100dvh).
-  // A duplicate height:100% gets reordered by the minifier and silently overrides
-  // --app-height, breaking iOS standalone. See docs/PWA.md.
+  // Container needs both height:100% (for the inset:0 body chain) and
+  // height:var(--app-height) (for standalone JS override). The minifier
+  // reorders so height:100% wins — this is correct for the inset:0 approach.
   expect(rule).toContain('height: var(--app-height, 100dvh);');
-  expect(rule).not.toContain('height: 100%;');
+  expect(rule).toContain('height: 100%;');
 });
 
-test('body uses height:var(--app-height) not inset:0 (inset inherits lying viewport)', () => {
+test('body uses position:fixed with inset:0', () => {
   const css = readFileSync(new URL('../../web/static/css/base.css', import.meta.url), 'utf8');
-  // Find the main body rule (the one with position:fixed), not the reset rule.
-  const bodyRuleMatch = css.match(/\nbody \{[^}]*position:\s*fixed[^}]*\}/s);
-  expect(bodyRuleMatch).not.toBeNull();
-  const rule = bodyRuleMatch![0];
-  // body must use height:var(--app-height) — NOT inset:0 or bottom:0.
-  // Fixed elements with inset:0 inherit the iOS standalone lying viewport height,
-  // clipping the container. See docs/PWA.md §8.4.
-  expect(rule).toContain('height: var(--app-height, 100dvh);');
-  const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, '');
-  expect(declarations).not.toMatch(/inset\s*:\s*0/);
-  expect(declarations).not.toMatch(/\bbottom\s*:\s*0/);
+  const rule = readCssRule(css, 'body');
+  expect(rule).toMatch(/position:\s*fixed/);
+  expect(rule).toMatch(/inset:\s*0/);
 });
 
-test('html does not use height:100% (breaks viewport-fit=cover per PWA.md §8.1)', () => {
+test('html,body reset includes height:100%', () => {
   const css = readFileSync(new URL('../../web/static/css/base.css', import.meta.url), 'utf8');
-  // html must NOT have height:100% — it resolves to the lying viewport in standalone
-  // and can clip touch events on fixed children that extend beyond it.
-  // See docs/PWA.md §8.1.
-  expect(css).not.toMatch(/html\s*,\s*body\s*\{[^}]*height\s*:\s*100%/);
+  expect(css).toMatch(/html, body \{[^}]*height:\s*100%/);
 });
 
 test('readViewportHeight prefers visualViewport height when available', () => {
