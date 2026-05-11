@@ -117,6 +117,8 @@ export function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, o
     }, [tabs, activeId, onActivate, onClose]);
 
     const handleTabMouseDown = useCallback((e, id) => {
+        // Skip if the press landed on the close button — let close handle it.
+        if (e.target?.closest?.('.tab-close')) return;
         // Activate on press instead of waiting for click. Some embedded panes
         // and touch/pointer paths can swallow the synthetic click, but the
         // tab should still come to the front as soon as the primary press lands.
@@ -133,6 +135,7 @@ export function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, o
 
     const handleTabClick = useCallback((e, id) => {
         if (e.defaultPrevented) return;
+        if (e.target?.closest?.('.tab-close')) return;
         if (e.button === 0) {
             onActivate?.(id);
         }
