@@ -16,6 +16,19 @@ export function TimelineMenu({
 }) {
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState({ top: 8, left: 8 });
+
+    // On iOS standalone, the top safe area (Dynamic Island / status bar) is ~59px.
+    // Center the hamburger vertically in that zone. env(safe-area-inset-top) may
+    // not be available immediately, so measure via a probe element.
+    const getSafeAreaTop = () => {
+        if (typeof document === 'undefined') return 0;
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+        document.body.appendChild(probe);
+        const h = probe.offsetHeight;
+        probe.remove();
+        return h;
+    };
     const menuRef = useRef(null);
     const btnRef = useRef(null);
     const portalRef = useRef(null);
@@ -31,14 +44,18 @@ export function TimelineMenu({
 
     useEffect(() => {
         const update = () => {
+            const safeTop = getSafeAreaTop();
+            // Center the button vertically in the safe area zone, or fall back to 8px
+            const btnH = 28; // .timeline-menu-btn height
+            const topOffset = safeTop > btnH ? Math.round((safeTop - btnH) / 2) : 8;
             if (workspaceOpen) {
                 const sidebar = document.querySelector('.workspace-sidebar');
                 if (sidebar) {
                     const r = sidebar.getBoundingClientRect();
-                    setPos({ top: r.top + 8, left: r.left + 8 });
+                    setPos({ top: r.top + topOffset, left: r.left + 8 });
                 }
             } else {
-                setPos({ top: 8, left: 8 });
+                setPos({ top: topOffset, left: 8 });
             }
         };
         update();
