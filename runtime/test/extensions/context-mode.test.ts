@@ -5,12 +5,19 @@ import { join } from "node:path";
 import { createFakeExtensionApi } from "./fake-extension-api.js";
 import { importFresh, withTempWorkspaceEnv } from "../helpers.js";
 
+function compactionEnv(vars: Record<string, string> = {}): Record<string, string> {
+  return {
+    PICLAW_TOOL_RESULT_COMPACTION_ENABLED: "1",
+    ...vars,
+  };
+}
+
 describe("context-mode integration", () => {
   test("stores large bash outputs from fullOutputPath and points agents to search_tool_output", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async (workspace) => {
+    }), async (workspace) => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -57,10 +64,10 @@ describe("context-mode integration", () => {
   }, 15_000);
 
   test("stores large non-bash text tool results", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "16",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -85,10 +92,10 @@ describe("context-mode integration", () => {
   });
 
   test("does not re-store outputs that already carry stored-output details", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -128,10 +135,10 @@ describe("context-mode integration", () => {
   });
 
   test("skips image-heavy or already-compacted text payloads", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -164,10 +171,10 @@ describe("context-mode integration", () => {
   });
 
   test("keeps small tool results inline (no compaction)", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -190,11 +197,11 @@ describe("context-mode integration", () => {
   });
 
   test("respects settings gate and skips compaction when disabled", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
       PICLAW_TOOL_RESULT_COMPACTION_ENABLED: "0",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -227,10 +234,10 @@ describe("context-mode integration", () => {
   });
 
   test("compacts legacy top-level toolResult messages in provider context", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -253,10 +260,10 @@ describe("context-mode integration", () => {
   });
 
   test("compacts nested tool_result blocks in provider context", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -283,13 +290,13 @@ describe("context-mode integration", () => {
   });
 
   test("supports per-tool threshold overrides", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
       PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL: JSON.stringify({
         proxmox: { bytes: 100_000, lines: 10_000 },
       }),
-    }, async () => {
+    }), async () => {
       const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
       db.initDatabase();
 
@@ -333,10 +340,10 @@ describe("context-mode integration", () => {
   });
 
   test("fails open when persistence cannot write tool-output files", async () => {
-    await withTempWorkspaceEnv("piclaw-context-mode-", {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
       PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
-    }, async () => {
+    }), async () => {
       const config = await importFresh<typeof import("../src/core/config.js")>("../src/core/config.js");
       const blockedDir = join(config.DATA_DIR, "tool-output");
       mkdirSync(blockedDir, { recursive: true });
