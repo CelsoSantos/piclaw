@@ -29,12 +29,12 @@ export function handleUiMetersCommand(rawText: string): UiMetersCommandResult | 
   if (!args) {
     return {
       status: "success",
-      message: "CPU/RAM meters enabled.",
-      payload: { mode: "set", enabled: true },
+      message: "CPU/RAM meters toggled.",
+      payload: { mode: "toggle" },
     };
   }
 
-  if (["enable", "enabled", "show"].includes(args)) {
+  if (["on", "enable", "enabled", "show"].includes(args)) {
     return {
       status: "success",
       message: "CPU/RAM meters enabled.",
