@@ -2,75 +2,22 @@
  * post-highlights.ts — Persistent text highlighting for timeline posts.
  *
  * Lets the user select text in a post, tap "Highlight" to mark it with
- * a colored background, and persists the highlights in localStorage.
- * Highlights are re-applied on each render by matching text content and
- * offset within the post's text content.
- *
- * Storage format per post:
- *   { postId → [ { text, textOffset, color } ] }
+ * a colored background. Highlights are stored in the message's own
+ * `annotations` field in the database via PATCH /post/:id/annotations.
  *
  * Re-application uses textContent offset matching, which is resilient
  * to HTML re-rendering as long as the text content is stable.
  */
 
-// ── Storage ─────────────────────────────────────────────────────
+import { savePostAnnotations } from '../api.js';
 
-const STORAGE_KEY = 'piclaw_post_highlights';
+// ── Types ───────────────────────────────────────────────────────
 
 export interface PostHighlight {
+  type: 'highlight';
   text: string;
   textOffset: number;
   color: string;
-}
-
-function readAllHighlights(): Record<string, PostHighlight[]> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-function writeAllHighlights(all: Record<string, PostHighlight[]>): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  } catch { /* quota */ }
-}
-
-export function getHighlightsForPost(postId: string | number): PostHighlight[] {
-  return readAllHighlights()[String(postId)] ?? [];
-}
-
-export function addHighlight(postId: string | number, highlight: PostHighlight): void {
-  const all = readAllHighlights();
-  const key = String(postId);
-  const list = all[key] ?? [];
-  // Dedupe: don't add if same text at same offset already exists
-  const exists = list.some((h) =>
-    h.text === highlight.text && h.textOffset === highlight.textOffset
-  );
-  if (!exists) {
-    list.push(highlight);
-    all[key] = list;
-    writeAllHighlights(all);
-  }
-}
-
-export function removeHighlight(postId: string | number, index: number): void {
-  const all = readAllHighlights();
-  const key = String(postId);
-  const list = all[key] ?? [];
-  if (index >= 0 && index < list.length) {
-    list.splice(index, 1);
-    if (list.length === 0) delete all[key];
-    else all[key] = list;
-    writeAllHighlights(all);
-  }
-}
-
-export function clearHighlightsForPost(postId: string | number): void {
-  const all = readAllHighlights();
-  delete all[String(postId)];
-  writeAllHighlights(all);
 }
 
 // ── Highlight colors ────────────────────────────────────────────
@@ -85,12 +32,44 @@ export const HIGHLIGHT_COLORS = [
 
 export const DEFAULT_HIGHLIGHT_COLOR = HIGHLIGHT_COLORS[0]!.value;
 
+// ── Read highlights from post data ──────────────────────────────
+
+export function extractHighlightsFromAnnotations(annotations: unknown[] | undefined | null): PostHighlight[] {
+  if (!Array.isArray(annotations)) return [];
+  return annotations.filter(
+    (a): a is PostHighlight =>
+      a != null &&
+      typeof a === 'object' &&
+      (a as any).type === 'highlight' &&
+      typeof (a as any).text === 'string' &&
+      typeof (a as any).textOffset === 'number' &&
+      typeof (a as any).color === 'string',
+  );
+}
+
+// ── Save highlights via API ─────────────────────────────────────
+
+export async function persistHighlight(
+  postId: number,
+  chatJid: string,
+  existingAnnotations: unknown[] | undefined | null,
+  highlight: PostHighlight,
+): Promise<unknown[]> {
+  const current = Array.isArray(existingAnnotations) ? [...existingAnnotations] : [];
+  // Dedupe
+  const exists = current.some(
+    (a: any) =>
+      a?.type === 'highlight' &&
+      a?.text === highlight.text &&
+      a?.textOffset === highlight.textOffset,
+  );
+  if (!exists) current.push(highlight);
+  await savePostAnnotations(postId, current, chatJid);
+  return current;
+}
+
 // ── DOM application ─────────────────────────────────────────────
 
-/**
- * Walk all text nodes under `root`, collect them in document order
- * with their textContent offset relative to the full textContent.
- */
 function collectTextNodes(root: Node): { node: Text; offset: number }[] {
   const result: { node: Text; offset: number }[] = [];
   let offset = 0;
@@ -114,9 +93,7 @@ export function applyHighlightsToElement(
   if (!highlights.length) return;
   const fullText = element.textContent ?? '';
 
-  // Sort by offset descending so wrapping doesn't shift earlier offsets
   const sorted = highlights
-    .map((h, i) => ({ ...h, index: i }))
     .filter((h) => {
       const found = fullText.substring(h.textOffset, h.textOffset + h.text.length);
       return found === h.text;
@@ -183,8 +160,6 @@ function wrapPartOfTextNode(
   try {
     range.surroundContents(mark);
   } catch {
-    // surroundContents fails if range crosses element boundaries;
-    // fall back to extracting and re-inserting
     const fragment = range.extractContents();
     mark.appendChild(fragment);
     range.insertNode(mark);
@@ -193,10 +168,6 @@ function wrapPartOfTextNode(
 
 // ── Selection helpers ───────────────────────────────────────────
 
-/**
- * Get the selected text and its offset within a post-content element.
- * Returns null if the selection is not within the given element.
- */
 export function getSelectionInElement(element: HTMLElement): {
   text: string;
   textOffset: number;
@@ -211,7 +182,6 @@ export function getSelectionInElement(element: HTMLElement): {
   const text = sel.toString().trim();
   if (!text) return null;
 
-  // Calculate textContent offset
   const fullText = element.textContent ?? '';
   const textNodes = collectTextNodes(element);
   let textOffset = -1;
@@ -223,7 +193,6 @@ export function getSelectionInElement(element: HTMLElement): {
     }
   }
 
-  // Fallback: search by string
   if (textOffset < 0) {
     textOffset = fullText.indexOf(text);
   }

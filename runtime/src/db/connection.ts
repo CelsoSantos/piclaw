@@ -614,6 +614,7 @@ function ensureMessageColumns(database: Database): void {
   ensureColumn("thread_id", "INTEGER");
   ensureColumn("is_terminal_agent_reply", "INTEGER DEFAULT 0");
   ensureColumn("is_steering_message", "INTEGER DEFAULT 0");
+  ensureColumn("annotations");
 }
 
 /**

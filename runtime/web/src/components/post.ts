@@ -13,12 +13,12 @@ import { ImageModal } from './image-modal.js';
 import { ImageAnnotator, canAnnotate } from './image-annotator.js';
 import { FilePill } from './file-pill.js';
 import {
-    addHighlight,
     applyHighlightsToElement,
-    DEFAULT_HIGHLIGHT_COLOR,
-    getHighlightsForPost,
+    extractHighlightsFromAnnotations,
     getSelectionInElement,
     HIGHLIGHT_COLORS,
+    persistHighlight,
+    type PostHighlight,
 } from './post-highlights.js';
 import { buildSpeakablePostText, getSpeechPlaybackState, isSpeechSynthesisSupported, speakPostText, stopSpeechPlayback, subscribeSpeechPlayback } from './post-speech.ts';
 import { copyPlainTextSelectionFromElement, readSessionStorageFlagBestEffort, resolveLinkPreviewSiteName, writeClipboardDataViaExecCommand, writeClipboardTextBestEffort, writeSessionStorageFlagBestEffort } from './post-runtime-safety.js';
@@ -1040,17 +1040,25 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
         onOpenAttachmentPreview?.(attachment);
     };
 
-    const handleHighlightSelection = useCallback((color) => {
+    const handleHighlightSelection = useCallback(async (color) => {
         if (!highlightPopup) return;
-        addHighlight(post.id, {
+        const highlight: PostHighlight = {
+            type: 'highlight',
             text: highlightPopup.text,
             textOffset: highlightPopup.textOffset,
             color,
-        });
+        };
+        try {
+            const updated = await persistHighlight(post.id, post.chat_jid, data.annotations, highlight);
+            // Update local post data so re-render picks up the new annotation
+            data.annotations = updated;
+        } catch (err) {
+            console.warn('[post] Failed to persist highlight:', err);
+        }
         window.getSelection()?.removeAllRanges();
         setHighlightPopup(null);
         setHighlightVersion((v) => v + 1);
-    }, [highlightPopup, post.id]);
+    }, [highlightPopup, post.id, post.chat_jid, data]);
 
     const handleAnnotationSave = useCallback((result) => {
         setAnnotatingImage(null);
@@ -1208,7 +1216,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
     // Re-apply saved text highlights after content renders
     useEffect(() => {
         if (!contentRef.current) return;
-        const highlights = getHighlightsForPost(post.id);
+        const highlights = extractHighlightsFromAnnotations(data.annotations);
         if (highlights.length > 0) applyHighlightsToElement(contentRef.current, highlights);
     }, [renderedHtml, highlightVersion]);
 

@@ -153,6 +153,7 @@ export interface WebChannelLike
   handleThoughtVisibility(req: Request): Promise<Response>;
   handleDeletePost(req: Request, id: number | null, cascade: boolean): Response;
   handleUpdatePost(req: Request, id: number | null): Promise<Response>;
+  handleUpdatePostAnnotations(req: Request, id: number): Promise<Response>;
   handleInternalPost(req: Request): Promise<Response>;
   handlePost(req: Request, isReply: boolean): Promise<Response>;
 

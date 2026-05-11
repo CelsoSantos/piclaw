@@ -454,6 +454,11 @@ export function installWebChannelPrototype(
       writable: true,
       value: withHttpSurface(async (service, req: Request, id: number | null) => await service.handleUpdatePost(req, id)),
     },
+    handleUpdatePostAnnotations: {
+      configurable: true,
+      writable: true,
+      value: withHttpSurface(async (service, req: Request, id: number) => await service.handleUpdatePostAnnotations(req, id)),
+    },
     handleInternalPost: {
       configurable: true,
       writable: true,
