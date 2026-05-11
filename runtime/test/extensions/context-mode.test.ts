@@ -91,6 +91,32 @@ describe("context-mode integration", () => {
     });
   });
 
+  test("does not compact large read tool results", async () => {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
+      PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
+      PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
+    }), async () => {
+      const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
+      db.initDatabase();
+
+      const contextMode = await importFresh<any>("../extensions/integrations/context-mode.ts");
+      const fake = createFakeExtensionApi({ allTools: [] });
+      contextMode.default(fake.api);
+
+      const toolResult = fake.handlers.find((entry) => entry.event === "tool_result")?.handler;
+      const result = await toolResult?.({
+        toolName: "read",
+        content: [{ type: "text", text: "alpha\nbeta\ngamma\n" }],
+        details: {},
+        isError: false,
+        toolCallId: "tool-2-read",
+        type: "tool_result",
+      });
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   test("does not re-store outputs that already carry stored-output details", async () => {
     await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
       PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
@@ -256,6 +282,31 @@ describe("context-mode integration", () => {
 
       expect(result?.messages?.[0]?.content?.[0]?.text).toContain("Output stored as tool-output:");
       expect(result?.messages?.[0]?.content?.[0]?.text).toContain("search_tool_output");
+    });
+  });
+
+  test("skips legacy read tool results in provider context", async () => {
+    await withTempWorkspaceEnv("piclaw-context-mode-", compactionEnv({
+      PICLAW_TOOL_OUTPUT_STORE_BYTES: "8",
+      PICLAW_TOOL_OUTPUT_STORE_LINES: "2",
+    }), async () => {
+      const db = await importFresh<typeof import("../src/db.js")>("../src/db.js");
+      db.initDatabase();
+
+      const contextMode = await importFresh<any>("../extensions/integrations/context-mode.ts");
+      const fake = createFakeExtensionApi({ allTools: [] });
+      contextMode.default(fake.api);
+
+      const context = fake.handlers.find((entry) => entry.event === "context")?.handler;
+      const result = await context?.({
+        messages: [{
+          role: "toolResult",
+          toolName: "read",
+          content: [{ type: "text", text: "alpha\nbeta\ngamma\n" }],
+        }],
+      });
+
+      expect(result).toEqual({});
     });
   });
 

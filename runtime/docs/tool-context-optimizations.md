@@ -47,6 +47,7 @@ This layer helps shrink provider payloads for older sessions that still contain 
 Compaction is skipped when:
 
 - `event.isError` is true.
+- tool name is excluded from compaction (currently `read`).
 - existing stored-output metadata is already present (camel/snake/add-on-style keys).
 - payload includes image/binary-heavy blocks.
 - payload already includes stored-handle marker text (e.g. `tool-output:<id>`).

@@ -21,6 +21,8 @@ import { buildPreview, saveToolOutput } from "../runtime/src/tool-output.js";
 
 type JsonRecord = Record<string, unknown>;
 
+const COMPACTION_EXCLUDED_TOOL_NAMES = new Set(["read"]);
+
 type Stats = {
   scannedFiles: number;
   scannedLines: number;
@@ -109,6 +111,7 @@ function formatBytes(bytes: number): string {
 
 function shouldCompact(text: string, toolName: string, thresholdsByTool: Record<string, { bytes: number; lines: number }>, defaultBytes: number, defaultLines: number): boolean {
   const normalizedToolName = toolName.trim().toLowerCase();
+  if (COMPACTION_EXCLUDED_TOOL_NAMES.has(normalizedToolName)) return false;
   const policy = thresholdsByTool[normalizedToolName];
   const bytesThreshold = Number.isFinite(policy?.bytes) ? policy.bytes : defaultBytes;
   const linesThreshold = Number.isFinite(policy?.lines) ? policy.lines : defaultLines;
