@@ -64,13 +64,15 @@ const TEXT_FONT_SIZE = 28;
 const TEXT_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif';
 
 const TOOLS: { id: Tool; label: string; icon: string }[] = [
-  { id: 'pen',         label: 'Pen',         icon: '✏️' },
-  { id: 'highlighter', label: 'Highlighter', icon: '🖍️' },
-  { id: 'arrow',       label: 'Arrow',       icon: '➡️' },
-  { id: 'rectangle',   label: 'Rectangle',   icon: '▭' },
-  { id: 'text',        label: 'Text',        icon: 'T' },
-  { id: 'eraser',      label: 'Eraser',      icon: '🧹' },
+  { id: 'pen',         label: 'Pen',         icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>' },
+  { id: 'highlighter', label: 'Highlighter', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>' },
+  { id: 'arrow',       label: 'Arrow',       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>' },
+  { id: 'rectangle',   label: 'Rectangle',   icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>' },
+  { id: 'text',        label: 'Text',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
+  { id: 'eraser',      label: 'Eraser',      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l5.3 5.3c1 1 1 2.5 0 3.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>' },
 ];
+
+const UNDO_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -510,7 +512,8 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
               onClick=${() => setTool(t.id)}
               title=${t.label}
               aria-label=${t.label}
-            >${t.icon}</button>
+              dangerouslySetInnerHTML=${{ __html: t.icon }}
+            />
           `)}
           <button
             class="image-annotator-tool-btn"
@@ -518,7 +521,8 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
             title="Undo"
             aria-label="Undo"
             disabled=${saving}
-          >↩</button>
+            dangerouslySetInnerHTML=${{ __html: UNDO_ICON }}
+          />
         </div>
         <div class="image-annotator-colors">
           ${COLORS.map((c) => html`
