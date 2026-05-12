@@ -1049,6 +1049,9 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
             textOffset: highlightPopup.textOffset,
             color,
         };
+        // Clear popup immediately so user sees feedback
+        setHighlightPopup(null);
+        window.getSelection()?.removeAllRanges();
         try {
             const updated = await persistHighlight(post.id, post.chat_jid, data.annotations, highlight);
             // Update local post data so re-render picks up the new annotation
@@ -1056,8 +1059,6 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
         } catch (err) {
             console.warn('[post] Failed to persist highlight:', err);
         }
-        window.getSelection()?.removeAllRanges();
-        setHighlightPopup(null);
         setHighlightVersion((v) => v + 1);
     }, [highlightPopup, post.id, post.chat_jid, data]);
 
@@ -1236,16 +1237,35 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
+        let dismissTimer = null;
         const onSelectionChange = () => {
             const info = getSelectionInElement(el);
             if (info && info.text.length > 0) {
+                if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
                 setHighlightPopup(info);
             } else {
-                setHighlightPopup(null);
+                // Delay clearing so the user can tap a color button
+                if (dismissTimer) clearTimeout(dismissTimer);
+                dismissTimer = setTimeout(() => {
+                    dismissTimer = null;
+                    setHighlightPopup(null);
+                }, 600);
             }
         };
+        // Also listen for pointerup/touchend on the post content to detect
+        // selection completion (selectionchange can fire too early on iPad)
+        const onPointerUp = () => {
+            setTimeout(onSelectionChange, 50);
+        };
         document.addEventListener('selectionchange', onSelectionChange);
-        return () => document.removeEventListener('selectionchange', onSelectionChange);
+        el.addEventListener('pointerup', onPointerUp);
+        el.addEventListener('touchend', onPointerUp);
+        return () => {
+            document.removeEventListener('selectionchange', onSelectionChange);
+            el.removeEventListener('pointerup', onPointerUp);
+            el.removeEventListener('touchend', onPointerUp);
+            if (dismissTimer) clearTimeout(dismissTimer);
+        };
     }, [renderedHtml]);
 
     useEffect(() => {

@@ -860,22 +860,24 @@ mark.post-highlight {
 
 .post-highlight-popup {
     display: flex;
-    gap: 4px;
-    padding: 4px 6px;
+    gap: 6px;
+    padding: 6px 8px;
     background: var(--bg-elevated, var(--bg-secondary));
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
+    animation: fadeIn 0.15s ease-out;
 }
 
 .post-highlight-color-btn {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .post-highlight-color-btn:hover {
