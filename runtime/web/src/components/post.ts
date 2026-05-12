@@ -1617,7 +1617,8 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                         key=${c.name}
                         class="post-highlight-color-btn"
                         style="background:${c.value}; border:1px solid rgba(128,128,128,0.3)"
-                        onClick=${(e) => { e.stopPropagation(); handleHighlightSelection(c.value); }}
+                        onClick=${(e) => { e.preventDefault(); e.stopPropagation(); handleHighlightSelection(c.value); }}
+                        onPointerDown=${(e) => { e.preventDefault(); e.stopPropagation(); handleHighlightSelection(c.value); }}
                         title=${`Highlight ${c.name}`}
                     />
                 `)}
