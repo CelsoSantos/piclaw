@@ -97,6 +97,7 @@ export function shouldBlockLiveDatabaseOpenInTests(options: {
  * Tables created:
  *   - chats – known chat endpoints (jid, name, last_message_time)
  *   - messages – individual messages with sender/content/timestamp
+ *   - thinking_content – persisted reasoning text keyed by stored message row id
  *   - messages_fts – FTS5 index over message content for full-text search
  *   - media – binary file storage for attachments
  *   - message_media – join table linking messages to media records
@@ -250,6 +251,25 @@ function createSchema(database: Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_message_media_message_rowid ON message_media(message_rowid);
     CREATE INDEX IF NOT EXISTS idx_message_media_media_id ON message_media(media_id);
+
+    CREATE TABLE IF NOT EXISTS thinking_content (
+      message_id TEXT PRIMARY KEY,
+      text TEXT NOT NULL,
+      lines INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      model TEXT,
+      truncated INTEGER NOT NULL DEFAULT 0,
+      -- Use ISO 8601 with millisecond precision and trailing Z so created_at
+      -- is lexicographically comparable to messages.timestamp (which is also
+      -- ISO Z). Old rows from before this change keep their sqlite-default
+      -- 'YYYY-MM-DD HH:MM:SS' format — those won't sort correctly against
+      -- messages.timestamp but no query currently makes that comparison.
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    -- Index on created_at lets retention/purge queries (e.g. DELETE WHERE
+    -- created_at < cutoff) skip the full table scan once row counts grow.
+    CREATE INDEX IF NOT EXISTS idx_thinking_content_created_at
+      ON thinking_content(created_at);
 
     CREATE TABLE IF NOT EXISTS tool_outputs (
       id TEXT PRIMARY KEY,
@@ -948,8 +968,26 @@ export function initDatabase(): void {
   ensureRemotePeerBaseUrl(db);
   ensureOutboundPairRequestsTable(db);
   ensureMediaCompression(db);
+  ensureThinkingContentDuration(db);
   if (!useMemory) {
     ensureIncrementalAutoVacuum(db);
+  }
+}
+
+/** Add duration_ms column to thinking_content for databases created before it was introduced. */
+function ensureThinkingContentDuration(database: Database): void {
+  try {
+    const cols = new Set(
+      (database.prepare("PRAGMA table_info(thinking_content)").all() as Array<{ name: string }>)
+        .map((r) => r.name)
+    );
+    if (!cols.has("duration_ms")) {
+      database.exec("ALTER TABLE thinking_content ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0");
+    }
+  } catch (err) {
+    debugSuppressedError(log, "thinking_content duration_ms migration skipped.", err, {
+      operation: "db.ensure_thinking_content_duration",
+    });
   }
 }
 
