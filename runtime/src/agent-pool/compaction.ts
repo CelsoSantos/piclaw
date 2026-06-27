@@ -143,6 +143,7 @@ export function estimateContextTokensFromSession(session: AgentSession): number 
 
   const context = mgr.buildSessionContext();
   const hasCompactionSummary = context.messages.some((message: any) => message?.role === "compactionSummary");
+  const estimatedTokens = context.messages.reduce((total: number, message: any) => total + estimateMessageTokens(message), 0);
 
   // Assistant usage metadata is scoped to the prompt that produced that
   // assistant message. After a compaction, kept assistant messages can still
@@ -152,15 +153,18 @@ export function estimateContextTokensFromSession(session: AgentSession): number 
   // compacted context directly from the messages instead.
   if (!hasCompactionSummary) {
     const usage = session.getContextUsage?.();
-    if (typeof usage?.tokens === "number") {
-      ctxEstimateCache.set(mgr as object, { leafId, entryCount, tokens: usage.tokens, at: now });
-      return usage.tokens;
+    if (typeof usage?.tokens === "number" && Number.isFinite(usage.tokens) && usage.tokens >= 0) {
+      // Native usage is often the most accurate count for the prompt that just
+      // ran, but it can lag behind newly appended tool results/messages. Never
+      // let stale native usage hide current context growth from auto-compaction.
+      const tokens = Math.max(usage.tokens, estimatedTokens);
+      ctxEstimateCache.set(mgr as object, { leafId, entryCount, tokens, at: now });
+      return tokens;
     }
   }
 
-  const tokens = context.messages.reduce((total: number, message: any) => total + estimateMessageTokens(message), 0);
-  ctxEstimateCache.set(mgr as object, { leafId, entryCount, tokens, at: now });
-  return tokens;
+  ctxEstimateCache.set(mgr as object, { leafId, entryCount, tokens: estimatedTokens, at: now });
+  return estimatedTokens;
 }
 
 export interface CompactionContextReport {
