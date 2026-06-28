@@ -64,6 +64,22 @@ test("computeAutoCompactionTokenStatus supports body-after-prefix growth plus ha
   expect(hardCeiling.tokenLimitReached).toBe(true);
 });
 
+test("computeAutoCompactionTokenStatus caps threshold tokens for huge-context models", () => {
+  const status = computeAutoCompactionTokenStatus({
+    activeContextTokens: 250_000,
+    contextWindow: 1_000_000,
+    thresholdPercent: 60,
+    hardCeilingPercent: 95,
+    overheadTokens: 4_000,
+    maxThresholdTokens: 240_000,
+    scope: "total",
+  });
+
+  expect(status.autoCompactionScopeLimit).toBe(240_000);
+  expect(status.fullContextWindowLimit).toBe(946_200);
+  expect(status.tokenLimitReached).toBe(true);
+});
+
 test("shared session token status supports mid-turn scoped checks and hard ceiling", () => {
   const previousScope = process.env.PICLAW_AUTO_COMPACTION_SCOPE;
   const previousThreshold = process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT;

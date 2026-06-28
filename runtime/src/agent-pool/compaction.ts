@@ -672,11 +672,16 @@ export function computeAutoCompactionTokenStatus(input: {
   thresholdPercent: number;
   hardCeilingPercent: number;
   overheadTokens: number;
+  maxThresholdTokens?: number;
   scope: "total" | "body_after_prefix";
   window?: Pick<ChatAutoCompactionWindowState, "ordinal" | "baselineTokens" | "prefillTokens"> | null;
 }): AutoCompactionTokenStatus {
   const activeContextTokens = Math.max(0, Math.trunc(Number(input.activeContextTokens) || 0));
-  const autoCompactionScopeLimit = getContextThresholdTokens(input.contextWindow, input.thresholdPercent, input.overheadTokens);
+  const rawAutoCompactionScopeLimit = getContextThresholdTokens(input.contextWindow, input.thresholdPercent, input.overheadTokens);
+  const maxThresholdTokens = Math.max(0, Math.trunc(Number(input.maxThresholdTokens) || 0));
+  const autoCompactionScopeLimit = maxThresholdTokens > 0
+    ? Math.min(rawAutoCompactionScopeLimit, maxThresholdTokens)
+    : rawAutoCompactionScopeLimit;
   const fullContextWindowLimit = getContextThresholdTokens(input.contextWindow, input.hardCeilingPercent, input.overheadTokens);
   if (input.scope === "body_after_prefix") {
     const baseline = input.window?.prefillTokens ?? input.window?.baselineTokens ?? activeContextTokens;
@@ -752,6 +757,7 @@ export function getAutoCompactionTokenStatusForSession(
     thresholdPercent: compactionConfig.thresholdPercent,
     hardCeilingPercent: compactionConfig.hardCeilingPercent,
     overheadTokens,
+    maxThresholdTokens: compactionConfig.maxThresholdTokens,
     scope: compactionConfig.autoCompactionScope,
     window: windowState,
   });
@@ -829,6 +835,7 @@ function getAutoCompactionContext(
       overheadTokens,
       thresholdTokens: tokenStatus.autoCompactionScopeLimit,
       thresholdPercent: status.thresholdPercent,
+      maxThresholdTokens: getCompactionRuntimeConfig().maxThresholdTokens,
       hardCeilingPercent: status.hardCeilingPercent,
       hardCeilingTokens: tokenStatus.fullContextWindowLimit,
       hardCeilingReached: tokenStatus.fullContextWindowLimitReached,
