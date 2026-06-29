@@ -1,7 +1,17 @@
-export const FIREFOX_WHITESPACE_PERF_LIMIT_CHARS = 16 * 1024;
+export const FIREFOX_EDITOR_PERF_LIMIT_CHARS = 16 * 1024;
 
 export function isFirefoxUserAgent(userAgent: string | null | undefined): boolean {
   return /\bFirefox\//i.test(String(userAgent || ""));
+}
+
+export function shouldUseFirefoxEditorPerformanceMode(input: {
+  userAgent?: string | null;
+  docLength: number;
+  largeDocumentMode?: boolean;
+}): boolean {
+  if (input.largeDocumentMode) return false;
+  const docLength = Number.isFinite(input.docLength) ? Math.max(0, input.docLength) : 0;
+  return isFirefoxUserAgent(input.userAgent) && docLength >= FIREFOX_EDITOR_PERF_LIMIT_CHARS;
 }
 
 export function shouldDisableWhitespaceMarkersForPerformance(input: {
@@ -11,8 +21,7 @@ export function shouldDisableWhitespaceMarkersForPerformance(input: {
   livePreviewActive?: boolean;
 }): boolean {
   if (input.largeDocumentMode || input.livePreviewActive) return true;
-  const docLength = Number.isFinite(input.docLength) ? Math.max(0, input.docLength) : 0;
-  return isFirefoxUserAgent(input.userAgent) && docLength >= FIREFOX_WHITESPACE_PERF_LIMIT_CHARS;
+  return isFirefoxUserAgent(input.userAgent);
 }
 
 export function getLocalBoolWithFallback(

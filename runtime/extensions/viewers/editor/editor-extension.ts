@@ -65,9 +65,11 @@ import { footnoteExtension } from './markdown/footnote.js';
 import { hashtagExtension } from './markdown/tag.js';
 import {
     getLocalBoolWithFallback,
+    isFirefoxUserAgent,
     restoreEditorViewStateBestEffort,
     setLocalBoolBestEffort,
     shouldDisableWhitespaceMarkersForPerformance,
+    shouldUseFirefoxEditorPerformanceMode,
 } from './editor-safety.ts';
 import {
     closeEditorSearch,
@@ -631,7 +633,7 @@ export class StandaloneEditorInstance implements PaneInstance {
 
     private buildEditableEditorExtensions(options: { scrollPastEnd?: boolean } = {}): any[] {
         const isDark = getThemeMode(this.ownerDocument) === 'dark';
-        const enableRichFeatures = !this.largeDocumentMode;
+        const enableRichFeatures = !this.largeDocumentMode && !this.isFirefoxPerformanceMode();
         const lang = enableRichFeatures ? languageForPath(this.path) : null;
         const extensions: any[] = [
             minimalSetup,
@@ -689,7 +691,7 @@ export class StandaloneEditorInstance implements PaneInstance {
 
     private buildBaselineEditorExtensions(): any[] {
         const isDark = getThemeMode(this.ownerDocument) === 'dark';
-        const enableRichFeatures = !this.largeDocumentMode;
+        const enableRichFeatures = !this.largeDocumentMode && !this.isFirefoxPerformanceMode();
         const lang = enableRichFeatures ? languageForPath(this.path) : null;
         const extensions: any[] = [
             minimalSetup,
@@ -766,7 +768,7 @@ export class StandaloneEditorInstance implements PaneInstance {
     }
 
     private isLivePreviewAvailable(): boolean {
-        return !this.largeDocumentMode && !this.isDiffMode() && this.supportsMarkdownLivePreview();
+        return !this.largeDocumentMode && !this.isFirefoxPerformanceMode() && !this.isDiffMode() && this.supportsMarkdownLivePreview();
     }
 
     /** Lazy-load and apply/remove markdown live preview extensions. */
@@ -817,10 +819,26 @@ export class StandaloneEditorInstance implements PaneInstance {
         return this.livePreviewEnabled && this.isLivePreviewAvailable();
     }
 
+    private getCurrentDocLength(): number {
+        return this.view?.state.doc.length ?? this.initialContentLength;
+    }
+
+    private isFirefoxBrowser(): boolean {
+        return isFirefoxUserAgent(this.ownerWindow.navigator?.userAgent || '');
+    }
+
+    private isFirefoxPerformanceMode(): boolean {
+        return shouldUseFirefoxEditorPerformanceMode({
+            userAgent: this.ownerWindow.navigator?.userAgent || '',
+            docLength: this.getCurrentDocLength(),
+            largeDocumentMode: this.largeDocumentMode,
+        });
+    }
+
     private isWhitespaceDisabledInCurrentMode(): boolean {
         return shouldDisableWhitespaceMarkersForPerformance({
             userAgent: this.ownerWindow.navigator?.userAgent || '',
-            docLength: this.view?.state.doc.length ?? this.initialContentLength,
+            docLength: this.getCurrentDocLength(),
             largeDocumentMode: this.largeDocumentMode,
             livePreviewActive: this.isLivePreview(),
         });
@@ -831,9 +849,10 @@ export class StandaloneEditorInstance implements PaneInstance {
     }
 
     private getWhitespaceDisabledStatusText(): string {
+        if (this.isFirefoxBrowser()) return 'Whitespace is unavailable in Firefox';
         if (this.largeDocumentMode) return 'Whitespace is disabled in Large File Mode';
         if (this.isLivePreview()) return 'Whitespace is disabled in Live Preview';
-        return 'Whitespace is disabled for medium and large files in Firefox';
+        return 'Whitespace is disabled in this editor mode';
     }
 
     private reconfigureWhitespaceMarkers(): void {
@@ -852,12 +871,16 @@ export class StandaloneEditorInstance implements PaneInstance {
             ? 'Toggle live preview (Alt+P)'
             : (this.largeDocumentMode
                 ? 'Live Preview is disabled in Large File Mode'
-                : (this.isDiffMode() ? 'Live Preview is unavailable in Compare to Saved' : 'Live Preview is unavailable for this file'));
+                : (this.isFirefoxPerformanceMode()
+                    ? 'Live Preview is disabled in Firefox performance mode'
+                    : (this.isDiffMode() ? 'Live Preview is unavailable in Compare to Saved' : 'Live Preview is unavailable for this file')));
     }
 
     private updateWhitespaceControlState(): void {
         if (!this._wsBtn) return;
+        const firefox = this.isFirefoxBrowser();
         const disabled = this.isWhitespaceDisabledInCurrentMode();
+        this._wsBtn.hidden = firefox;
         this._wsBtn.disabled = disabled;
         this._wsBtn.classList.toggle('active', !disabled && this.showWhitespace);
         this._wsBtn.title = disabled ? this.getWhitespaceDisabledStatusText() : 'Toggle whitespace (Alt+W)';
