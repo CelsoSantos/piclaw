@@ -105,6 +105,13 @@ test('active-locale t() follows the current locale', () => {
   expect(t('workspace.title')).toBe('ワークスペース');
 });
 
+test('settings dialog keys are translated across peer locales', () => {
+  expect(translate('settings.title', undefined, 'zh-CN')).toBe('设置');
+  expect(translate('settings.section.models', undefined, 'ja')).toBe('モデル');
+  expect(translate('settings.placeholder.keychain', undefined, 'zh-CN')).toBe('筛选条目…');
+  expect(translate('settings.section.addons', undefined, 'en')).toBe('Add-ons');
+});
+
 test('compose and workspace keys are translated across peer locales', () => {
   expect(translate('compose.shareLocation', undefined, 'zh-CN')).toBe('分享位置');
   expect(translate('compose.attachFile', undefined, 'ja')).toBe('ファイルを添付');

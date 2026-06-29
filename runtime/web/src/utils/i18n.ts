@@ -73,6 +73,35 @@ type MessageKey =
   | 'shell.connecting'
   | 'shell.connected'
   | 'language.label'
+  // Settings dialog chrome (nav labels, header, search placeholders).
+  | 'settings.title'
+  | 'settings.close'
+  | 'settings.filter'
+  | 'settings.loading'
+  | 'settings.section.general'
+  | 'settings.section.sessions'
+  | 'settings.section.recordings'
+  | 'settings.section.compaction'
+  | 'settings.section.keyboard'
+  | 'settings.section.workspace'
+  | 'settings.section.environment'
+  | 'settings.section.providers'
+  | 'settings.section.models'
+  | 'settings.section.theme'
+  | 'settings.section.scheduled-tasks'
+  | 'settings.section.quick-actions'
+  | 'settings.section.keychain'
+  | 'settings.section.tools'
+  | 'settings.section.addons'
+  | 'settings.placeholder.recordings'
+  | 'settings.placeholder.keyboard'
+  | 'settings.placeholder.environment'
+  | 'settings.placeholder.models'
+  | 'settings.placeholder.scheduled-tasks'
+  | 'settings.placeholder.quick-actions'
+  | 'settings.placeholder.keychain'
+  | 'settings.placeholder.tools'
+  | 'settings.placeholder.addons'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -131,6 +160,34 @@ const EN: Record<MessageKey, string> = {
   'shell.connecting': 'Connecting…',
   'shell.connected': 'Connected',
   'language.label': 'Language',
+  'settings.title': 'Settings',
+  'settings.close': 'Close (Esc)',
+  'settings.filter': 'Filter…',
+  'settings.loading': 'Loading settings…',
+  'settings.section.general': 'General',
+  'settings.section.sessions': 'Sessions',
+  'settings.section.recordings': 'Recordings',
+  'settings.section.compaction': 'Compaction',
+  'settings.section.keyboard': 'Keyboard',
+  'settings.section.workspace': 'Workspace',
+  'settings.section.environment': 'Environment',
+  'settings.section.providers': 'Providers',
+  'settings.section.models': 'Models',
+  'settings.section.theme': 'Appearance',
+  'settings.section.scheduled-tasks': 'Scheduled Tasks',
+  'settings.section.quick-actions': 'Quick Actions',
+  'settings.section.keychain': 'Keychain',
+  'settings.section.tools': 'Tools',
+  'settings.section.addons': 'Add-ons',
+  'settings.placeholder.recordings': 'Filter recordings…',
+  'settings.placeholder.keyboard': 'Filter shortcuts…',
+  'settings.placeholder.environment': 'Filter environment…',
+  'settings.placeholder.models': 'Filter models…',
+  'settings.placeholder.scheduled-tasks': 'Filter scheduled tasks…',
+  'settings.placeholder.quick-actions': 'Filter quick actions…',
+  'settings.placeholder.keychain': 'Filter entries…',
+  'settings.placeholder.tools': 'Filter tools…',
+  'settings.placeholder.addons': 'Filter add-ons…',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -189,6 +246,34 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'shell.connecting': '连接中…',
   'shell.connected': '已连接',
   'language.label': '语言',
+  'settings.title': '设置',
+  'settings.close': '关闭（Esc）',
+  'settings.filter': '筛选…',
+  'settings.loading': '加载设置中…',
+  'settings.section.general': '常规',
+  'settings.section.sessions': '会话',
+  'settings.section.recordings': '录制',
+  'settings.section.compaction': '压缩',
+  'settings.section.keyboard': '键盘',
+  'settings.section.workspace': '工作区',
+  'settings.section.environment': '环境',
+  'settings.section.providers': '提供商',
+  'settings.section.models': '模型',
+  'settings.section.theme': '外观',
+  'settings.section.scheduled-tasks': '计划任务',
+  'settings.section.quick-actions': '快捷操作',
+  'settings.section.keychain': '密钥串',
+  'settings.section.tools': '工具',
+  'settings.section.addons': '插件',
+  'settings.placeholder.recordings': '筛选录制…',
+  'settings.placeholder.keyboard': '筛选快捷键…',
+  'settings.placeholder.environment': '筛选环境…',
+  'settings.placeholder.models': '筛选模型…',
+  'settings.placeholder.scheduled-tasks': '筛选计划任务…',
+  'settings.placeholder.quick-actions': '筛选快捷操作…',
+  'settings.placeholder.keychain': '筛选条目…',
+  'settings.placeholder.tools': '筛选工具…',
+  'settings.placeholder.addons': '筛选插件…',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -247,6 +332,34 @@ const JA: Partial<Record<MessageKey, string>> = {
   'shell.connecting': '接続中…',
   'shell.connected': '接続済み',
   'language.label': '言語',
+  'settings.title': '設定',
+  'settings.close': '閉じる（Esc）',
+  'settings.filter': 'フィルター…',
+  'settings.loading': '設定を読み込み中…',
+  'settings.section.general': '一般',
+  'settings.section.sessions': 'セッション',
+  'settings.section.recordings': '録画',
+  'settings.section.compaction': '圧縮',
+  'settings.section.keyboard': 'キーボード',
+  'settings.section.workspace': 'ワークスペース',
+  'settings.section.environment': '環境',
+  'settings.section.providers': 'プロバイダー',
+  'settings.section.models': 'モデル',
+  'settings.section.theme': '外観',
+  'settings.section.scheduled-tasks': 'スケジュールタスク',
+  'settings.section.quick-actions': 'クイックアクション',
+  'settings.section.keychain': 'キーチェーン',
+  'settings.section.tools': 'ツール',
+  'settings.section.addons': 'アドオン',
+  'settings.placeholder.recordings': '録画をフィルター…',
+  'settings.placeholder.keyboard': 'ショートカットをフィルター…',
+  'settings.placeholder.environment': '環境をフィルター…',
+  'settings.placeholder.models': 'モデルをフィルター…',
+  'settings.placeholder.scheduled-tasks': 'スケジュールタスクをフィルター…',
+  'settings.placeholder.quick-actions': 'クイックアクションをフィルター…',
+  'settings.placeholder.keychain': 'エントリをフィルター…',
+  'settings.placeholder.tools': 'ツールをフィルター…',
+  'settings.placeholder.addons': 'アドオンをフィルター…',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
