@@ -98,6 +98,8 @@ const LARGE_DOCUMENT_LINES = 1_000;
 const LARGE_DOCUMENT_LINE_CHARS = 2_000;
 const DIRTY_RECHECK_DELAY_MS = 500;
 const CONTENT_CHANGE_DEBOUNCE_MS = 1000;
+const FIREFOX_MARKDOWN_TYPING_LANGUAGE_MIN_CHARS = 8 * 1024;
+const FIREFOX_MARKDOWN_TYPING_LANGUAGE_RESTORE_MS = 350;
 
 const shellLanguage = StreamLanguage.define(shell);
 
@@ -288,6 +290,7 @@ export class StandaloneEditorInstance implements PaneInstance {
     private whitespaceCompartment = new Compartment();
     private livePreviewCompartment = new Compartment();
     private wrappingCompartment = new Compartment();
+    private languageCompartment = new Compartment();
     private baselineThemeCompartment = new Compartment();
     private baselineAccentCompartment = new Compartment();
     private baselineWhitespaceCompartment = new Compartment();
@@ -307,6 +310,8 @@ export class StandaloneEditorInstance implements PaneInstance {
     private dirtyRecheckTimer: number | null = null;
     private _viewStateRafPending = false;
     private contentChangeTimer: number | null = null;
+    private markdownLanguageRestoreTimer: number | null = null;
+    private markdownLanguageSuspended = false;
     private diffMode: 'saved' | null = null;
     private vimEnabledRef: { current: boolean };
 
@@ -641,6 +646,7 @@ export class StandaloneEditorInstance implements PaneInstance {
             this.whitespaceCompartment.of(enableRichFeatures && this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : []),
             this.livePreviewCompartment.of([]),
             this.wrappingCompartment.of(enableRichFeatures ? EditorView.lineWrapping : []),
+            this.languageCompartment.of(lang || []),
             ...(options.scrollPastEnd === false ? [] : [scrollPastEnd()]),
             ...(enableRichFeatures ? [indentOnInput()] : []),
             ...(this.isMarkdownFile() ? [] : [closeBrackets()]),
@@ -666,6 +672,7 @@ export class StandaloneEditorInstance implements PaneInstance {
                 if (update.docChanged) {
                     this.checkDirty();
                     this.scheduleContentChangeCallback();
+                    this.handleFirefoxMarkdownTypingBurst();
                 }
                 if ((update.selectionSet || update.docChanged) && this.viewStateChangeCb) {
                     if (!this._viewStateRafPending) {
@@ -684,7 +691,6 @@ export class StandaloneEditorInstance implements PaneInstance {
             }),
             this.buildSharedEditorTheme(),
         ];
-        if (lang) extensions.push(lang);
         return extensions;
     }
 
@@ -773,6 +779,7 @@ export class StandaloneEditorInstance implements PaneInstance {
     /** Lazy-load and apply/remove markdown live preview extensions. */
     private async applyLivePreview(enabled: boolean): Promise<void> {
         if (!this.view || this.disposed || this.isDiffMode()) return;
+        this.restoreMarkdownLanguageAfterTyping();
         const wrapEffect = this.wrappingCompartment.reconfigure(this.largeDocumentMode ? [] : EditorView.lineWrapping);
 
         if (enabled) {
@@ -957,6 +964,40 @@ export class StandaloneEditorInstance implements PaneInstance {
             this.ownerWindow.clearTimeout(this.contentChangeTimer);
             this.contentChangeTimer = null;
         }
+    }
+
+    private clearMarkdownLanguageRestoreTimer(): void {
+        if (this.markdownLanguageRestoreTimer !== null) {
+            this.ownerWindow.clearTimeout(this.markdownLanguageRestoreTimer);
+            this.markdownLanguageRestoreTimer = null;
+        }
+    }
+
+    private shouldSuspendMarkdownLanguageWhileTyping(): boolean {
+        return this.isFirefoxBrowser()
+            && this.isMarkdownFile()
+            && !this.largeDocumentMode
+            && !this.isDiffMode()
+            && !this.isLivePreview()
+            && this.getCurrentDocLength() >= FIREFOX_MARKDOWN_TYPING_LANGUAGE_MIN_CHARS;
+    }
+
+    private handleFirefoxMarkdownTypingBurst(): void {
+        if (!this.view || this.disposed || !this.shouldSuspendMarkdownLanguageWhileTyping()) return;
+        if (!this.markdownLanguageSuspended) {
+            this.markdownLanguageSuspended = true;
+            this.view.dispatch({ effects: this.languageCompartment.reconfigure([]) });
+        }
+        this.clearMarkdownLanguageRestoreTimer();
+        this.markdownLanguageRestoreTimer = this.ownerWindow.setTimeout(() => this.restoreMarkdownLanguageAfterTyping(), FIREFOX_MARKDOWN_TYPING_LANGUAGE_RESTORE_MS);
+    }
+
+    private restoreMarkdownLanguageAfterTyping(): void {
+        this.clearMarkdownLanguageRestoreTimer();
+        if (!this.markdownLanguageSuspended) return;
+        this.markdownLanguageSuspended = false;
+        if (!this.view || this.disposed || this.largeDocumentMode || this.isDiffMode()) return;
+        this.view.dispatch({ effects: this.languageCompartment.reconfigure(languageForPath(this.path) || []) });
     }
 
     private scheduleContentChangeCallback(): void {
@@ -1385,6 +1426,7 @@ export class StandaloneEditorInstance implements PaneInstance {
         this.conflictMonitor?.dispose();
         this.clearDirtyRecheckTimer();
         this.clearContentChangeTimer();
+        this.clearMarkdownLanguageRestoreTimer();
         this.unbindHostListeners();
         this.destroyEditorViews();
         this.container.innerHTML = '';

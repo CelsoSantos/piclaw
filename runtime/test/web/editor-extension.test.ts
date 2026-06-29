@@ -115,6 +115,9 @@ describe("Editor status footer", () => {
         expect(source).toContain("return !this.largeDocumentMode && !this.isDiffMode() && this.supportsMarkdownLivePreview()");
         expect(source).toContain("this.wrappingCompartment.of(enableRichFeatures ? EditorView.lineWrapping : [])");
         expect(source).toContain("...(enableRichFeatures ? [autocompletion({ activateOnTyping: false })] : [])");
+        expect(source).toContain("this.languageCompartment.of(lang || [])");
+        expect(source).toContain("handleFirefoxMarkdownTypingBurst()");
+        expect(source).toContain("restoreMarkdownLanguageAfterTyping()");
         expect(source).toContain("this._wsBtn.hidden = firefox");
         expect(source).toContain("Whitespace is unavailable in Firefox");
     });
