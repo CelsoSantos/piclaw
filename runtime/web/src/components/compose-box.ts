@@ -1,4 +1,5 @@
 import { html, useRef, useState, useEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
+import { useTranslation } from '../utils/i18n.js';
 import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatch, updatePopupTypeaheadBuffer } from '../ui/popup-typeahead.js';
 import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
@@ -1135,6 +1136,7 @@ export function ComposeBox({
     prefillRequest = null,
 }) {
     const [content, setContent] = useState('');
+    const { t } = useTranslation();
     const [searchText, setSearchText] = useState('');
     const [searchFilterImages, setSearchFilterImages] = useState(false);
     const [searchFilterAttachments, setSearchFilterAttachments] = useState(false);
@@ -3225,17 +3227,17 @@ export function ComposeBox({
                                 type="button"
                                 class="compose-clear-attachments-btn"
                                 onClick=${clearAllAttachmentRefs}
-                                title="Clear all attachments and references"
-                                aria-label="Clear all attachments and references"
+                                title=${t('compose.clearAllTitle')}
+                                aria-label=${t('compose.clearAllTitle')}
                             >
-                                Clear all
+                                ${t('compose.clearAll')}
                             </button>
                         </div>
                     `}
                     <textarea
                         ref=${textareaRef}
                         data-testid="compose-input"
-                        placeholder=${searchMode ? "Search (Enter to run)..." : "Message (Enter to send, Shift+Enter for newline)..."}
+                        placeholder=${searchMode ? t('compose.searchPlaceholder') : t('compose.placeholder')}
                         value=${searchMode ? searchText : content}
                         onInput=${handleInput}
                         onKeyDown=${handleKeyDown}
@@ -3556,25 +3558,25 @@ export function ComposeBox({
                     `}
                     <div class="compose-actions ${searchMode ? 'search-mode' : ''}">
                     ${searchMode && html`
-                        <label class="compose-search-scope-wrap" title="Search scope">
-                            <span class="compose-search-scope-label">Scope</span>
+                        <label class="compose-search-scope-wrap" title=${t('compose.searchScope')}>
+                            <span class="compose-search-scope-label">${t('compose.scope')}</span>
                             <select
                                 class="compose-search-scope-select"
                                 value=${searchScope}
                                 onChange=${(e) => onSearchScopeChange?.(e.currentTarget.value)}
                             >
-                                <option value="current">Current</option>
-                                <option value="root">Branch family</option>
-                                <option value="all">All chats</option>
+                                <option value="current">${t('compose.scopeCurrent')}</option>
+                                <option value="root">${t('compose.scopeBranchFamily')}</option>
+                                <option value="all">${t('compose.scopeAll')}</option>
                             </select>
                         </label>
                         <label class="compose-search-filter-wrap" title="Only show messages with images">
                             <input type="checkbox" checked=${searchFilterImages} onChange=${() => setSearchFilterImages(v => !v)} />
-                            <span class="compose-search-filter-label">Images</span>
+                            <span class="compose-search-filter-label">${t('compose.filterImages')}</span>
                         </label>
                         <label class="compose-search-filter-wrap" title="Only show messages with attachments">
                             <input type="checkbox" checked=${searchFilterAttachments} onChange=${() => setSearchFilterAttachments(v => !v)} />
-                            <span class="compose-search-filter-label">Attachments</span>
+                            <span class="compose-search-filter-label">${t('compose.filterAttachments')}</span>
                         </label>
                         <button
                             class=${`compose-search-match-toggle ${searchMatchMode === 'and' ? 'active' : ''}`}
@@ -3596,7 +3598,7 @@ export function ComposeBox({
                     <button
                         class="icon-btn search-toggle"
                         onClick=${searchMode ? onExitSearch : onEnterSearch}
-                        title=${searchMode ? "Close search" : "Search"}
+                        title=${searchMode ? t('compose.closeSearch') : t('compose.search')}
                     >
                         ${searchMode ? html`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3613,7 +3615,7 @@ export function ComposeBox({
                         <button
                             class="icon-btn location-btn"
                             onClick=${handleLocation}
-                            title="Share location"
+                            title=${t('compose.shareLocation')}
                             type="button"
                             disabled=${false}
                         >
@@ -3668,7 +3670,7 @@ export function ComposeBox({
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
                             </button>
                         `}
-                        <label class="icon-btn" title="Attach file">
+                        <label class="icon-btn" title=${t('compose.attachFile')}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                             <input type="file" multiple hidden onChange=${handleFileChange} />
                         </label>

@@ -105,6 +105,14 @@ test('active-locale t() follows the current locale', () => {
   expect(t('workspace.title')).toBe('ワークスペース');
 });
 
+test('compose and workspace keys are translated across peer locales', () => {
+  expect(translate('compose.shareLocation', undefined, 'zh-CN')).toBe('分享位置');
+  expect(translate('compose.attachFile', undefined, 'ja')).toBe('ファイルを添付');
+  expect(translate('workspace.uploadFiles', undefined, 'zh-CN')).toBe('上传文件');
+  expect(translate('workspace.deleteSelectedFile', undefined, 'ja')).toBe('選択したファイルを削除');
+  expect(translate('workspace.downloadZip', undefined, 'en')).toBe('Download folder as zip');
+});
+
 test('menu keys are translated across all peer locales', () => {
   expect(translate('menu.settings', undefined, 'en')).toBe('Settings');
   expect(translate('menu.settings', undefined, 'zh-CN')).toBe('设置');

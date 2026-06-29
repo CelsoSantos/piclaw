@@ -37,9 +37,37 @@ type MessageKey =
   | 'compose.placeholder'
   | 'compose.send'
   | 'compose.stop'
+  | 'compose.searchPlaceholder'
+  | 'compose.clearAll'
+  | 'compose.clearAllTitle'
+  | 'compose.scope'
+  | 'compose.searchScope'
+  | 'compose.scopeCurrent'
+  | 'compose.scopeBranchFamily'
+  | 'compose.scopeAll'
+  | 'compose.filterImages'
+  | 'compose.filterAttachments'
+  | 'compose.search'
+  | 'compose.closeSearch'
+  | 'compose.shareLocation'
+  | 'compose.attachFile'
   | 'workspace.title'
   | 'workspace.newFile'
   | 'workspace.refresh'
+  | 'workspace.actions'
+  | 'workspace.uploadFiles'
+  | 'workspace.reindexing'
+  | 'workspace.deleteFile'
+  | 'workspace.download'
+  | 'workspace.uploadToFolder'
+  | 'workspace.addFolderHint'
+  | 'workspace.downloadZip'
+  | 'workspace.openInTab'
+  | 'workspace.openInEditor'
+  | 'workspace.renameSelected'
+  | 'workspace.downloadSelectedFile'
+  | 'workspace.downloadSelectedFolder'
+  | 'workspace.deleteSelectedFile'
   | 'shell.settings'
   | 'shell.newChat'
   | 'shell.connecting'
@@ -64,12 +92,40 @@ type MessageKey =
   | 'menu.settings';
 
 const EN: Record<MessageKey, string> = {
-  'compose.placeholder': 'Type a message…',
+  'compose.placeholder': 'Message (Enter to send, Shift+Enter for newline)...',
   'compose.send': 'Send',
   'compose.stop': 'Stop',
+  'compose.searchPlaceholder': 'Search (Enter to run)...',
+  'compose.clearAll': 'Clear all',
+  'compose.clearAllTitle': 'Clear all attachments and references',
+  'compose.scope': 'Scope',
+  'compose.searchScope': 'Search scope',
+  'compose.scopeCurrent': 'Current',
+  'compose.scopeBranchFamily': 'Branch family',
+  'compose.scopeAll': 'All chats',
+  'compose.filterImages': 'Images',
+  'compose.filterAttachments': 'Attachments',
+  'compose.search': 'Search',
+  'compose.closeSearch': 'Close search',
+  'compose.shareLocation': 'Share location',
+  'compose.attachFile': 'Attach file',
   'workspace.title': 'Workspace',
   'workspace.newFile': 'New file',
   'workspace.refresh': 'Refresh',
+  'workspace.actions': 'Workspace actions',
+  'workspace.uploadFiles': 'Upload files',
+  'workspace.reindexing': 'Reindexing workspace…',
+  'workspace.deleteFile': 'Delete file',
+  'workspace.download': 'Download',
+  'workspace.uploadToFolder': 'Upload files to this folder',
+  'workspace.addFolderHint': 'Add folder hint to compose',
+  'workspace.downloadZip': 'Download folder as zip',
+  'workspace.openInTab': 'Open in tab',
+  'workspace.openInEditor': 'Open in editor',
+  'workspace.renameSelected': 'Rename selected',
+  'workspace.downloadSelectedFile': 'Download selected file',
+  'workspace.downloadSelectedFolder': 'Download selected folder (zip)',
+  'workspace.deleteSelectedFile': 'Delete selected file',
   'shell.settings': 'Settings',
   'shell.newChat': 'New chat',
   'shell.connecting': 'Connecting…',
@@ -94,12 +150,40 @@ const EN: Record<MessageKey, string> = {
 };
 
 const ZH_CN: Partial<Record<MessageKey, string>> = {
-  'compose.placeholder': '输入消息…',
+  'compose.placeholder': '输入消息（回车发送，Shift+回车换行）...',
   'compose.send': '发送',
   'compose.stop': '停止',
+  'compose.searchPlaceholder': '搜索（回车运行）...',
+  'compose.clearAll': '清除全部',
+  'compose.clearAllTitle': '清除所有附件和引用',
+  'compose.scope': '范围',
+  'compose.searchScope': '搜索范围',
+  'compose.scopeCurrent': '当前',
+  'compose.scopeBranchFamily': '分支系列',
+  'compose.scopeAll': '所有聊天',
+  'compose.filterImages': '图片',
+  'compose.filterAttachments': '附件',
+  'compose.search': '搜索',
+  'compose.closeSearch': '关闭搜索',
+  'compose.shareLocation': '分享位置',
+  'compose.attachFile': '附加文件',
   'workspace.title': '工作区',
   'workspace.newFile': '新建文件',
   'workspace.refresh': '刷新',
+  'workspace.actions': '工作区操作',
+  'workspace.uploadFiles': '上传文件',
+  'workspace.reindexing': '正在重建索引…',
+  'workspace.deleteFile': '删除文件',
+  'workspace.download': '下载',
+  'workspace.uploadToFolder': '上传文件到此文件夹',
+  'workspace.addFolderHint': '将文件夹提示添加到输入框',
+  'workspace.downloadZip': '将文件夹下载为 zip',
+  'workspace.openInTab': '在标签页打开',
+  'workspace.openInEditor': '在编辑器打开',
+  'workspace.renameSelected': '重命名所选',
+  'workspace.downloadSelectedFile': '下载所选文件',
+  'workspace.downloadSelectedFolder': '下载所选文件夹（zip）',
+  'workspace.deleteSelectedFile': '删除所选文件',
   'shell.settings': '设置',
   'shell.newChat': '新建对话',
   'shell.connecting': '连接中…',
@@ -124,12 +208,40 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
 };
 
 const JA: Partial<Record<MessageKey, string>> = {
-  'compose.placeholder': 'メッセージを入力…',
+  'compose.placeholder': 'メッセージ（Enterで送信、Shift+Enterで改行）...',
   'compose.send': '送信',
   'compose.stop': '停止',
+  'compose.searchPlaceholder': '検索（Enterで実行）...',
+  'compose.clearAll': 'すべてクリア',
+  'compose.clearAllTitle': 'すべての添付と参照をクリア',
+  'compose.scope': '範囲',
+  'compose.searchScope': '検索範囲',
+  'compose.scopeCurrent': '現在',
+  'compose.scopeBranchFamily': 'ブランチファミリー',
+  'compose.scopeAll': 'すべてのチャット',
+  'compose.filterImages': '画像',
+  'compose.filterAttachments': '添付',
+  'compose.search': '検索',
+  'compose.closeSearch': '検索を閉じる',
+  'compose.shareLocation': '位置を共有',
+  'compose.attachFile': 'ファイルを添付',
   'workspace.title': 'ワークスペース',
   'workspace.newFile': '新規ファイル',
   'workspace.refresh': '更新',
+  'workspace.actions': 'ワークスペース操作',
+  'workspace.uploadFiles': 'ファイルをアップロード',
+  'workspace.reindexing': 'ワークスペースを再インデックス中…',
+  'workspace.deleteFile': 'ファイルを削除',
+  'workspace.download': 'ダウンロード',
+  'workspace.uploadToFolder': 'このフォルダにファイルをアップロード',
+  'workspace.addFolderHint': 'フォルダのヒントを入力欄に追加',
+  'workspace.downloadZip': 'フォルダをzipでダウンロード',
+  'workspace.openInTab': 'タブで開く',
+  'workspace.openInEditor': 'エディタで開く',
+  'workspace.renameSelected': '選択項目の名前を変更',
+  'workspace.downloadSelectedFile': '選択したファイルをダウンロード',
+  'workspace.downloadSelectedFolder': '選択したフォルダをダウンロード（zip）',
+  'workspace.deleteSelectedFile': '選択したファイルを削除',
   'shell.settings': '設定',
   'shell.newChat': '新規チャット',
   'shell.connecting': '接続中…',

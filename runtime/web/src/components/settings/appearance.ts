@@ -1,5 +1,6 @@
 import { html, useState, useEffect, useCallback, useMemo, useRef } from '../../vendor/preact-htm.js';
 import { applyThemeFromEvent } from '../../ui/theme.js';
+import { LanguageSwitcher } from '../language-switcher.js';
 
 function normalizeAppearanceSettings(data: Record<string, any> = {}) {
     return {
@@ -87,6 +88,9 @@ export function ThemeSection({ themes, colorKeys, settingsData, setStatus, merge
 
     return html`
         <div class="settings-section">
+            <div class="settings-row settings-language-row">
+                <${LanguageSwitcher} variant="inline" />
+            </div>
             ${saving && html`<div class="settings-hint" style="margin:0 0 12px 0;">Syncing appearance…</div>`}
             <div class="settings-tint-row">
                 <label class="settings-tint-label">
