@@ -44,7 +44,24 @@ type MessageKey =
   | 'shell.newChat'
   | 'shell.connecting'
   | 'shell.connected'
-  | 'language.label';
+  | 'language.label'
+  // Timeline / workspace hamburger menu (first localized v1 surface).
+  | 'menu.title'
+  | 'menu.showWorkspace'
+  | 'menu.hideWorkspace'
+  | 'menu.openExplorer'
+  | 'menu.chatOnly'
+  | 'menu.exitChatOnly'
+  | 'menu.openTerminal'
+  | 'menu.openVnc'
+  | 'menu.newFile'
+  | 'menu.openRecent'
+  | 'menu.refreshTree'
+  | 'menu.reindex'
+  | 'menu.showHidden'
+  | 'menu.hideHidden'
+  | 'menu.scale'
+  | 'menu.settings';
 
 const EN: Record<MessageKey, string> = {
   'compose.placeholder': 'Type a message…',
@@ -58,6 +75,22 @@ const EN: Record<MessageKey, string> = {
   'shell.connecting': 'Connecting…',
   'shell.connected': 'Connected',
   'language.label': 'Language',
+  'menu.title': 'Menu',
+  'menu.showWorkspace': 'Show workspace',
+  'menu.hideWorkspace': 'Hide workspace',
+  'menu.openExplorer': 'Open explorer',
+  'menu.chatOnly': 'Chat-only mode',
+  'menu.exitChatOnly': 'Exit chat-only mode',
+  'menu.openTerminal': 'Open terminal in tab',
+  'menu.openVnc': 'Open VNC in tab',
+  'menu.newFile': 'New file',
+  'menu.openRecent': 'Open Recent',
+  'menu.refreshTree': 'Refresh tree',
+  'menu.reindex': 'Reindex workspace',
+  'menu.showHidden': 'Show hidden files',
+  'menu.hideHidden': 'Hide hidden files',
+  'menu.scale': 'Scale',
+  'menu.settings': 'Settings',
 };
 
 const ZH_CN: Partial<Record<MessageKey, string>> = {
@@ -72,6 +105,22 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'shell.connecting': '连接中…',
   'shell.connected': '已连接',
   'language.label': '语言',
+  'menu.title': '菜单',
+  'menu.showWorkspace': '显示工作区',
+  'menu.hideWorkspace': '隐藏工作区',
+  'menu.openExplorer': '打开资源管理器',
+  'menu.chatOnly': '仅聊天模式',
+  'menu.exitChatOnly': '退出仅聊天模式',
+  'menu.openTerminal': '在标签页中打开终端',
+  'menu.openVnc': '在标签页中打开 VNC',
+  'menu.newFile': '新建文件',
+  'menu.openRecent': '打开最近文件',
+  'menu.refreshTree': '刷新目录树',
+  'menu.reindex': '重建工作区索引',
+  'menu.showHidden': '显示隐藏文件',
+  'menu.hideHidden': '隐藏隐藏文件',
+  'menu.scale': '缩放',
+  'menu.settings': '设置',
 };
 
 const JA: Partial<Record<MessageKey, string>> = {
@@ -86,6 +135,22 @@ const JA: Partial<Record<MessageKey, string>> = {
   'shell.connecting': '接続中…',
   'shell.connected': '接続済み',
   'language.label': '言語',
+  'menu.title': 'メニュー',
+  'menu.showWorkspace': 'ワークスペースを表示',
+  'menu.hideWorkspace': 'ワークスペースを非表示',
+  'menu.openExplorer': 'エクスプローラーを開く',
+  'menu.chatOnly': 'チャットのみモード',
+  'menu.exitChatOnly': 'チャットのみモードを終了',
+  'menu.openTerminal': 'ターミナルをタブで開く',
+  'menu.openVnc': 'VNC をタブで開く',
+  'menu.newFile': '新規ファイル',
+  'menu.openRecent': '最近のファイルを開く',
+  'menu.refreshTree': 'ツリーを更新',
+  'menu.reindex': 'ワークスペースを再インデックス',
+  'menu.showHidden': '隠しファイルを表示',
+  'menu.hideHidden': '隠しファイルを非表示',
+  'menu.scale': '拡大縮小',
+  'menu.settings': '設定',
 };
 
 const TRANSLATIONS: Record<Locale, Partial<Record<MessageKey, string>>> = {

@@ -105,6 +105,14 @@ test('active-locale t() follows the current locale', () => {
   expect(t('workspace.title')).toBe('ワークスペース');
 });
 
+test('menu keys are translated across all peer locales', () => {
+  expect(translate('menu.settings', undefined, 'en')).toBe('Settings');
+  expect(translate('menu.settings', undefined, 'zh-CN')).toBe('设置');
+  expect(translate('menu.settings', undefined, 'ja')).toBe('設定');
+  expect(translate('menu.newFile', undefined, 'zh-CN')).toBe('新建文件');
+  expect(translate('menu.refreshTree', undefined, 'ja')).toBe('ツリーを更新');
+});
+
 test('interpolation replaces named placeholders and leaves unknown ones intact', () => {
   // Uses a transient key via translate fallback to key, then interpolation.
   expect(translate('hi {name}' as any, { name: 'Rui' }, 'en')).toBe('hi Rui');
