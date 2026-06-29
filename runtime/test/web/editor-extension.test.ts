@@ -13,10 +13,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import "../helpers.js";
 import {
-    FIREFOX_EDITOR_PERF_LIMIT_CHARS,
     isFirefoxUserAgent,
     shouldDisableWhitespaceMarkersForPerformance,
-    shouldUseFirefoxEditorPerformanceMode,
 } from "../../extensions/viewers/editor/editor-safety.ts";
 
 // ── Inline types (browser modules can't be imported in bun test) ────
@@ -90,22 +88,9 @@ describe("Editor status footer", () => {
         expect(source.indexOf("actionsDiv.appendChild(referenceBtn);")).toBeGreaterThan(source.indexOf("actionsDiv.appendChild(saveBtn);"));
     });
 
-    test("uses a lean Firefox path for medium files and removes whitespace controls", () => {
-        expect(FIREFOX_EDITOR_PERF_LIMIT_CHARS).toBe(16 * 1024);
+    test("removes the whitespace feature in Firefox without disabling rich editor features", () => {
         expect(isFirefoxUserAgent("Mozilla/5.0 Firefox/140.0")).toBe(true);
         expect(isFirefoxUserAgent("Mozilla/5.0 Chrome/126.0 Safari/537.36")).toBe(false);
-        expect(shouldUseFirefoxEditorPerformanceMode({
-            userAgent: "Mozilla/5.0 Firefox/140.0",
-            docLength: FIREFOX_EDITOR_PERF_LIMIT_CHARS,
-        })).toBe(true);
-        expect(shouldUseFirefoxEditorPerformanceMode({
-            userAgent: "Mozilla/5.0 Firefox/140.0",
-            docLength: FIREFOX_EDITOR_PERF_LIMIT_CHARS - 1,
-        })).toBe(false);
-        expect(shouldUseFirefoxEditorPerformanceMode({
-            userAgent: "Mozilla/5.0 Chrome/126.0 Safari/537.36",
-            docLength: FIREFOX_EDITOR_PERF_LIMIT_CHARS * 2,
-        })).toBe(false);
         expect(shouldDisableWhitespaceMarkersForPerformance({
             userAgent: "Mozilla/5.0 Firefox/140.0",
             docLength: 100,
@@ -126,8 +111,10 @@ describe("Editor status footer", () => {
         })).toBe(true);
 
         const source = readFileSync(join(import.meta.dir, "../../extensions/viewers/editor/editor-extension.ts"), "utf8");
-        expect(source).toContain("const enableRichFeatures = !this.largeDocumentMode && !this.isFirefoxPerformanceMode()");
-        expect(source).toContain("return !this.largeDocumentMode && !this.isFirefoxPerformanceMode() && !this.isDiffMode() && this.supportsMarkdownLivePreview()");
+        expect(source).toContain("const enableRichFeatures = !this.largeDocumentMode");
+        expect(source).toContain("return !this.largeDocumentMode && !this.isDiffMode() && this.supportsMarkdownLivePreview()");
+        expect(source).toContain("this.wrappingCompartment.of(enableRichFeatures ? EditorView.lineWrapping : [])");
+        expect(source).toContain("...(enableRichFeatures ? [autocompletion({ activateOnTyping: false })] : [])");
         expect(source).toContain("this._wsBtn.hidden = firefox");
         expect(source).toContain("Whitespace is unavailable in Firefox");
     });
