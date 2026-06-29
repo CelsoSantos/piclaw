@@ -12,6 +12,11 @@ import { expect, test, describe, mock } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 import "../helpers.js";
+import {
+    FIREFOX_WHITESPACE_PERF_LIMIT_CHARS,
+    isFirefoxUserAgent,
+    shouldDisableWhitespaceMarkersForPerformance,
+} from "../../extensions/viewers/editor/editor-safety.ts";
 
 // ── Inline types (browser modules can't be imported in bun test) ────
 
@@ -82,6 +87,38 @@ describe("Editor status footer", () => {
         expect(source).toContain("referenceBtn.textContent = 'Reference'");
         expect(source.indexOf("actionsDiv.appendChild(saveBtn);")).toBeGreaterThan(source.indexOf("actionsDiv.appendChild(vimBtn);"));
         expect(source.indexOf("actionsDiv.appendChild(referenceBtn);")).toBeGreaterThan(source.indexOf("actionsDiv.appendChild(saveBtn);"));
+    });
+
+    test("keeps expensive whitespace markers out of Firefox medium-file edit paths", () => {
+        expect(FIREFOX_WHITESPACE_PERF_LIMIT_CHARS).toBe(16 * 1024);
+        expect(isFirefoxUserAgent("Mozilla/5.0 Firefox/140.0")).toBe(true);
+        expect(isFirefoxUserAgent("Mozilla/5.0 Chrome/126.0 Safari/537.36")).toBe(false);
+        expect(shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: "Mozilla/5.0 Firefox/140.0",
+            docLength: FIREFOX_WHITESPACE_PERF_LIMIT_CHARS,
+        })).toBe(true);
+        expect(shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: "Mozilla/5.0 Firefox/140.0",
+            docLength: FIREFOX_WHITESPACE_PERF_LIMIT_CHARS - 1,
+        })).toBe(false);
+        expect(shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: "Mozilla/5.0 Chrome/126.0 Safari/537.36",
+            docLength: FIREFOX_WHITESPACE_PERF_LIMIT_CHARS * 2,
+        })).toBe(false);
+        expect(shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: "Mozilla/5.0 Firefox/140.0",
+            docLength: 100,
+            livePreviewActive: true,
+        })).toBe(true);
+        expect(shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: "Mozilla/5.0 Chrome/126.0 Safari/537.36",
+            docLength: 100,
+            largeDocumentMode: true,
+        })).toBe(true);
+
+        const source = readFileSync(join(import.meta.dir, "../../extensions/viewers/editor/editor-extension.ts"), "utf8");
+        expect(source).toContain("this.whitespaceCompartment.reconfigure(this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : [])");
+        expect(source).toContain("Whitespace is disabled for medium and large files in Firefox");
     });
 });
 

@@ -1,3 +1,20 @@
+export const FIREFOX_WHITESPACE_PERF_LIMIT_CHARS = 16 * 1024;
+
+export function isFirefoxUserAgent(userAgent: string | null | undefined): boolean {
+  return /\bFirefox\//i.test(String(userAgent || ""));
+}
+
+export function shouldDisableWhitespaceMarkersForPerformance(input: {
+  userAgent?: string | null;
+  docLength: number;
+  largeDocumentMode?: boolean;
+  livePreviewActive?: boolean;
+}): boolean {
+  if (input.largeDocumentMode || input.livePreviewActive) return true;
+  const docLength = Number.isFinite(input.docLength) ? Math.max(0, input.docLength) : 0;
+  return isFirefoxUserAgent(input.userAgent) && docLength >= FIREFOX_WHITESPACE_PERF_LIMIT_CHARS;
+}
+
 export function getLocalBoolWithFallback(
   getStorage: () => Pick<Storage, "getItem"> | null | undefined,
   key: string,

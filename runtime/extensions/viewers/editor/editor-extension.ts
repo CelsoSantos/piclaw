@@ -67,6 +67,7 @@ import {
     getLocalBoolWithFallback,
     restoreEditorViewStateBestEffort,
     setLocalBoolBestEffort,
+    shouldDisableWhitespaceMarkersForPerformance,
 } from './editor-safety.ts';
 import {
     closeEditorSearch,
@@ -636,7 +637,7 @@ export class StandaloneEditorInstance implements PaneInstance {
             minimalSetup,
             lineNumbers(),
             highlightActiveLine(),
-            this.whitespaceCompartment.of(enableRichFeatures && this.showWhitespace ? highlightWhitespace() : []),
+            this.whitespaceCompartment.of(enableRichFeatures && this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : []),
             this.livePreviewCompartment.of([]),
             this.wrappingCompartment.of(enableRichFeatures ? EditorView.lineWrapping : []),
             ...(options.scrollPastEnd === false ? [] : [scrollPastEnd()]),
@@ -693,7 +694,7 @@ export class StandaloneEditorInstance implements PaneInstance {
         const extensions: any[] = [
             minimalSetup,
             lineNumbers(),
-            this.baselineWhitespaceCompartment.of(enableRichFeatures && this.showWhitespace ? highlightWhitespace() : []),
+            this.baselineWhitespaceCompartment.of(enableRichFeatures && this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : []),
             this.baselineThemeCompartment.of(isDark ? githubDark : githubLight),
             this.baselineAccentCompartment.of(this.buildAccentTheme()),
             ...(enableRichFeatures ? [EditorView.lineWrapping, syntaxHighlighting(headingStyle), syntaxHighlighting(classHighlighter)] : []),
@@ -780,6 +781,7 @@ export class StandaloneEditorInstance implements PaneInstance {
                 this.view.dispatch({
                     effects: [
                         this.livePreviewCompartment.reconfigure(markdownLivePreview),
+                        this.whitespaceCompartment.reconfigure(this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : []),
                         wrapEffect,
                     ],
                 });
@@ -790,6 +792,7 @@ export class StandaloneEditorInstance implements PaneInstance {
             this.view.dispatch({
                 effects: [
                     this.livePreviewCompartment.reconfigure([]),
+                    this.whitespaceCompartment.reconfigure(this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : []),
                     wrapEffect,
                 ],
             });
@@ -815,7 +818,28 @@ export class StandaloneEditorInstance implements PaneInstance {
     }
 
     private isWhitespaceDisabledInCurrentMode(): boolean {
-        return this.largeDocumentMode || this.isLivePreview();
+        return shouldDisableWhitespaceMarkersForPerformance({
+            userAgent: this.ownerWindow.navigator?.userAgent || '',
+            docLength: this.view?.state.doc.length ?? this.initialContentLength,
+            largeDocumentMode: this.largeDocumentMode,
+            livePreviewActive: this.isLivePreview(),
+        });
+    }
+
+    private shouldApplyWhitespaceMarkers(): boolean {
+        return this.showWhitespace && !this.isWhitespaceDisabledInCurrentMode();
+    }
+
+    private getWhitespaceDisabledStatusText(): string {
+        if (this.largeDocumentMode) return 'Whitespace is disabled in Large File Mode';
+        if (this.isLivePreview()) return 'Whitespace is disabled in Live Preview';
+        return 'Whitespace is disabled for medium and large files in Firefox';
+    }
+
+    private reconfigureWhitespaceMarkers(): void {
+        const extension = this.shouldApplyWhitespaceMarkers() ? highlightWhitespace() : [];
+        this.view?.dispatch({ effects: this.whitespaceCompartment.reconfigure(extension) });
+        this.baselineView?.dispatch({ effects: this.baselineWhitespaceCompartment.reconfigure(extension) });
     }
 
     private updateLivePreviewControlState(): void {
@@ -836,9 +860,7 @@ export class StandaloneEditorInstance implements PaneInstance {
         const disabled = this.isWhitespaceDisabledInCurrentMode();
         this._wsBtn.disabled = disabled;
         this._wsBtn.classList.toggle('active', !disabled && this.showWhitespace);
-        this._wsBtn.title = disabled
-            ? (this.largeDocumentMode ? 'Whitespace is disabled in Large File Mode' : 'Whitespace is unavailable in Live Preview')
-            : 'Toggle whitespace (Alt+W)';
+        this._wsBtn.title = disabled ? this.getWhitespaceDisabledStatusText() : 'Toggle whitespace (Alt+W)';
     }
 
     private captureViewState(): { cursorLine: number; cursorCol: number; scrollTop: number } | null {
@@ -972,18 +994,13 @@ export class StandaloneEditorInstance implements PaneInstance {
 
     private toggleWhitespace(): void {
         if (this.isWhitespaceDisabledInCurrentMode()) {
-            this.updateStatusText(this.largeDocumentMode ? 'Whitespace is disabled in Large File Mode' : 'Whitespace is disabled in Live Preview');
+            this.updateStatusText(this.getWhitespaceDisabledStatusText());
             return;
         }
         this.showWhitespace = !this.showWhitespace;
         setLocalBool('piclaw_show_whitespace', this.showWhitespace);
         if (this._wsBtn) this._wsBtn.className = `editor-status-button${this.showWhitespace ? ' active' : ''}`;
-        this.view?.dispatch({
-            effects: this.whitespaceCompartment.reconfigure(this.showWhitespace ? highlightWhitespace() : []),
-        });
-        this.baselineView?.dispatch({
-            effects: this.baselineWhitespaceCompartment.reconfigure(this.showWhitespace ? highlightWhitespace() : []),
-        });
+        this.reconfigureWhitespaceMarkers();
     }
 
     // ── Paste images ────────────────────────────────────────────
