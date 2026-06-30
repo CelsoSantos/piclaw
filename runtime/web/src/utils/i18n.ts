@@ -493,6 +493,49 @@ type MessageKey =
   | 'settings.recordings.loadOneFailed'
   | 'settings.recordings.loadFailed'
   | 'settings.recordings.previewFailed'
+  | 'settings.keychain.loadFailed'
+  | 'settings.keychain.addFailed'
+  | 'settings.keychain.deleteFailed'
+  | 'settings.keychain.saveNotesFailed'
+  | 'settings.keychain.revealFailed'
+  | 'settings.keychain.loading'
+  | 'settings.keychain.entryCountSingular'
+  | 'settings.keychain.entryCountPlural'
+  | 'settings.keychain.matchingFilter'
+  | 'settings.keychain.encryptedSuffix'
+  | 'settings.keychain.clickPrefix'
+  | 'settings.keychain.revealSuffix'
+  | 'settings.keychain.cancel'
+  | 'settings.keychain.addEntry'
+  | 'settings.keychain.namePlaceholder'
+  | 'settings.keychain.secretPlaceholder'
+  | 'settings.keychain.usernamePlaceholder'
+  | 'settings.keychain.saving'
+  | 'settings.keychain.save'
+  | 'settings.keychain.userNotePlaceholder'
+  | 'settings.keychain.agentNotePlaceholder'
+  | 'settings.keychain.noMatchFilter'
+  | 'settings.keychain.noEntries'
+  | 'settings.keychain.hideSecret'
+  | 'settings.keychain.revealSecret'
+  | 'settings.keychain.deleteQ'
+  | 'settings.keychain.yes'
+  | 'settings.keychain.no'
+  | 'settings.keychain.deleteTitle'
+  | 'settings.keychain.userNote'
+  | 'settings.keychain.agentNote'
+  | 'settings.keychain.userNoteHint'
+  | 'settings.keychain.agentNoteHint'
+  | 'settings.keychain.saveNotes'
+  | 'settings.keychain.masterPassword'
+  | 'settings.keychain.masterPasswordPlaceholder'
+  | 'settings.keychain.unlock'
+  | 'settings.keychain.totpCode'
+  | 'settings.keychain.verify'
+  | 'settings.keychain.username'
+  | 'settings.keychain.copyUsername'
+  | 'settings.keychain.secret'
+  | 'settings.keychain.copySecret'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -964,6 +1007,49 @@ const EN: Record<MessageKey, string> = {
   'settings.recordings.loadOneFailed': 'Failed to load recording.',
   'settings.recordings.loadFailed': 'Failed to load recordings.',
   'settings.recordings.previewFailed': 'Preview failed.',
+  'settings.keychain.loadFailed': 'Failed to load keychain.',
+  'settings.keychain.addFailed': 'Failed to add entry.',
+  'settings.keychain.deleteFailed': 'Failed to delete entry.',
+  'settings.keychain.saveNotesFailed': 'Failed to save notes.',
+  'settings.keychain.revealFailed': 'Failed to reveal.',
+  'settings.keychain.loading': 'Loading keychain…',
+  'settings.keychain.entryCountSingular': '{count} entry',
+  'settings.keychain.entryCountPlural': '{count} entries',
+  'settings.keychain.matchingFilter': ' matching "{filter}"',
+  'settings.keychain.encryptedSuffix': ', encrypted at rest.',
+  'settings.keychain.clickPrefix': 'Click',
+  'settings.keychain.revealSuffix': 'to reveal.',
+  'settings.keychain.cancel': 'Cancel',
+  'settings.keychain.addEntry': '+ Add entry',
+  'settings.keychain.namePlaceholder': 'Entry name (e.g. github/my-token)',
+  'settings.keychain.secretPlaceholder': 'Secret value',
+  'settings.keychain.usernamePlaceholder': 'Username (optional)',
+  'settings.keychain.saving': 'Saving…',
+  'settings.keychain.save': 'Save',
+  'settings.keychain.userNotePlaceholder': 'User note (visible in this UI only)',
+  'settings.keychain.agentNotePlaceholder': 'Agent note (safe to expose to agents)',
+  'settings.keychain.noMatchFilter': 'No entries match the filter.',
+  'settings.keychain.noEntries': 'No keychain entries.',
+  'settings.keychain.hideSecret': 'Hide secret',
+  'settings.keychain.revealSecret': 'Reveal secret',
+  'settings.keychain.deleteQ': 'Delete?',
+  'settings.keychain.yes': 'Yes',
+  'settings.keychain.no': 'No',
+  'settings.keychain.deleteTitle': 'Delete',
+  'settings.keychain.userNote': 'User note',
+  'settings.keychain.agentNote': 'Agent-readable note',
+  'settings.keychain.userNoteHint': 'Human/UI note only',
+  'settings.keychain.agentNoteHint': 'Safe guidance for agents',
+  'settings.keychain.saveNotes': 'Save notes',
+  'settings.keychain.masterPassword': 'Master password:',
+  'settings.keychain.masterPasswordPlaceholder': 'Enter keychain master password',
+  'settings.keychain.unlock': 'Unlock',
+  'settings.keychain.totpCode': 'TOTP code:',
+  'settings.keychain.verify': 'Verify',
+  'settings.keychain.username': 'Username',
+  'settings.keychain.copyUsername': 'Copy username',
+  'settings.keychain.secret': 'Secret',
+  'settings.keychain.copySecret': 'Copy secret',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -1435,6 +1521,49 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.recordings.loadOneFailed': '加载录制失败。',
   'settings.recordings.loadFailed': '加载录制失败。',
   'settings.recordings.previewFailed': '预览失败。',
+  'settings.keychain.loadFailed': '加载密钥链失败。',
+  'settings.keychain.addFailed': '添加条目失败。',
+  'settings.keychain.deleteFailed': '删除条目失败。',
+  'settings.keychain.saveNotesFailed': '保存备注失败。',
+  'settings.keychain.revealFailed': '显示失败。',
+  'settings.keychain.loading': '正在加载密钥链…',
+  'settings.keychain.entryCountSingular': '{count} 个条目',
+  'settings.keychain.entryCountPlural': '{count} 个条目',
+  'settings.keychain.matchingFilter': ' 匹配 "{filter}"',
+  'settings.keychain.encryptedSuffix': '，静态加密。',
+  'settings.keychain.clickPrefix': '点击',
+  'settings.keychain.revealSuffix': '以显示。',
+  'settings.keychain.cancel': '取消',
+  'settings.keychain.addEntry': '+ 添加条目',
+  'settings.keychain.namePlaceholder': '条目名称（例如 github/my-token）',
+  'settings.keychain.secretPlaceholder': '密钥值',
+  'settings.keychain.usernamePlaceholder': '用户名（可选）',
+  'settings.keychain.saving': '正在保存…',
+  'settings.keychain.save': '保存',
+  'settings.keychain.userNotePlaceholder': '用户备注（仅在此界面可见）',
+  'settings.keychain.agentNotePlaceholder': '代理备注（可安全暴露给代理）',
+  'settings.keychain.noMatchFilter': '没有条目匹配筛选条件。',
+  'settings.keychain.noEntries': '没有密钥链条目。',
+  'settings.keychain.hideSecret': '隐藏密钥',
+  'settings.keychain.revealSecret': '显示密钥',
+  'settings.keychain.deleteQ': '删除？',
+  'settings.keychain.yes': '是',
+  'settings.keychain.no': '否',
+  'settings.keychain.deleteTitle': '删除',
+  'settings.keychain.userNote': '用户备注',
+  'settings.keychain.agentNote': '代理可读备注',
+  'settings.keychain.userNoteHint': '仅限人工/界面备注',
+  'settings.keychain.agentNoteHint': '给代理的安全指引',
+  'settings.keychain.saveNotes': '保存备注',
+  'settings.keychain.masterPassword': '主密码：',
+  'settings.keychain.masterPasswordPlaceholder': '输入密钥链主密码',
+  'settings.keychain.unlock': '解锁',
+  'settings.keychain.totpCode': 'TOTP 代码：',
+  'settings.keychain.verify': '验证',
+  'settings.keychain.username': '用户名',
+  'settings.keychain.copyUsername': '复制用户名',
+  'settings.keychain.secret': '密钥',
+  'settings.keychain.copySecret': '复制密钥',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -1906,6 +2035,49 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.recordings.loadOneFailed': '録画の読み込みに失敗しました。',
   'settings.recordings.loadFailed': '録画の読み込みに失敗しました。',
   'settings.recordings.previewFailed': 'プレビューに失敗しました。',
+  'settings.keychain.loadFailed': 'キーチェーンの読み込みに失敗しました。',
+  'settings.keychain.addFailed': 'エントリの追加に失敗しました。',
+  'settings.keychain.deleteFailed': 'エントリの削除に失敗しました。',
+  'settings.keychain.saveNotesFailed': 'メモの保存に失敗しました。',
+  'settings.keychain.revealFailed': '表示に失敗しました。',
+  'settings.keychain.loading': 'キーチェーンを読み込み中…',
+  'settings.keychain.entryCountSingular': '{count} 件のエントリ',
+  'settings.keychain.entryCountPlural': '{count} 件のエントリ',
+  'settings.keychain.matchingFilter': ' 「{filter}」に一致',
+  'settings.keychain.encryptedSuffix': '、保存時に暗号化。',
+  'settings.keychain.clickPrefix': 'クリック',
+  'settings.keychain.revealSuffix': 'で表示。',
+  'settings.keychain.cancel': 'キャンセル',
+  'settings.keychain.addEntry': '+ エントリを追加',
+  'settings.keychain.namePlaceholder': 'エントリ名（例：github/my-token）',
+  'settings.keychain.secretPlaceholder': 'シークレット値',
+  'settings.keychain.usernamePlaceholder': 'ユーザー名（任意）',
+  'settings.keychain.saving': '保存中…',
+  'settings.keychain.save': '保存',
+  'settings.keychain.userNotePlaceholder': 'ユーザーメモ（この UI でのみ表示）',
+  'settings.keychain.agentNotePlaceholder': 'エージェントメモ（エージェントに公開しても安全）',
+  'settings.keychain.noMatchFilter': 'フィルターに一致するエントリはありません。',
+  'settings.keychain.noEntries': 'キーチェーンエントリがありません。',
+  'settings.keychain.hideSecret': 'シークレットを非表示',
+  'settings.keychain.revealSecret': 'シークレットを表示',
+  'settings.keychain.deleteQ': '削除しますか？',
+  'settings.keychain.yes': 'はい',
+  'settings.keychain.no': 'いいえ',
+  'settings.keychain.deleteTitle': '削除',
+  'settings.keychain.userNote': 'ユーザーメモ',
+  'settings.keychain.agentNote': 'エージェント読み取り可能メモ',
+  'settings.keychain.userNoteHint': '人間/UI メモのみ',
+  'settings.keychain.agentNoteHint': 'エージェント向けの安全なガイダンス',
+  'settings.keychain.saveNotes': 'メモを保存',
+  'settings.keychain.masterPassword': 'マスターパスワード：',
+  'settings.keychain.masterPasswordPlaceholder': 'キーチェーンのマスターパスワードを入力',
+  'settings.keychain.unlock': 'ロック解除',
+  'settings.keychain.totpCode': 'TOTP コード：',
+  'settings.keychain.verify': '検証',
+  'settings.keychain.username': 'ユーザー名',
+  'settings.keychain.copyUsername': 'ユーザー名をコピー',
+  'settings.keychain.secret': 'シークレット',
+  'settings.keychain.copySecret': 'シークレットをコピー',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
