@@ -178,6 +178,36 @@ type MessageKey =
   | 'annotator.resetZoom'
   | 'tree.filter'
   | 'tree.sessionTree'
+  | 'btw.label'
+  | 'btw.close'
+  | 'btw.thinking'
+  | 'mdpreview.close'
+  | 'mdpreview.unavailable'
+  | 'widget.close'
+  | 'oobe.gettingStarted'
+  | 'oobe.needsSetupTitle'
+  | 'oobe.configuredTitle'
+  | 'oobe.needsSetupBody'
+  | 'oobe.configuredBody'
+  | 'oobe.openSettings'
+  | 'oobe.dismiss'
+  | 'oobe.done'
+  | 'palette.placeholder'
+  | 'palette.hideWorkspace'
+  | 'palette.showWorkspace'
+  | 'palette.hideWorkspaceDesc'
+  | 'palette.showWorkspaceDesc'
+  | 'palette.exitChatOnly'
+  | 'palette.chatOnly'
+  | 'palette.exitChatOnlyDesc'
+  | 'palette.chatOnlyDesc'
+  | 'palette.groupAgents'
+  | 'palette.groupWorkspace'
+  | 'palette.groupSlash'
+  | 'palette.hintMove'
+  | 'palette.hintSelect'
+  | 'palette.hintPopOut'
+  | 'palette.hintClose'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -339,6 +369,36 @@ const EN: Record<MessageKey, string> = {
   'annotator.resetZoom': 'Reset zoom',
   'tree.filter': 'Filter…',
   'tree.sessionTree': 'Session tree',
+  'btw.label': 'BTW side conversation',
+  'btw.close': 'Close BTW',
+  'btw.thinking': 'Thinking',
+  'mdpreview.close': 'Close preview',
+  'mdpreview.unavailable': 'Preview unavailable',
+  'widget.close': 'Close widget',
+  'oobe.gettingStarted': 'Getting started',
+  'oobe.needsSetupTitle': 'Instance needs setup',
+  'oobe.configuredTitle': 'Instance is configured',
+  'oobe.needsSetupBody': 'This instance is not yet configured. Open Settings and set up AI providers/models to start sending requests.',
+  'oobe.configuredBody': 'This instance looks configured. Review or update provider and model settings in Settings.',
+  'oobe.openSettings': 'Open Settings',
+  'oobe.dismiss': 'Dismiss',
+  'oobe.done': 'Done',
+  'palette.placeholder': 'Type to jump to an agent, workspace action, or slash command…',
+  'palette.hideWorkspace': 'Hide workspace',
+  'palette.showWorkspace': 'Show workspace',
+  'palette.hideWorkspaceDesc': 'Hide the workspace sidebar.',
+  'palette.showWorkspaceDesc': 'Show the workspace sidebar.',
+  'palette.exitChatOnly': 'Exit chat-only mode',
+  'palette.chatOnly': 'Chat-only mode',
+  'palette.exitChatOnlyDesc': 'Return to the split workspace layout.',
+  'palette.chatOnlyDesc': 'Switch to the chat-only layout.',
+  'palette.groupAgents': 'Agents',
+  'palette.groupWorkspace': 'Workspace',
+  'palette.groupSlash': 'Slash commands',
+  'palette.hintMove': 'Move',
+  'palette.hintSelect': 'Select',
+  'palette.hintPopOut': 'Pop out',
+  'palette.hintClose': 'Close',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -500,6 +560,36 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'annotator.resetZoom': '重置缩放',
   'tree.filter': '筛选…',
   'tree.sessionTree': '会话树',
+  'btw.label': 'BTW 附加对话',
+  'btw.close': '关闭 BTW',
+  'btw.thinking': '思考中',
+  'mdpreview.close': '关闭预览',
+  'mdpreview.unavailable': '预览不可用',
+  'widget.close': '关闭小部件',
+  'oobe.gettingStarted': '入门指南',
+  'oobe.needsSetupTitle': '实例需要设置',
+  'oobe.configuredTitle': '实例已配置',
+  'oobe.needsSetupBody': '此实例尚未配置。请打开“设置”并设置 AI 提供商/模型以开始发送请求。',
+  'oobe.configuredBody': '此实例看起来已配置。请在“设置”中查看或更新提供商和模型设置。',
+  'oobe.openSettings': '打开设置',
+  'oobe.dismiss': '忽略',
+  'oobe.done': '完成',
+  'palette.placeholder': '输入以跳转到代理、工作区操作或斜杠命令…',
+  'palette.hideWorkspace': '隐藏工作区',
+  'palette.showWorkspace': '显示工作区',
+  'palette.hideWorkspaceDesc': '隐藏工作区侧边栏。',
+  'palette.showWorkspaceDesc': '显示工作区侧边栏。',
+  'palette.exitChatOnly': '退出仅聊天模式',
+  'palette.chatOnly': '仅聊天模式',
+  'palette.exitChatOnlyDesc': '返回分屏工作区布局。',
+  'palette.chatOnlyDesc': '切换到仅聊天布局。',
+  'palette.groupAgents': '代理',
+  'palette.groupWorkspace': '工作区',
+  'palette.groupSlash': '斜杠命令',
+  'palette.hintMove': '移动',
+  'palette.hintSelect': '选择',
+  'palette.hintPopOut': '弹出',
+  'palette.hintClose': '关闭',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -661,6 +751,36 @@ const JA: Partial<Record<MessageKey, string>> = {
   'annotator.resetZoom': 'ズームをリセット',
   'tree.filter': 'フィルター…',
   'tree.sessionTree': 'セッションツリー',
+  'btw.label': 'BTW サイド会話',
+  'btw.close': 'BTW を閉じる',
+  'btw.thinking': '思考中',
+  'mdpreview.close': 'プレビューを閉じる',
+  'mdpreview.unavailable': 'プレビューを利用できません',
+  'widget.close': 'ウィジェットを閉じる',
+  'oobe.gettingStarted': 'はじめに',
+  'oobe.needsSetupTitle': 'インスタンスのセットアップが必要',
+  'oobe.configuredTitle': 'インスタンスは設定済み',
+  'oobe.needsSetupBody': 'このインスタンスはまだ設定されていません。設定を開き、AIプロバイダー/モデルを設定してリクエストの送信を開始してください。',
+  'oobe.configuredBody': 'このインスタンスは設定済みのようです。設定でプロバイダーとモデルの設定を確認または更新してください。',
+  'oobe.openSettings': '設定を開く',
+  'oobe.dismiss': '閉じる',
+  'oobe.done': '完了',
+  'palette.placeholder': '入力してエージェント、ワークスペース操作、またはスラッシュコマンドにジャンプ…',
+  'palette.hideWorkspace': 'ワークスペースを非表示',
+  'palette.showWorkspace': 'ワークスペースを表示',
+  'palette.hideWorkspaceDesc': 'ワークスペースサイドバーを非表示にします。',
+  'palette.showWorkspaceDesc': 'ワークスペースサイドバーを表示します。',
+  'palette.exitChatOnly': 'チャットのみモードを終了',
+  'palette.chatOnly': 'チャットのみモード',
+  'palette.exitChatOnlyDesc': '分割ワークスペースレイアウトに戻ります。',
+  'palette.chatOnlyDesc': 'チャットのみのレイアウトに切り替えます。',
+  'palette.groupAgents': 'エージェント',
+  'palette.groupWorkspace': 'ワークスペース',
+  'palette.groupSlash': 'スラッシュコマンド',
+  'palette.hintMove': '移動',
+  'palette.hintSelect': '選択',
+  'palette.hintPopOut': 'ポップアウト',
+  'palette.hintClose': '閉じる',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
