@@ -1,6 +1,7 @@
 import { html, useState, useEffect, useCallback, useMemo, useRef } from '../../vendor/preact-htm.js';
 import { applyThemeFromEvent } from '../../ui/theme.js';
 import { LanguageSwitcher } from '../language-switcher.js';
+import { useTranslation } from '../../utils/i18n.js';
 
 function normalizeAppearanceSettings(data: Record<string, any> = {}) {
     return {
@@ -10,6 +11,7 @@ function normalizeAppearanceSettings(data: Record<string, any> = {}) {
 }
 
 export function ThemeSection({ themes, colorKeys, settingsData, setStatus, mergeSettingsData }) {
+    const { t: tr } = useTranslation();
     const [currentTheme, setCurrentTheme] = useState('default');
     const [currentTint, setCurrentTint] = useState('');
     const [saving, setSaving] = useState(false);
@@ -91,17 +93,17 @@ export function ThemeSection({ themes, colorKeys, settingsData, setStatus, merge
             <div class="settings-row settings-language-row">
                 <${LanguageSwitcher} variant="inline" />
             </div>
-            ${saving && html`<div class="settings-hint" style="margin:0 0 12px 0;">Syncing appearance…</div>`}
+            ${saving && html`<div class="settings-hint" style="margin:0 0 12px 0;">${tr('settings.appearance.syncing')}</div>`}
             <div class="settings-tint-row">
                 <label class="settings-tint-label">
                     <input type="radio" name="settings-theme"
                         checked=${currentTheme === 'default'}
                         onChange=${() => applyLocal('default', currentTint)} />
-                    <strong>Default</strong>
-                    <span class="settings-hint" style="margin:0 0 0 6px">auto (light/dark)</span>
+                    <strong>${tr('settings.appearance.default')}</strong>
+                    <span class="settings-hint" style="margin:0 0 0 6px">${tr('settings.appearance.autoLightDark')}</span>
                 </label>
                 <div class="settings-tint-picker">
-                    <label class="settings-hint" style="margin:0">Tint:</label>
+                    <label class="settings-hint" style="margin:0">${tr('settings.appearance.tint')}</label>
                     <input type="color"
                         value=${currentTint || '#1d9bf0'}
                         onInput=${e => {
@@ -113,9 +115,9 @@ export function ThemeSection({ themes, colorKeys, settingsData, setStatus, merge
                         }} />
                     ${currentTint && html`
                         <button class="settings-tint-clear" onClick=${() => applyLocal('default', '')}
-                            title="Clear tint">\u2715</button>
+                            title=${tr('settings.appearance.clearTint')}>\u2715</button>
                     `}
-                    <span class="settings-tint-hex">${currentTint || 'none'}</span>
+                    <span class="settings-tint-hex">${currentTint || tr('settings.appearance.none')}</span>
                 </div>
             </div>
 

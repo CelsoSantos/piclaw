@@ -208,6 +208,35 @@ type MessageKey =
   | 'palette.hintSelect'
   | 'palette.hintPopOut'
   | 'palette.hintClose'
+  // Settings sub-panes (slice 1: sessions, editor, appearance).
+  | 'settings.appliedNotice'
+  | 'settings.sessions.lifecycle'
+  | 'settings.sessions.autoRotate'
+  | 'settings.sessions.maxSize'
+  | 'settings.sessions.maxSizeAria'
+  | 'settings.sessions.agentBehaviour'
+  | 'settings.sessions.toolBudget'
+  | 'settings.sessions.toolBudgetAria'
+  | 'settings.sessions.toolBudgetHint'
+  | 'settings.sessions.isolation'
+  | 'settings.sessions.isolationNone'
+  | 'settings.sessions.isolationSummary'
+  | 'settings.sessions.isolationFull'
+  | 'settings.editor.heading'
+  | 'settings.editor.vimMode'
+  | 'settings.editor.showWhitespace'
+  | 'settings.editor.livePreview'
+  | 'settings.editor.fontSize'
+  | 'settings.editor.fontSizeAria'
+  | 'settings.editor.fontFamily'
+  | 'settings.editor.fontFamilyPlaceholder'
+  | 'settings.editor.localOnlyHint'
+  | 'settings.appearance.syncing'
+  | 'settings.appearance.default'
+  | 'settings.appearance.autoLightDark'
+  | 'settings.appearance.tint'
+  | 'settings.appearance.clearTint'
+  | 'settings.appearance.none'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -399,6 +428,34 @@ const EN: Record<MessageKey, string> = {
   'palette.hintSelect': 'Select',
   'palette.hintPopOut': 'Pop out',
   'palette.hintClose': 'Close',
+  'settings.appliedNotice': 'Settings applied. Changes take effect on the next turn.',
+  'settings.sessions.lifecycle': 'Session Lifecycle',
+  'settings.sessions.autoRotate': 'Auto-rotate sessions',
+  'settings.sessions.maxSize': 'Max session size (MB)',
+  'settings.sessions.maxSizeAria': 'max session size',
+  'settings.sessions.agentBehaviour': 'Agent Behaviour',
+  'settings.sessions.toolBudget': 'Tool use budget',
+  'settings.sessions.toolBudgetAria': 'tool use budget',
+  'settings.sessions.toolBudgetHint': 'max tool-call messages per turn',
+  'settings.sessions.isolation': 'Session isolation',
+  'settings.sessions.isolationNone': 'None — full cross-session visibility',
+  'settings.sessions.isolationSummary': 'Summary — tools visible, no arguments',
+  'settings.sessions.isolationFull': 'Full — sessions cannot see each other',
+  'settings.editor.heading': 'Editor',
+  'settings.editor.vimMode': 'Vim mode',
+  'settings.editor.showWhitespace': 'Show whitespace',
+  'settings.editor.livePreview': 'Markdown live preview',
+  'settings.editor.fontSize': 'Font size (px)',
+  'settings.editor.fontSizeAria': 'editor font size',
+  'settings.editor.fontFamily': 'Font family',
+  'settings.editor.fontFamilyPlaceholder': 'monospace (default)',
+  'settings.editor.localOnlyHint': 'This browser only. Editor changes are stored in local browser storage and take effect when you next open or reload a file tab.',
+  'settings.appearance.syncing': 'Syncing appearance…',
+  'settings.appearance.default': 'Default',
+  'settings.appearance.autoLightDark': 'auto (light/dark)',
+  'settings.appearance.tint': 'Tint:',
+  'settings.appearance.clearTint': 'Clear tint',
+  'settings.appearance.none': 'none',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -590,6 +647,34 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'palette.hintSelect': '选择',
   'palette.hintPopOut': '弹出',
   'palette.hintClose': '关闭',
+  'settings.appliedNotice': '设置已应用。更改将在下一回合生效。',
+  'settings.sessions.lifecycle': '会话生命周期',
+  'settings.sessions.autoRotate': '自动轮换会话',
+  'settings.sessions.maxSize': '最大会话大小（MB）',
+  'settings.sessions.maxSizeAria': '最大会话大小',
+  'settings.sessions.agentBehaviour': '代理行为',
+  'settings.sessions.toolBudget': '工具使用预算',
+  'settings.sessions.toolBudgetAria': '工具使用预算',
+  'settings.sessions.toolBudgetHint': '每回合最大工具调用消息数',
+  'settings.sessions.isolation': '会话隔离',
+  'settings.sessions.isolationNone': '无 — 完全跨会话可见',
+  'settings.sessions.isolationSummary': '摘要 — 工具可见，无参数',
+  'settings.sessions.isolationFull': '完全 — 会话之间不可见',
+  'settings.editor.heading': '编辑器',
+  'settings.editor.vimMode': 'Vim 模式',
+  'settings.editor.showWhitespace': '显示空白字符',
+  'settings.editor.livePreview': 'Markdown 实时预览',
+  'settings.editor.fontSize': '字号（px）',
+  'settings.editor.fontSizeAria': '编辑器字号',
+  'settings.editor.fontFamily': '字体',
+  'settings.editor.fontFamilyPlaceholder': 'monospace（默认）',
+  'settings.editor.localOnlyHint': '仅限此浏览器。编辑器更改存储在本地浏览器中，并在下次打开或重新加载文件标签页时生效。',
+  'settings.appearance.syncing': '正在同步外观…',
+  'settings.appearance.default': '默认',
+  'settings.appearance.autoLightDark': '自动（浅色/深色）',
+  'settings.appearance.tint': '色调：',
+  'settings.appearance.clearTint': '清除色调',
+  'settings.appearance.none': '无',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -781,6 +866,34 @@ const JA: Partial<Record<MessageKey, string>> = {
   'palette.hintSelect': '選択',
   'palette.hintPopOut': 'ポップアウト',
   'palette.hintClose': '閉じる',
+  'settings.appliedNotice': '設定を適用しました。変更は次のターンから有効になります。',
+  'settings.sessions.lifecycle': 'セッションのライフサイクル',
+  'settings.sessions.autoRotate': 'セッションを自動ローテーション',
+  'settings.sessions.maxSize': '最大セッションサイズ（MB）',
+  'settings.sessions.maxSizeAria': '最大セッションサイズ',
+  'settings.sessions.agentBehaviour': 'エージェントの動作',
+  'settings.sessions.toolBudget': 'ツール使用予算',
+  'settings.sessions.toolBudgetAria': 'ツール使用予算',
+  'settings.sessions.toolBudgetHint': '1ターンあたりの最大ツール呼び出しメッセージ数',
+  'settings.sessions.isolation': 'セッションの分離',
+  'settings.sessions.isolationNone': 'なし — セッション間で完全に可視',
+  'settings.sessions.isolationSummary': '概要 — ツールは可視、引数は非表示',
+  'settings.sessions.isolationFull': '完全 — セッション同士は互いに見えない',
+  'settings.editor.heading': 'エディター',
+  'settings.editor.vimMode': 'Vim モード',
+  'settings.editor.showWhitespace': '空白文字を表示',
+  'settings.editor.livePreview': 'Markdown ライブプレビュー',
+  'settings.editor.fontSize': 'フォントサイズ（px）',
+  'settings.editor.fontSizeAria': 'エディターのフォントサイズ',
+  'settings.editor.fontFamily': 'フォントファミリー',
+  'settings.editor.fontFamilyPlaceholder': 'monospace（デフォルト）',
+  'settings.editor.localOnlyHint': 'このブラウザーのみ。エディターの変更はローカルブラウザーストレージに保存され、次にファイルタブを開くか再読み込みしたときに有効になります。',
+  'settings.appearance.syncing': '外観を同期中…',
+  'settings.appearance.default': 'デフォルト',
+  'settings.appearance.autoLightDark': '自動（ライト/ダーク）',
+  'settings.appearance.tint': '色調：',
+  'settings.appearance.clearTint': '色調をクリア',
+  'settings.appearance.none': 'なし',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
