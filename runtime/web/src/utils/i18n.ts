@@ -400,6 +400,47 @@ type MessageKey =
   | 'settings.general.label'
   | 'settings.general.secret'
   | 'settings.general.avatarUpload'
+  // Settings slice 5: developer, addons.
+  | 'settings.developer.heading'
+  | 'settings.developer.devMode'
+  | 'settings.developer.localHint'
+  | 'settings.developer.addonSources'
+  | 'settings.developer.catalogUrl'
+  | 'settings.developer.catalogHint'
+  | 'settings.developer.additionalCatalogs'
+  | 'settings.developer.additionalHint'
+  | 'settings.developer.repoUrl'
+  | 'settings.developer.repoHintPre'
+  | 'settings.developer.repoHintPost'
+  | 'settings.developer.debug'
+  | 'settings.developer.logSse'
+  | 'settings.developer.logToolCalls'
+  | 'settings.developer.debugHint'
+  | 'settings.addons.installing'
+  | 'settings.addons.removing'
+  | 'settings.addons.installedToast'
+  | 'settings.addons.removedToast'
+  | 'settings.addons.restarting'
+  | 'settings.addons.restartComplete'
+  | 'settings.addons.restartTimeout'
+  | 'settings.addons.fetching'
+  | 'settings.addons.loadFailed'
+  | 'settings.addons.catalogFromPre'
+  | 'settings.addons.catalogMerged'
+  | 'settings.addons.installNote'
+  | 'settings.addons.failedFetchSingular'
+  | 'settings.addons.failedFetchPlural'
+  | 'settings.addons.activeSources'
+  | 'settings.addons.windowsWarning'
+  | 'settings.addons.typeExtSkill'
+  | 'settings.addons.typeSkill'
+  | 'settings.addons.typeExt'
+  | 'settings.addons.update'
+  | 'settings.addons.remove'
+  | 'settings.addons.install'
+  | 'settings.addons.noMatch'
+  | 'settings.addons.restartNotice'
+  | 'settings.addons.restartNow'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -779,6 +820,46 @@ const EN: Record<MessageKey, string> = {
   'settings.general.label': 'Label',
   'settings.general.secret': 'Secret',
   'settings.general.avatarUpload': 'Click to upload',
+  'settings.developer.heading': 'Developer',
+  'settings.developer.devMode': 'Developer mode',
+  'settings.developer.localHint': 'This browser only. Developer-mode toggles and add-on catalog overrides are stored in local browser storage.',
+  'settings.developer.addonSources': 'Add-on Sources',
+  'settings.developer.catalogUrl': 'Catalog URL',
+  'settings.developer.catalogHint': 'Primary add-on catalog URL. Leave empty to use the default',
+  'settings.developer.additionalCatalogs': 'Additional catalog URLs',
+  'settings.developer.additionalHint': 'Fetched in addition to the primary/default catalog. One URL per line.',
+  'settings.developer.repoUrl': 'Repo URL',
+  'settings.developer.repoHintPre': 'Override the git repo used for',
+  'settings.developer.repoHintPost': 'installs. Leave empty for default.',
+  'settings.developer.debug': 'Debug',
+  'settings.developer.logSse': 'Log SSE events',
+  'settings.developer.logToolCalls': 'Log tool calls',
+  'settings.developer.debugHint': 'Debug flags take effect on next page reload.',
+  'settings.addons.installing': 'Installing {slug}…',
+  'settings.addons.removing': 'Removing {slug}…',
+  'settings.addons.installedToast': 'Add-on installed.',
+  'settings.addons.removedToast': 'Add-on removed.',
+  'settings.addons.restarting': 'Restarting piclaw…',
+  'settings.addons.restartComplete': 'Restart complete — add-ons refreshed.',
+  'settings.addons.restartTimeout': 'Backend did not return in time. Reload the page manually.',
+  'settings.addons.fetching': 'Fetching add-ons…',
+  'settings.addons.loadFailed': 'Could not load add-ons.',
+  'settings.addons.catalogFromPre': 'Catalog from',
+  'settings.addons.catalogMerged': '{count} catalog sources merged.',
+  'settings.addons.installNote': 'Package-first install via Bun; restart required after install/uninstall.',
+  'settings.addons.failedFetchSingular': 'Failed to fetch {count} catalog source:',
+  'settings.addons.failedFetchPlural': 'Failed to fetch {count} catalog sources:',
+  'settings.addons.activeSources': 'Active catalog sources ({count})',
+  'settings.addons.windowsWarning': 'Native Windows add-on installs are higher risk: Bun package installs, symlink cleanup, locked files, and restart timing can all be less predictable than in Linux/WSL. Prefer WSL or a container when possible.',
+  'settings.addons.typeExtSkill': 'extension + skill',
+  'settings.addons.typeSkill': 'skill',
+  'settings.addons.typeExt': 'extension',
+  'settings.addons.update': 'Update',
+  'settings.addons.remove': 'Remove',
+  'settings.addons.install': 'Install',
+  'settings.addons.noMatch': 'No add-ons match "{filter}"',
+  'settings.addons.restartNotice': 'Extension changes are installed but inactive until piclaw restarts.',
+  'settings.addons.restartNow': 'Restart Now',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -1158,6 +1239,46 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.general.label': '标签',
   'settings.general.secret': '密钥',
   'settings.general.avatarUpload': '点击上传',
+  'settings.developer.heading': '开发者',
+  'settings.developer.devMode': '开发者模式',
+  'settings.developer.localHint': '仅限此浏览器。开发者模式开关和插件目录覆盖存储在本地浏览器存储中。',
+  'settings.developer.addonSources': '插件来源',
+  'settings.developer.catalogUrl': '目录 URL',
+  'settings.developer.catalogHint': '主插件目录 URL。留空以使用默认值',
+  'settings.developer.additionalCatalogs': '其他目录 URL',
+  'settings.developer.additionalHint': '在主/默认目录之外额外获取。每行一个 URL。',
+  'settings.developer.repoUrl': '仓库 URL',
+  'settings.developer.repoHintPre': '覆盖用于',
+  'settings.developer.repoHintPost': '安装的 git 仓库。留空以使用默认值。',
+  'settings.developer.debug': '调试',
+  'settings.developer.logSse': '记录 SSE 事件',
+  'settings.developer.logToolCalls': '记录工具调用',
+  'settings.developer.debugHint': '调试标志在下次页面重新加载时生效。',
+  'settings.addons.installing': '正在安装 {slug}…',
+  'settings.addons.removing': '正在移除 {slug}…',
+  'settings.addons.installedToast': '插件已安装。',
+  'settings.addons.removedToast': '插件已移除。',
+  'settings.addons.restarting': '正在重启 piclaw…',
+  'settings.addons.restartComplete': '重启完成 — 插件已刷新。',
+  'settings.addons.restartTimeout': '后端未能及时返回。请手动重新加载页面。',
+  'settings.addons.fetching': '正在获取插件…',
+  'settings.addons.loadFailed': '无法加载插件。',
+  'settings.addons.catalogFromPre': '目录来自',
+  'settings.addons.catalogMerged': '已合并 {count} 个目录来源。',
+  'settings.addons.installNote': '通过 Bun 优先安装包；安装/卸载后需要重启。',
+  'settings.addons.failedFetchSingular': '获取 {count} 个目录来源失败：',
+  'settings.addons.failedFetchPlural': '获取 {count} 个目录来源失败：',
+  'settings.addons.activeSources': '活动目录来源（{count}）',
+  'settings.addons.windowsWarning': '原生 Windows 插件安装风险更高：Bun 包安装、符号链接清理、锁定文件和重启时机都可能不如 Linux/WSL 可预测。如果可能，请优先使用 WSL 或容器。',
+  'settings.addons.typeExtSkill': '扩展 + 技能',
+  'settings.addons.typeSkill': '技能',
+  'settings.addons.typeExt': '扩展',
+  'settings.addons.update': '更新',
+  'settings.addons.remove': '移除',
+  'settings.addons.install': '安装',
+  'settings.addons.noMatch': '没有匹配 “{filter}” 的插件',
+  'settings.addons.restartNotice': '扩展更改已安装，但在 piclaw 重启之前处于非活动状态。',
+  'settings.addons.restartNow': '立即重启',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -1537,6 +1658,46 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.general.label': 'ラベル',
   'settings.general.secret': 'シークレット',
   'settings.general.avatarUpload': 'クリックしてアップロード',
+  'settings.developer.heading': '開発者',
+  'settings.developer.devMode': '開発者モード',
+  'settings.developer.localHint': 'このブラウザのみ。開発者モードの切り替えとアドオンカタログのオーバーライドはローカルブラウザストレージに保存されます。',
+  'settings.developer.addonSources': 'アドオンソース',
+  'settings.developer.catalogUrl': 'カタログ URL',
+  'settings.developer.catalogHint': 'プライマリアドオンカタログ URL。空のままにするとデフォルトを使用します',
+  'settings.developer.additionalCatalogs': '追加カタログ URL',
+  'settings.developer.additionalHint': 'プライマリ/デフォルトカタログに加えて取得されます。1 行に 1 つの URL。',
+  'settings.developer.repoUrl': 'リポジトリ URL',
+  'settings.developer.repoHintPre': 'git リポジトリを上書き（',
+  'settings.developer.repoHintPost': 'インストール用）。空のままでデフォルト。',
+  'settings.developer.debug': 'デバッグ',
+  'settings.developer.logSse': 'SSE イベントをログ記録',
+  'settings.developer.logToolCalls': 'ツール呼び出しをログ記録',
+  'settings.developer.debugHint': 'デバッグフラグは次回のページ再読み込み時に有効になります。',
+  'settings.addons.installing': '{slug} をインストール中…',
+  'settings.addons.removing': '{slug} を削除中…',
+  'settings.addons.installedToast': 'アドオンをインストールしました。',
+  'settings.addons.removedToast': 'アドオンを削除しました。',
+  'settings.addons.restarting': 'piclaw を再起動中…',
+  'settings.addons.restartComplete': '再起動完了 — アドオンを更新しました。',
+  'settings.addons.restartTimeout': 'バックエンドが時間内に応答しませんでした。ページを手動で再読み込みしてください。',
+  'settings.addons.fetching': 'アドオンを取得中…',
+  'settings.addons.loadFailed': 'アドオンを読み込めませんでした。',
+  'settings.addons.catalogFromPre': 'カタログの取得元：',
+  'settings.addons.catalogMerged': '{count} 個のカタログソースをマージしました。',
+  'settings.addons.installNote': 'Bun によるパッケージ優先インストール。インストール/アンインストール後に再起動が必要です。',
+  'settings.addons.failedFetchSingular': '{count} 個のカタログソースの取得に失敗しました：',
+  'settings.addons.failedFetchPlural': '{count} 個のカタログソースの取得に失敗しました：',
+  'settings.addons.activeSources': 'アクティブなカタログソース（{count}）',
+  'settings.addons.windowsWarning': 'ネイティブ Windows のアドオンインストールはリスクが高くなります：Bun パッケージのインストール、シンボリックリンクのクリーンアップ、ロックされたファイル、再起動のタイミングは、Linux/WSL よりも予測しにくい場合があります。可能であれば WSL またはコンテナを優先してください。',
+  'settings.addons.typeExtSkill': '拡張機能 + スキル',
+  'settings.addons.typeSkill': 'スキル',
+  'settings.addons.typeExt': '拡張機能',
+  'settings.addons.update': '更新',
+  'settings.addons.remove': '削除',
+  'settings.addons.install': 'インストール',
+  'settings.addons.noMatch': '「{filter}」に一致するアドオンはありません',
+  'settings.addons.restartNotice': '拡張機能の変更はインストールされましたが、piclaw が再起動するまで非アクティブです。',
+  'settings.addons.restartNow': '今すぐ再起動',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
