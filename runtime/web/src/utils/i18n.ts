@@ -358,6 +358,48 @@ type MessageKey =
   | 'settings.providers.oauthStarted'
   | 'settings.providers.loggingOut'
   | 'settings.providers.loggedOut'
+  // Settings slice 4: general.
+  | 'settings.general.identity'
+  | 'settings.general.userLabel'
+  | 'settings.general.yourName'
+  | 'settings.general.agentLabel'
+  | 'settings.general.agentName'
+  | 'settings.general.notifications'
+  | 'settings.general.browserNotifications'
+  | 'settings.general.notifSecureHint'
+  | 'settings.general.notifInsecureHint'
+  | 'settings.general.display'
+  | 'settings.general.systemMeters'
+  | 'settings.general.systemMetersHint'
+  | 'settings.general.instanceConfig'
+  | 'settings.general.composeUpload'
+  | 'settings.general.composeUploadAria'
+  | 'settings.general.composeUploadHint'
+  | 'settings.general.workspaceUpload'
+  | 'settings.general.workspaceUploadAria'
+  | 'settings.general.workspaceUploadHint'
+  | 'settings.general.authentication'
+  | 'settings.general.widgetToken'
+  | 'settings.general.token'
+  | 'settings.general.hideToken'
+  | 'settings.general.revealToken'
+  | 'settings.general.copyToken'
+  | 'settings.general.copied'
+  | 'settings.general.regenerating'
+  | 'settings.general.regenerate'
+  | 'settings.general.tokenHintPre'
+  | 'settings.general.tokenHintMid'
+  | 'settings.general.tokenHintPost'
+  | 'settings.general.tokenHintEnd'
+  | 'settings.general.copyFailed'
+  | 'settings.general.regenConfirm'
+  | 'settings.general.totpTitle'
+  | 'settings.general.totpConfiguredHint'
+  | 'settings.general.totpUnconfiguredHint'
+  | 'settings.general.issuer'
+  | 'settings.general.label'
+  | 'settings.general.secret'
+  | 'settings.general.avatarUpload'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -696,6 +738,47 @@ const EN: Record<MessageKey, string> = {
   'settings.providers.oauthStarted': 'OAuth flow started for {provider}. Check the chat.',
   'settings.providers.loggingOut': 'Logging out {provider}…',
   'settings.providers.loggedOut': 'Logged out {provider}. Restart may be needed.',
+  'settings.general.identity': 'Identity',
+  'settings.general.userLabel': 'User',
+  'settings.general.yourName': 'Your name',
+  'settings.general.agentLabel': 'Agent',
+  'settings.general.agentName': 'Agent name',
+  'settings.general.notifications': 'Notifications',
+  'settings.general.browserNotifications': 'Browser notifications',
+  'settings.general.notifSecureHint': 'Use the 🔔 bell button in the compose bar to enable/disable notifications. Web Push requires HTTPS or localhost.',
+  'settings.general.notifInsecureHint': '⚠ Not available — requires a secure context (HTTPS or localhost). Access via SSH tunnel or reverse proxy with TLS to enable.',
+  'settings.general.display': 'Display',
+  'settings.general.systemMeters': 'System meters',
+  'settings.general.systemMetersHint': 'CPU/memory/network meters in the status bar. This browser only.',
+  'settings.general.instanceConfig': 'Instance Configuration',
+  'settings.general.composeUpload': 'Compose upload (MB)',
+  'settings.general.composeUploadAria': 'compose upload limit',
+  'settings.general.composeUploadHint': 'chat/media attachments',
+  'settings.general.workspaceUpload': 'Workspace upload (MB)',
+  'settings.general.workspaceUploadAria': 'workspace upload limit',
+  'settings.general.workspaceUploadHint': 'defaults to 256 MB; chunked uploads allow up to 1 GB',
+  'settings.general.authentication': 'Authentication',
+  'settings.general.widgetToken': 'Widget bearer token',
+  'settings.general.token': 'Token',
+  'settings.general.hideToken': 'Hide token',
+  'settings.general.revealToken': 'Reveal token',
+  'settings.general.copyToken': 'Copy token',
+  'settings.general.copied': 'Copied',
+  'settings.general.regenerating': 'Regenerating…',
+  'settings.general.regenerate': 'Regenerate',
+  'settings.general.tokenHintPre': 'Read-only token for',
+  'settings.general.tokenHintMid': 'and',
+  'settings.general.tokenHintPost': '. Use as',
+  'settings.general.tokenHintEnd': '.',
+  'settings.general.copyFailed': 'Could not copy widget token. Select the token field and copy manually.',
+  'settings.general.regenConfirm': 'Regenerate the widget token? Existing macOS widgets using the old token will stop updating.',
+  'settings.general.totpTitle': 'TOTP setup QR',
+  'settings.general.totpConfiguredHint': 'Current web-login authenticator secret. Scan this QR to add another authenticator device.',
+  'settings.general.totpUnconfiguredHint': 'TOTP is not configured for this instance yet, so no setup QR is available.',
+  'settings.general.issuer': 'Issuer',
+  'settings.general.label': 'Label',
+  'settings.general.secret': 'Secret',
+  'settings.general.avatarUpload': 'Click to upload',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -1034,6 +1117,47 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.providers.oauthStarted': '已为 {provider} 启动 OAuth 流程。请查看聊天。',
   'settings.providers.loggingOut': '正在注销 {provider}…',
   'settings.providers.loggedOut': '已注销 {provider}。可能需要重启。',
+  'settings.general.identity': '身份',
+  'settings.general.userLabel': '用户',
+  'settings.general.yourName': '你的名字',
+  'settings.general.agentLabel': '代理',
+  'settings.general.agentName': '代理名称',
+  'settings.general.notifications': '通知',
+  'settings.general.browserNotifications': '浏览器通知',
+  'settings.general.notifSecureHint': '使用输入栏中的 🔔 铃铛按钮来启用/禁用通知。Web Push 需要 HTTPS 或 localhost。',
+  'settings.general.notifInsecureHint': '⚠ 不可用 — 需要安全上下文（HTTPS 或 localhost）。通过 SSH 隐道或带 TLS 的反向代理访问以启用。',
+  'settings.general.display': '显示',
+  'settings.general.systemMeters': '系统仪表',
+  'settings.general.systemMetersHint': '状态栏中的 CPU/内存/网络仪表。仅限此浏览器。',
+  'settings.general.instanceConfig': '实例配置',
+  'settings.general.composeUpload': '撰写上传（MB）',
+  'settings.general.composeUploadAria': '撰写上传限制',
+  'settings.general.composeUploadHint': '聊天/媒体附件',
+  'settings.general.workspaceUpload': '工作区上传（MB）',
+  'settings.general.workspaceUploadAria': '工作区上传限制',
+  'settings.general.workspaceUploadHint': '默认为 256 MB；分块上传最多允许 1 GB',
+  'settings.general.authentication': '身份验证',
+  'settings.general.widgetToken': '小部件 bearer 令牌',
+  'settings.general.token': '令牌',
+  'settings.general.hideToken': '隐藏令牌',
+  'settings.general.revealToken': '显示令牌',
+  'settings.general.copyToken': '复制令牌',
+  'settings.general.copied': '已复制',
+  'settings.general.regenerating': '正在重新生成…',
+  'settings.general.regenerate': '重新生成',
+  'settings.general.tokenHintPre': '只读令牌，用于',
+  'settings.general.tokenHintMid': '和',
+  'settings.general.tokenHintPost': '。用作',
+  'settings.general.tokenHintEnd': '。',
+  'settings.general.copyFailed': '无法复制小部件令牌。请选择令牌字段并手动复制。',
+  'settings.general.regenConfirm': '重新生成小部件令牌？使用旧令牌的现有 macOS 小部件将停止更新。',
+  'settings.general.totpTitle': 'TOTP 设置二维码',
+  'settings.general.totpConfiguredHint': '当前 Web 登录验证器密钥。扫描此二维码以添加另一个验证器设备。',
+  'settings.general.totpUnconfiguredHint': '此实例尚未配置 TOTP，因此没有可用的设置二维码。',
+  'settings.general.issuer': '颁发者',
+  'settings.general.label': '标签',
+  'settings.general.secret': '密钥',
+  'settings.general.avatarUpload': '点击上传',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -1372,6 +1496,47 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.providers.oauthStarted': '{provider} の OAuth フローを開始しました。チャットを確認してください。',
   'settings.providers.loggingOut': '{provider} をログアウト中…',
   'settings.providers.loggedOut': '{provider} をログアウトしました。再起動が必要な場合があります。',
+  'settings.general.identity': 'アイデンティティ',
+  'settings.general.userLabel': 'ユーザー',
+  'settings.general.yourName': 'あなたの名前',
+  'settings.general.agentLabel': 'エージェント',
+  'settings.general.agentName': 'エージェント名',
+  'settings.general.notifications': '通知',
+  'settings.general.browserNotifications': 'ブラウザ通知',
+  'settings.general.notifSecureHint': '入力バーの 🔔 ベルボタンで通知を有効/無効にします。Web Push には HTTPS または localhost が必要です。',
+  'settings.general.notifInsecureHint': '⚠ 利用不可 — セキュアコンテキスト（HTTPS または localhost）が必要です。SSH トンネルまたは TLS 付きリバースプロキシ経由でアクセスして有効化してください。',
+  'settings.general.display': '表示',
+  'settings.general.systemMeters': 'システムメーター',
+  'settings.general.systemMetersHint': 'ステータスバーの CPU/メモリ/ネットワークメーター。このブラウザのみ。',
+  'settings.general.instanceConfig': 'インスタンス設定',
+  'settings.general.composeUpload': '作成アップロード（MB）',
+  'settings.general.composeUploadAria': '作成アップロード上限',
+  'settings.general.composeUploadHint': 'チャット/メディア添付',
+  'settings.general.workspaceUpload': 'ワークスペースアップロード（MB）',
+  'settings.general.workspaceUploadAria': 'ワークスペースアップロード上限',
+  'settings.general.workspaceUploadHint': 'デフォルトは 256 MB。チャンクアップロードは最大 1 GB まで許可',
+  'settings.general.authentication': '認証',
+  'settings.general.widgetToken': 'ウィジェット bearer トークン',
+  'settings.general.token': 'トークン',
+  'settings.general.hideToken': 'トークンを隠す',
+  'settings.general.revealToken': 'トークンを表示',
+  'settings.general.copyToken': 'トークンをコピー',
+  'settings.general.copied': 'コピーしました',
+  'settings.general.regenerating': '再生成中…',
+  'settings.general.regenerate': '再生成',
+  'settings.general.tokenHintPre': '次の読み取り専用トークン：',
+  'settings.general.tokenHintMid': 'および',
+  'settings.general.tokenHintPost': '。次として使用：',
+  'settings.general.tokenHintEnd': '。',
+  'settings.general.copyFailed': 'ウィジェットトークンをコピーできませんでした。トークンフィールドを選択して手動でコピーしてください。',
+  'settings.general.regenConfirm': 'ウィジェットトークンを再生成しますか？古いトークンを使用している既存の macOS ウィジェットは更新されなくなります。',
+  'settings.general.totpTitle': 'TOTP セットアップ QR',
+  'settings.general.totpConfiguredHint': '現在の Web ログイン認証システムのシークレット。この QR をスキャンして別の認証デバイスを追加します。',
+  'settings.general.totpUnconfiguredHint': 'このインスタンスにはまだ TOTP が設定されていないため、セットアップ QR は利用できません。',
+  'settings.general.issuer': '発行者',
+  'settings.general.label': 'ラベル',
+  'settings.general.secret': 'シークレット',
+  'settings.general.avatarUpload': 'クリックしてアップロード',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
