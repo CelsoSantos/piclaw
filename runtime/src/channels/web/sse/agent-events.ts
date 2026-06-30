@@ -674,7 +674,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
         : reason === "threshold" || trigger === "pre_prompt"
           ? "Shrinking recent context before continuing the turn."
           : reason === "idle" || trigger === "idle"
-            ? "Tidying context a few seconds after the turn finished."
+            ? "Tidying context after the turn finished."
             : undefined;
       options.emitter.status({
         ...base,

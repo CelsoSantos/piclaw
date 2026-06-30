@@ -1277,6 +1277,91 @@ test("runAgentPrompt runs idle auto-compaction before returning after a successf
   }
 });
 
+test("runAgentPrompt runs post-turn idle auto-compaction after terminal tool completion when enabled", async () => {
+  const restoreEnv = setEnv({
+    PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "5000",
+  });
+  const chatJid = `web:idle-tool-complete-${Date.now()}`;
+
+  class StubSession {
+    calls: string[] = [];
+    private listeners: Array<(event: any) => void> = [];
+    private entries: Array<{ type: string; message?: { role: string } }> = [{ type: "message", message: { role: "user" } }];
+    sessionManager = {
+      getLeafId: () => "leaf-idle-tool-complete",
+      getEntries: () => this.entries,
+      buildSessionContext: () => ({ messages: [{ role: "user", content: "x".repeat(200) }] }),
+    };
+    settingsManager = {
+      getCompactionSettings: () => ({ ...DEFAULT_COMPACTION_SETTINGS, enabled: true, reserveTokens: 10 }),
+    };
+    model = { contextWindow: 20, provider: "test", id: "model" };
+    isStreaming = false;
+    isCompacting = false;
+    isRetrying = false;
+    subscribe(listener: (event: any) => void) {
+      this.listeners.push(listener);
+      return () => {
+        this.listeners = this.listeners.filter((entry) => entry !== listener);
+      };
+    }
+    async prompt() {
+      this.calls.push("prompt");
+      this.entries.push({ type: "message", message: { role: "toolResult" } });
+      for (const listener of this.listeners) {
+        listener({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            stopReason: "toolUse",
+            content: [{ type: "toolCall", id: "card-1", name: "send_adaptive_card", arguments: {} }],
+          },
+        });
+        listener({ type: "tool_execution_start", toolCallId: "card-1", toolName: "send_adaptive_card", args: {} });
+        listener({ type: "tool_execution_end", toolCallId: "card-1", toolName: "send_adaptive_card", isError: false, durationMs: 1 });
+        listener({ type: "message_end", message: { role: "assistant", stopReason: "stop", content: [] } });
+      }
+    }
+    async compact() {
+      this.calls.push("compact");
+    }
+    async abort() {}
+  }
+
+  const session = new StubSession();
+  const events: Array<{ type: string; reason?: string }> = [];
+
+  try {
+    const result = await runAgentPrompt("test", chatJid, {
+      timeoutMs: 0,
+      skipPrePromptCompaction: true,
+      scheduleIdleAutoCompaction: true,
+      onEvent: (event) => {
+        if (event.type === "compaction_start" || event.type === "compaction_end") {
+          events.push({ type: String(event.type), reason: typeof (event as any).reason === "string" ? (event as any).reason : undefined });
+        }
+      },
+    }, {
+      getOrCreateRuntime: async () => createRuntime(session) as any,
+      turnCoordinator: new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} }),
+      clearAttachments: () => {},
+      takeAttachments: () => [],
+      logsDir: createTestLogsDir(),
+      setActiveForkBaseLeaf: () => {},
+      clearActiveForkBaseLeaf: () => {},
+    });
+
+    expect(result.status).toBe("tool_complete");
+    expect(session.calls).toEqual(["prompt", "compact"]);
+    expect(events).toEqual([
+      { type: "compaction_start", reason: "idle" },
+      { type: "compaction_end", reason: "idle" },
+    ]);
+  } finally {
+    restoreEnv();
+  }
+});
+
 test("runAgentPrompt runs post-turn idle auto-compaction after each successful turn that still exceeds the threshold", async () => {
   const restoreEnv = setEnv({
     PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "5000",
