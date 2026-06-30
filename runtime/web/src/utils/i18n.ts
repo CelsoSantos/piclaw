@@ -237,6 +237,73 @@ type MessageKey =
   | 'settings.appearance.tint'
   | 'settings.appearance.clearTint'
   | 'settings.appearance.none'
+  // Settings slice 2: keyboard, workspace, models, tools.
+  | 'settings.keyboard.heading'
+  | 'settings.keyboard.hint1'
+  | 'settings.keyboard.hint1b'
+  | 'settings.keyboard.hint2mid'
+  | 'settings.keyboard.hint2end'
+  | 'settings.keyboard.resetAll'
+  | 'settings.keyboard.defaultColon'
+  | 'settings.keyboard.save'
+  | 'settings.keyboard.defaultBtn'
+  | 'settings.keyboard.noMatch'
+  | 'settings.keyboard.invalidShortcut'
+  | 'settings.keyboard.saved'
+  | 'settings.keyboard.resetOne'
+  | 'settings.keyboard.resetAllDone'
+  | 'settings.workspace.serverApplied'
+  | 'settings.workspace.browserApplied'
+  | 'settings.workspace.access'
+  | 'settings.workspace.enableTerminal'
+  | 'settings.workspace.allowVnc'
+  | 'settings.workspace.accessHint'
+  | 'settings.workspace.guardrails'
+  | 'settings.workspace.maxDepth'
+  | 'settings.workspace.maxDepthAria'
+  | 'settings.workspace.maxDepthHintPre'
+  | 'settings.workspace.maxDepthHintPost'
+  | 'settings.workspace.maxEntries'
+  | 'settings.workspace.maxEntriesAria'
+  | 'settings.workspace.maxEntriesHint'
+  | 'settings.workspace.thisBrowser'
+  | 'settings.workspace.refreshInterval'
+  | 'settings.workspace.refreshIntervalAria'
+  | 'settings.workspace.folderDepth'
+  | 'settings.workspace.folderDepthAria'
+  | 'settings.workspace.folderDepthHintPre'
+  | 'settings.workspace.folderDepthHintPost'
+  | 'settings.workspace.footerHint'
+  | 'settings.models.thinkingLevel'
+  | 'settings.models.noThinking'
+  | 'settings.models.thinkingLevelLabel'
+  | 'settings.models.loading'
+  | 'settings.models.summary'
+  | 'settings.models.scopedOnly'
+  | 'settings.models.scopedCheckboxPre'
+  | 'settings.models.scopedCheckboxPost'
+  | 'settings.models.scopedHintPre'
+  | 'settings.models.scopedHintPost'
+  | 'settings.models.colModel'
+  | 'settings.models.colProvider'
+  | 'settings.models.colContext'
+  | 'settings.models.colReasoning'
+  | 'settings.models.noMatch'
+  | 'settings.tools.unavailable'
+  | 'settings.tools.search'
+  | 'settings.tools.matchMode'
+  | 'settings.tools.orMode'
+  | 'settings.tools.andMode'
+  | 'settings.tools.colEnabled'
+  | 'settings.tools.colTool'
+  | 'settings.tools.colCompact'
+  | 'settings.tools.colKind'
+  | 'settings.tools.colSummary'
+  | 'settings.tools.colSource'
+  | 'settings.tools.disableCompaction'
+  | 'settings.tools.enableCompaction'
+  | 'settings.tools.noMatch'
+  | 'settings.tools.footer'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -456,6 +523,72 @@ const EN: Record<MessageKey, string> = {
   'settings.appearance.tint': 'Tint:',
   'settings.appearance.clearTint': 'Clear tint',
   'settings.appearance.none': 'none',
+  'settings.keyboard.heading': 'Keyboard',
+  'settings.keyboard.hint1': 'Customize app-wide shortcuts as comma-separated bindings. Changes apply immediately.',
+  'settings.keyboard.hint1b': 'is reserved for dismiss/abort and cannot be rebound.',
+  'settings.keyboard.hint2mid': 'and typing',
+  'settings.keyboard.hint2end': 'outside the compose box open this pane.',
+  'settings.keyboard.resetAll': 'Reset all to defaults',
+  'settings.keyboard.defaultColon': 'Default:',
+  'settings.keyboard.save': 'Save',
+  'settings.keyboard.defaultBtn': 'Default',
+  'settings.keyboard.noMatch': 'No shortcuts match this filter.',
+  'settings.keyboard.invalidShortcut': 'Invalid shortcut: {token}. Escape is reserved and cannot be rebound.',
+  'settings.keyboard.saved': 'Keyboard shortcuts saved.',
+  'settings.keyboard.resetOne': 'Keyboard shortcut reset to default.',
+  'settings.keyboard.resetAllDone': 'Keyboard shortcuts reset to defaults.',
+  'settings.workspace.serverApplied': 'Workspace settings applied. Server-side limits affect new workspace requests immediately.',
+  'settings.workspace.browserApplied': 'Browser workspace settings applied immediately in this tab.',
+  'settings.workspace.access': 'Access',
+  'settings.workspace.enableTerminal': 'Enable web terminal',
+  'settings.workspace.allowVnc': 'Allow direct VNC targets',
+  'settings.workspace.accessHint': 'Terminal access updates immediately. Direct VNC target policy applies to new VNC requests.',
+  'settings.workspace.guardrails': 'Server scan guardrails',
+  'settings.workspace.maxDepth': 'Max tree depth',
+  'settings.workspace.maxDepthAria': 'workspace tree max depth',
+  'settings.workspace.maxDepthHintPre': 'caps all',
+  'settings.workspace.maxDepthHintPost': 'requests',
+  'settings.workspace.maxEntries': 'Max entries per scan',
+  'settings.workspace.maxEntriesAria': 'workspace tree max entries',
+  'settings.workspace.maxEntriesHint': 'truncate oversized tree walks earlier',
+  'settings.workspace.thisBrowser': 'This browser',
+  'settings.workspace.refreshInterval': 'Refresh interval (seconds)',
+  'settings.workspace.refreshIntervalAria': 'workspace refresh interval',
+  'settings.workspace.folderDepth': 'Folder preview scan depth',
+  'settings.workspace.folderDepthAria': 'folder preview scan depth',
+  'settings.workspace.folderDepthHintPre': 'set to',
+  'settings.workspace.folderDepthHintPost': 'to disable folder size preview scans',
+  'settings.workspace.footerHint': 'Root and folder-expansion tree loads remain shallow; the folder size preview is the deepest workspace scan in the UI.',
+  'settings.models.thinkingLevel': 'Thinking level',
+  'settings.models.noThinking': 'Current model does not support thinking.',
+  'settings.models.thinkingLevelLabel': 'Thinking level:',
+  'settings.models.loading': 'Loading models…',
+  'settings.models.summary': 'Model and provider names may wrap in narrow panes to avoid clipping.',
+  'settings.models.scopedOnly': 'Scoped models only',
+  'settings.models.scopedCheckboxPre': 'Use Pi',
+  'settings.models.scopedCheckboxPost': 'for Piclaw model lists',
+  'settings.models.scopedHintPre': 'Filters this picker and the',
+  'settings.models.scopedHintPost': 'tool. TUI model selection remains unchanged.',
+  'settings.models.colModel': 'Model',
+  'settings.models.colProvider': 'Provider',
+  'settings.models.colContext': 'Context',
+  'settings.models.colReasoning': 'Reasoning',
+  'settings.models.noMatch': 'No models match "{filter}"',
+  'settings.tools.unavailable': 'Tool data not available.',
+  'settings.tools.search': 'Search',
+  'settings.tools.matchMode': 'Match mode',
+  'settings.tools.orMode': 'Any keyword (OR) — results match at least one search term',
+  'settings.tools.andMode': 'All keywords (AND) — results must match every search term',
+  'settings.tools.colEnabled': 'Enabled',
+  'settings.tools.colTool': 'Tool',
+  'settings.tools.colCompact': 'Compact',
+  'settings.tools.colKind': 'Kind',
+  'settings.tools.colSummary': 'Summary',
+  'settings.tools.colSource': 'Source',
+  'settings.tools.disableCompaction': 'Disable tool-result compaction for this tool',
+  'settings.tools.enableCompaction': 'Enable tool-result compaction for this tool',
+  'settings.tools.noMatch': 'No tools match "{filter}"',
+  'settings.tools.footer': 'Tool activation is managed by the agent runtime. Group checkboxes collapse/expand; the “Compact” column controls tool-result compaction eligibility.',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -675,6 +808,72 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.appearance.tint': '色调：',
   'settings.appearance.clearTint': '清除色调',
   'settings.appearance.none': '无',
+  'settings.keyboard.heading': '键盘',
+  'settings.keyboard.hint1': '将应用级快捷键自定义为逗号分隔的绑定。更改立即生效。',
+  'settings.keyboard.hint1b': '已保留用于关闭/中止，无法重新绑定。',
+  'settings.keyboard.hint2mid': '以及键入',
+  'settings.keyboard.hint2end': '（在输入框外）可打开此面板。',
+  'settings.keyboard.resetAll': '全部重置为默认',
+  'settings.keyboard.defaultColon': '默认：',
+  'settings.keyboard.save': '保存',
+  'settings.keyboard.defaultBtn': '默认',
+  'settings.keyboard.noMatch': '没有匹配此筛选的快捷键。',
+  'settings.keyboard.invalidShortcut': '无效快捷键：{token}。Escape 已保留，无法重新绑定。',
+  'settings.keyboard.saved': '快捷键已保存。',
+  'settings.keyboard.resetOne': '快捷键已重置为默认。',
+  'settings.keyboard.resetAllDone': '快捷键已全部重置为默认。',
+  'settings.workspace.serverApplied': '工作区设置已应用。服务器端限制立即影响新的工作区请求。',
+  'settings.workspace.browserApplied': '浏览器工作区设置已在此标签页立即应用。',
+  'settings.workspace.access': '访问',
+  'settings.workspace.enableTerminal': '启用 Web 终端',
+  'settings.workspace.allowVnc': '允许直接 VNC 目标',
+  'settings.workspace.accessHint': '终端访问立即更新。直接 VNC 目标策略适用于新的 VNC 请求。',
+  'settings.workspace.guardrails': '服务器扫描防护',
+  'settings.workspace.maxDepth': '最大树深度',
+  'settings.workspace.maxDepthAria': '工作区树最大深度',
+  'settings.workspace.maxDepthHintPre': '限制所有',
+  'settings.workspace.maxDepthHintPost': '请求',
+  'settings.workspace.maxEntries': '每次扫描最大条目数',
+  'settings.workspace.maxEntriesAria': '工作区树最大条目数',
+  'settings.workspace.maxEntriesHint': '更早截断超大的树遍历',
+  'settings.workspace.thisBrowser': '此浏览器',
+  'settings.workspace.refreshInterval': '刷新间隔（秒）',
+  'settings.workspace.refreshIntervalAria': '工作区刷新间隔',
+  'settings.workspace.folderDepth': '文件夹预览扫描深度',
+  'settings.workspace.folderDepthAria': '文件夹预览扫描深度',
+  'settings.workspace.folderDepthHintPre': '设为',
+  'settings.workspace.folderDepthHintPost': '以禁用文件夹大小预览扫描',
+  'settings.workspace.footerHint': '根目录和文件夹展开的树加载保持较浅；文件夹大小预览是 UI 中最深的工作区扫描。',
+  'settings.models.thinkingLevel': '思考级别',
+  'settings.models.noThinking': '当前模型不支持思考。',
+  'settings.models.thinkingLevelLabel': '思考级别：',
+  'settings.models.loading': '正在加载模型…',
+  'settings.models.summary': '在狭窄面板中，模型和提供商名称可能换行以避免裁切。',
+  'settings.models.scopedOnly': '仅限范围内模型',
+  'settings.models.scopedCheckboxPre': '使用 Pi 的',
+  'settings.models.scopedCheckboxPost': '作为 Piclaw 模型列表',
+  'settings.models.scopedHintPre': '筛选此选择器和',
+  'settings.models.scopedHintPost': '工具。TUI 模型选择保持不变。',
+  'settings.models.colModel': '模型',
+  'settings.models.colProvider': '提供商',
+  'settings.models.colContext': '上下文',
+  'settings.models.colReasoning': '推理',
+  'settings.models.noMatch': '没有匹配 “{filter}” 的模型',
+  'settings.tools.unavailable': '工具数据不可用。',
+  'settings.tools.search': '搜索',
+  'settings.tools.matchMode': '匹配模式',
+  'settings.tools.orMode': '任意关键词（OR）— 结果至少匹配一个搜索词',
+  'settings.tools.andMode': '所有关键词（AND）— 结果必须匹配每个搜索词',
+  'settings.tools.colEnabled': '已启用',
+  'settings.tools.colTool': '工具',
+  'settings.tools.colCompact': '压缩',
+  'settings.tools.colKind': '类型',
+  'settings.tools.colSummary': '摘要',
+  'settings.tools.colSource': '来源',
+  'settings.tools.disableCompaction': '为此工具禁用工具结果压缩',
+  'settings.tools.enableCompaction': '为此工具启用工具结果压缩',
+  'settings.tools.noMatch': '没有匹配 “{filter}” 的工具',
+  'settings.tools.footer': '工具激活由代理运行时管理。组复选框可折叠/展开；“压缩”列控制工具结果压缩资格。',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -894,6 +1093,72 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.appearance.tint': '色調：',
   'settings.appearance.clearTint': '色調をクリア',
   'settings.appearance.none': 'なし',
+  'settings.keyboard.heading': 'キーボード',
+  'settings.keyboard.hint1': 'アプリ全体のショートカットをカンマ区切りのバインディングとしてカスタマイズします。変更はすぐに反映されます。',
+  'settings.keyboard.hint1b': 'は閉じる/中止用に予約されており、再割り当てできません。',
+  'settings.keyboard.hint2mid': 'と入力',
+  'settings.keyboard.hint2end': 'を入力欄の外で押すとこのペインが開きます。',
+  'settings.keyboard.resetAll': 'すべてデフォルトにリセット',
+  'settings.keyboard.defaultColon': 'デフォルト：',
+  'settings.keyboard.save': '保存',
+  'settings.keyboard.defaultBtn': 'デフォルト',
+  'settings.keyboard.noMatch': 'このフィルターに一致するショートカットはありません。',
+  'settings.keyboard.invalidShortcut': '無効なショートカット：{token}。Escape は予約されており、再割り当てできません。',
+  'settings.keyboard.saved': 'キーボードショートカットを保存しました。',
+  'settings.keyboard.resetOne': 'キーボードショートカットをデフォルトにリセットしました。',
+  'settings.keyboard.resetAllDone': 'キーボードショートカットをすべてデフォルトにリセットしました。',
+  'settings.workspace.serverApplied': 'ワークスペース設定を適用しました。サーバー側の制限は新しいワークスペースリクエストに直ちに反映されます。',
+  'settings.workspace.browserApplied': 'ブラウザーのワークスペース設定はこのタブで直ちに適用されました。',
+  'settings.workspace.access': 'アクセス',
+  'settings.workspace.enableTerminal': 'Web ターミナルを有効化',
+  'settings.workspace.allowVnc': '直接 VNC ターゲットを許可',
+  'settings.workspace.accessHint': 'ターミナルアクセスは直ちに更新されます。直接 VNC ターゲットポリシーは新しい VNC リクエストに適用されます。',
+  'settings.workspace.guardrails': 'サーバースキャンのガードレール',
+  'settings.workspace.maxDepth': '最大ツリー深度',
+  'settings.workspace.maxDepthAria': 'ワークスペースツリーの最大深度',
+  'settings.workspace.maxDepthHintPre': 'すべての',
+  'settings.workspace.maxDepthHintPost': 'リクエストを制限します',
+  'settings.workspace.maxEntries': 'スキャンあたりの最大エントリ数',
+  'settings.workspace.maxEntriesAria': 'ワークスペースツリーの最大エントリ数',
+  'settings.workspace.maxEntriesHint': '大きすぎるツリー走査を早めに打ち切ります',
+  'settings.workspace.thisBrowser': 'このブラウザー',
+  'settings.workspace.refreshInterval': '更新間隔（秒）',
+  'settings.workspace.refreshIntervalAria': 'ワークスペース更新間隔',
+  'settings.workspace.folderDepth': 'フォルダプレビューのスキャン深度',
+  'settings.workspace.folderDepthAria': 'フォルダプレビューのスキャン深度',
+  'settings.workspace.folderDepthHintPre': '',
+  'settings.workspace.folderDepthHintPost': 'に設定するとフォルダサイズのプレビュースキャンを無効化します',
+  'settings.workspace.footerHint': 'ルートおよびフォルダ展開のツリー読み込みは浅いままです。フォルダサイズのプレビューは UI で最も深いワークスペーススキャンです。',
+  'settings.models.thinkingLevel': '思考レベル',
+  'settings.models.noThinking': '現在のモデルは思考をサポートしていません。',
+  'settings.models.thinkingLevelLabel': '思考レベル：',
+  'settings.models.loading': 'モデルを読み込み中…',
+  'settings.models.summary': '狭いペインでは、クリッピングを避けるためにモデル名とプロバイダー名が折り返される場合があります。',
+  'settings.models.scopedOnly': 'スコープ付きモデルのみ',
+  'settings.models.scopedCheckboxPre': 'Piclaw のモデル一覧に Pi の',
+  'settings.models.scopedCheckboxPost': 'を使用',
+  'settings.models.scopedHintPre': 'このピッカーと',
+  'settings.models.scopedHintPost': 'ツールをフィルタリングします。TUI のモデル選択は変更されません。',
+  'settings.models.colModel': 'モデル',
+  'settings.models.colProvider': 'プロバイダー',
+  'settings.models.colContext': 'コンテキスト',
+  'settings.models.colReasoning': '推論',
+  'settings.models.noMatch': '「{filter}」に一致するモデルはありません',
+  'settings.tools.unavailable': 'ツールデータを利用できません。',
+  'settings.tools.search': '検索',
+  'settings.tools.matchMode': 'マッチモード',
+  'settings.tools.orMode': 'いずれかのキーワード（OR）— 少なくとも1つの検索語に一致',
+  'settings.tools.andMode': 'すべてのキーワード（AND）— すべての検索語に一致',
+  'settings.tools.colEnabled': '有効',
+  'settings.tools.colTool': 'ツール',
+  'settings.tools.colCompact': 'コンパクト',
+  'settings.tools.colKind': '種類',
+  'settings.tools.colSummary': '概要',
+  'settings.tools.colSource': 'ソース',
+  'settings.tools.disableCompaction': 'このツールのツール結果コンパクションを無効化',
+  'settings.tools.enableCompaction': 'このツールのツール結果コンパクションを有効化',
+  'settings.tools.noMatch': '「{filter}」に一致するツールはありません',
+  'settings.tools.footer': 'ツールのアクティベーションはエージェントランタイムが管理します。グループのチェックボックスで折りたたみ/展開でき、「コンパクト」列はツール結果コンパクションの対象可否を制御します。',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
