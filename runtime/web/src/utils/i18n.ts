@@ -51,6 +51,40 @@ type MessageKey =
   | 'compose.closeSearch'
   | 'compose.shareLocation'
   | 'compose.attachFile'
+  | 'compose.queueControls'
+  | 'compose.moveUp'
+  | 'compose.moveUpQueue'
+  | 'compose.moveDown'
+  | 'compose.moveDownQueue'
+  | 'compose.editInCompose'
+  | 'compose.returnToEditor'
+  | 'compose.injectSteer'
+  | 'compose.steer'
+  | 'compose.cancelQueued'
+  | 'compose.resizeInput'
+  | 'compose.resizeInputHint'
+  | 'compose.modelPicker'
+  | 'compose.sessionsAndAgents'
+  | 'compose.openModelPicker'
+  | 'compose.newBranchTitle'
+  | 'compose.newRootTitle'
+  | 'compose.renameSessionTitle'
+  | 'compose.pruneSessionTitle'
+  | 'compose.filterImagesTitle'
+  | 'compose.filterAttachmentsTitle'
+  | 'compose.selectModel'
+  | 'compose.loadingModels'
+  | 'compose.noModels'
+  | 'compose.nextModel'
+  | 'compose.manageSessions'
+  | 'compose.noSessions'
+  | 'compose.newBranch'
+  | 'compose.newRoot'
+  | 'compose.mergeCurrent'
+  | 'compose.renameCurrent'
+  | 'compose.deleteCurrent'
+  | 'compose.mergeInto'
+  | 'compose.mergeBlocked'
   | 'workspace.title'
   | 'workspace.newFile'
   | 'workspace.refresh'
@@ -102,6 +136,48 @@ type MessageKey =
   | 'settings.placeholder.keychain'
   | 'settings.placeholder.tools'
   | 'settings.placeholder.addons'
+  // Other top-level surfaces (post, tabs, status, annotator, tree, preview).
+  | 'preview.close'
+  | 'preview.loading'
+  | 'preview.files'
+  | 'preview.folders'
+  | 'preview.compressed'
+  | 'preview.uncompressed'
+  | 'preview.name'
+  | 'preview.type'
+  | 'preview.method'
+  | 'preview.size'
+  | 'post.deleteMessage'
+  | 'post.tooLarge'
+  | 'post.previewTruncated'
+  | 'post.submitted'
+  | 'post.discard'
+  | 'post.save'
+  | 'post.cancel'
+  | 'post.addNote'
+  | 'post.addNotePlaceholder'
+  | 'tab.close'
+  | 'tab.closeOthers'
+  | 'tab.closeAll'
+  | 'tab.reattach'
+  | 'tab.openInWindow'
+  | 'tab.openInNewTab'
+  | 'tab.pinned'
+  | 'tab.detached'
+  | 'tab.openSeparateWindow'
+  | 'status.trackedVariables'
+  | 'status.attachToSession'
+  | 'status.files'
+  | 'status.proposedDiff'
+  | 'status.copyTmux'
+  | 'status.experimentDuration'
+  | 'status.sinceLastActivity'
+  | 'annotator.title'
+  | 'annotator.typeLabel'
+  | 'annotator.undo'
+  | 'annotator.resetZoom'
+  | 'tree.filter'
+  | 'tree.sessionTree'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -138,6 +214,40 @@ const EN: Record<MessageKey, string> = {
   'compose.closeSearch': 'Close search',
   'compose.shareLocation': 'Share location',
   'compose.attachFile': 'Attach file',
+  'compose.queueControls': 'Queued follow-up controls',
+  'compose.moveUp': 'Move up',
+  'compose.moveUpQueue': 'Move up in queue',
+  'compose.moveDown': 'Move down',
+  'compose.moveDownQueue': 'Move down in queue',
+  'compose.editInCompose': 'Edit in compose',
+  'compose.returnToEditor': 'Return queued message to editor',
+  'compose.injectSteer': 'Inject queued follow-up as steer',
+  'compose.steer': 'Steer',
+  'compose.cancelQueued': 'Cancel queued message',
+  'compose.resizeInput': 'Resize message input',
+  'compose.resizeInputHint': 'Drag to resize message input',
+  'compose.modelPicker': 'Model picker',
+  'compose.sessionsAndAgents': 'Sessions and agents',
+  'compose.openModelPicker': 'Open model picker',
+  'compose.newBranchTitle': 'Create a new branch from this chat',
+  'compose.newRootTitle': 'Create a clean root session such as web:ops',
+  'compose.renameSessionTitle': 'Rename the current session',
+  'compose.pruneSessionTitle': 'Delete (prune) current agent/session branch',
+  'compose.filterImagesTitle': 'Only show messages with images',
+  'compose.filterAttachmentsTitle': 'Only show messages with attachments',
+  'compose.selectModel': 'Select model',
+  'compose.loadingModels': 'Loading models…',
+  'compose.noModels': 'No models available.',
+  'compose.nextModel': 'Next model',
+  'compose.manageSessions': 'Manage sessions & agents',
+  'compose.noSessions': 'No other sessions yet.',
+  'compose.newBranch': 'New branch',
+  'compose.newRoot': 'New root…',
+  'compose.mergeCurrent': 'Merge current w/ parent',
+  'compose.renameCurrent': 'Rename current…',
+  'compose.deleteCurrent': 'Delete current…',
+  'compose.mergeInto': 'Merge this branch into {target}',
+  'compose.mergeBlocked': 'This branch cannot be merged while active or while it has children',
   'workspace.title': 'Workspace',
   'workspace.newFile': 'New file',
   'workspace.refresh': 'Refresh',
@@ -188,6 +298,47 @@ const EN: Record<MessageKey, string> = {
   'settings.placeholder.keychain': 'Filter entries…',
   'settings.placeholder.tools': 'Filter tools…',
   'settings.placeholder.addons': 'Filter add-ons…',
+  'preview.close': 'Close',
+  'preview.loading': 'Loading preview…',
+  'preview.files': 'Files',
+  'preview.folders': 'Folders',
+  'preview.compressed': 'Compressed',
+  'preview.uncompressed': 'Uncompressed',
+  'preview.name': 'Name',
+  'preview.type': 'Type',
+  'preview.method': 'Method',
+  'preview.size': 'Size',
+  'post.deleteMessage': 'Delete message',
+  'post.tooLarge': 'Message too large to display.',
+  'post.previewTruncated': 'Preview truncated.',
+  'post.submitted': 'Submitted',
+  'post.discard': 'Discard',
+  'post.save': 'Save',
+  'post.cancel': 'Cancel',
+  'post.addNote': 'Add note',
+  'post.addNotePlaceholder': 'Add a note…',
+  'tab.close': 'Close',
+  'tab.closeOthers': 'Close Others',
+  'tab.closeAll': 'Close All',
+  'tab.reattach': 'Reattach',
+  'tab.openInWindow': 'Open in Window',
+  'tab.openInNewTab': 'Open in New Tab',
+  'tab.pinned': 'Pinned',
+  'tab.detached': 'Detached',
+  'tab.openSeparateWindow': 'Open in separate window',
+  'status.trackedVariables': 'Tracked variables',
+  'status.attachToSession': 'Attach to session',
+  'status.files': 'Files',
+  'status.proposedDiff': 'Proposed diff',
+  'status.copyTmux': 'Copy tmux command',
+  'status.experimentDuration': 'Experiment duration',
+  'status.sinceLastActivity': 'Since last activity',
+  'annotator.title': 'Annotate image',
+  'annotator.typeLabel': 'Type label…',
+  'annotator.undo': 'Undo',
+  'annotator.resetZoom': 'Reset zoom',
+  'tree.filter': 'Filter…',
+  'tree.sessionTree': 'Session tree',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -224,6 +375,40 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'compose.closeSearch': '关闭搜索',
   'compose.shareLocation': '分享位置',
   'compose.attachFile': '附加文件',
+  'compose.queueControls': '排队后续消息控制',
+  'compose.moveUp': '上移',
+  'compose.moveUpQueue': '在队列中上移',
+  'compose.moveDown': '下移',
+  'compose.moveDownQueue': '在队列中下移',
+  'compose.editInCompose': '在输入框中编辑',
+  'compose.returnToEditor': '将排队消息返回编辑器',
+  'compose.injectSteer': '作为引导插入排队的后续消息',
+  'compose.steer': '引导',
+  'compose.cancelQueued': '取消排队消息',
+  'compose.resizeInput': '调整消息输入框大小',
+  'compose.resizeInputHint': '拖动以调整消息输入框大小',
+  'compose.modelPicker': '模型选择器',
+  'compose.sessionsAndAgents': '会话与代理',
+  'compose.openModelPicker': '打开模型选择器',
+  'compose.newBranchTitle': '从此聊天创建新分支',
+  'compose.newRootTitle': '创建一个干净的根会话，例如 web:ops',
+  'compose.renameSessionTitle': '重命名当前会话',
+  'compose.pruneSessionTitle': '删除（修剪）当前代理/会话分支',
+  'compose.filterImagesTitle': '仅显示含图片的消息',
+  'compose.filterAttachmentsTitle': '仅显示含附件的消息',
+  'compose.selectModel': '选择模型',
+  'compose.loadingModels': '正在加载模型…',
+  'compose.noModels': '没有可用的模型。',
+  'compose.nextModel': '下一个模型',
+  'compose.manageSessions': '管理会话与代理',
+  'compose.noSessions': '暂无其他会话。',
+  'compose.newBranch': '新建分支',
+  'compose.newRoot': '新建根会话…',
+  'compose.mergeCurrent': '将当前合并到父级',
+  'compose.renameCurrent': '重命名当前…',
+  'compose.deleteCurrent': '删除当前…',
+  'compose.mergeInto': '将此分支合并到 {target}',
+  'compose.mergeBlocked': '当此分支处于活动状态或有子分支时无法合并',
   'workspace.title': '工作区',
   'workspace.newFile': '新建文件',
   'workspace.refresh': '刷新',
@@ -274,6 +459,47 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.placeholder.keychain': '筛选条目…',
   'settings.placeholder.tools': '筛选工具…',
   'settings.placeholder.addons': '筛选插件…',
+  'preview.close': '关闭',
+  'preview.loading': '正在加载预览…',
+  'preview.files': '文件',
+  'preview.folders': '文件夹',
+  'preview.compressed': '压缩后',
+  'preview.uncompressed': '未压缩',
+  'preview.name': '名称',
+  'preview.type': '类型',
+  'preview.method': '方法',
+  'preview.size': '大小',
+  'post.deleteMessage': '删除消息',
+  'post.tooLarge': '消息过大，无法显示。',
+  'post.previewTruncated': '预览已截断。',
+  'post.submitted': '已提交',
+  'post.discard': '丢弃',
+  'post.save': '保存',
+  'post.cancel': '取消',
+  'post.addNote': '添加备注',
+  'post.addNotePlaceholder': '添加备注…',
+  'tab.close': '关闭',
+  'tab.closeOthers': '关闭其他',
+  'tab.closeAll': '全部关闭',
+  'tab.reattach': '重新附加',
+  'tab.openInWindow': '在窗口中打开',
+  'tab.openInNewTab': '在新标签页打开',
+  'tab.pinned': '已固定',
+  'tab.detached': '已分离',
+  'tab.openSeparateWindow': '在独立窗口中打开',
+  'status.trackedVariables': '跟踪的变量',
+  'status.attachToSession': '附加到会话',
+  'status.files': '文件',
+  'status.proposedDiff': '建议的差异',
+  'status.copyTmux': '复制 tmux 命令',
+  'status.experimentDuration': '实验时长',
+  'status.sinceLastActivity': '自上次活动以来',
+  'annotator.title': '标注图片',
+  'annotator.typeLabel': '输入标签…',
+  'annotator.undo': '撤销',
+  'annotator.resetZoom': '重置缩放',
+  'tree.filter': '筛选…',
+  'tree.sessionTree': '会话树',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -310,6 +536,40 @@ const JA: Partial<Record<MessageKey, string>> = {
   'compose.closeSearch': '検索を閉じる',
   'compose.shareLocation': '位置を共有',
   'compose.attachFile': 'ファイルを添付',
+  'compose.queueControls': 'キュー済みフォローアップの操作',
+  'compose.moveUp': '上に移動',
+  'compose.moveUpQueue': 'キュー内で上に移動',
+  'compose.moveDown': '下に移動',
+  'compose.moveDownQueue': 'キュー内で下に移動',
+  'compose.editInCompose': '入力欄で編集',
+  'compose.returnToEditor': 'キュー済みメッセージを入力欄に戻す',
+  'compose.injectSteer': 'キュー済みフォローアップをステアとして挿入',
+  'compose.steer': 'ステア',
+  'compose.cancelQueued': 'キュー済みメッセージをキャンセル',
+  'compose.resizeInput': 'メッセージ入力欄のサイズ変更',
+  'compose.resizeInputHint': 'ドラッグしてメッセージ入力欄のサイズを変更',
+  'compose.modelPicker': 'モデルピッカー',
+  'compose.sessionsAndAgents': 'セッションとエージェント',
+  'compose.openModelPicker': 'モデルピッカーを開く',
+  'compose.newBranchTitle': 'このチャットから新しいブランチを作成',
+  'compose.newRootTitle': 'web:ops のようなクリーンなルートセッションを作成',
+  'compose.renameSessionTitle': '現在のセッションの名前を変更',
+  'compose.pruneSessionTitle': '現在のエージェント/セッションブランチを削除（プルーン）',
+  'compose.filterImagesTitle': '画像付きメッセージのみ表示',
+  'compose.filterAttachmentsTitle': '添付付きメッセージのみ表示',
+  'compose.selectModel': 'モデルを選択',
+  'compose.loadingModels': 'モデルを読み込み中…',
+  'compose.noModels': '利用可能なモデルがありません。',
+  'compose.nextModel': '次のモデル',
+  'compose.manageSessions': 'セッションとエージェントを管理',
+  'compose.noSessions': '他のセッションはまだありません。',
+  'compose.newBranch': '新しいブランチ',
+  'compose.newRoot': '新しいルート…',
+  'compose.mergeCurrent': '現在を親にマージ',
+  'compose.renameCurrent': '現在の名前を変更…',
+  'compose.deleteCurrent': '現在を削除…',
+  'compose.mergeInto': 'このブランチを {target} にマージ',
+  'compose.mergeBlocked': 'このブランチはアクティブな間または子がある間はマージできません',
   'workspace.title': 'ワークスペース',
   'workspace.newFile': '新規ファイル',
   'workspace.refresh': '更新',
@@ -360,6 +620,47 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.placeholder.keychain': 'エントリをフィルター…',
   'settings.placeholder.tools': 'ツールをフィルター…',
   'settings.placeholder.addons': 'アドオンをフィルター…',
+  'preview.close': '閉じる',
+  'preview.loading': 'プレビューを読み込み中…',
+  'preview.files': 'ファイル',
+  'preview.folders': 'フォルダ',
+  'preview.compressed': '圧縮後',
+  'preview.uncompressed': '非圧縮',
+  'preview.name': '名前',
+  'preview.type': '種類',
+  'preview.method': '方式',
+  'preview.size': 'サイズ',
+  'post.deleteMessage': 'メッセージを削除',
+  'post.tooLarge': 'メッセージが大きすぎて表示できません。',
+  'post.previewTruncated': 'プレビューは切り詰められました。',
+  'post.submitted': '送信済み',
+  'post.discard': '破棄',
+  'post.save': '保存',
+  'post.cancel': 'キャンセル',
+  'post.addNote': 'メモを追加',
+  'post.addNotePlaceholder': 'メモを追加…',
+  'tab.close': '閉じる',
+  'tab.closeOthers': '他を閉じる',
+  'tab.closeAll': 'すべて閉じる',
+  'tab.reattach': '再アタッチ',
+  'tab.openInWindow': 'ウィンドウで開く',
+  'tab.openInNewTab': '新しいタブで開く',
+  'tab.pinned': 'ピン留め済み',
+  'tab.detached': '分離済み',
+  'tab.openSeparateWindow': '別ウィンドウで開く',
+  'status.trackedVariables': '追跡中の変数',
+  'status.attachToSession': 'セッションにアタッチ',
+  'status.files': 'ファイル',
+  'status.proposedDiff': '提案された差分',
+  'status.copyTmux': 'tmuxコマンドをコピー',
+  'status.experimentDuration': '実験の経過時間',
+  'status.sinceLastActivity': '最後のアクティビティから',
+  'annotator.title': '画像に注釈',
+  'annotator.typeLabel': 'ラベルを入力…',
+  'annotator.undo': '元に戻す',
+  'annotator.resetZoom': 'ズームをリセット',
+  'tree.filter': 'フィルター…',
+  'tree.sessionTree': 'セッションツリー',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
@@ -486,7 +787,7 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
 export function useLocale(): [Locale, (value: unknown) => void] {
   const [locale, setLocaleState] = useState<Locale>(getLocale());
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return undefined;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       const next = normalizeLocale(detail?.locale ?? getLocale());

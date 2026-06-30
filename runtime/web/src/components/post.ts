@@ -1,4 +1,5 @@
 import { html, useCallback, useEffect, useMemo, useRef, useState } from '../vendor/preact-htm.js';
+import { useTranslation } from '../utils/i18n.js';
 import { getMediaInfo, getMediaUrl, getThumbnailUrl, submitAdaptiveCardAction } from '../api.js';
 import { renderMarkdown, renderMermaidDiagrams, sanitizeUrl } from '../markdown.js';
 import { formatCount, formatFileSize, formatTime, formatTimestamp } from '../utils/format.js';
@@ -1042,6 +1043,7 @@ function highlightHtml(html, query) {
  * Single post component
  */
 export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, agentName, agentAvatarUrl, userName, userAvatarUrl, userAvatarBackground, onDelete, isThreadReply, isThreadPrev, isThreadNext, isRemoving, highlightQuery, onFileRef, onOpenWidget, onOpenAttachmentPreview }) {
+    const { t } = useTranslation();
     const [zoomedImage, setZoomedImage] = useState(null);
     const [annotatingImage, setAnnotatingImage] = useState(null);
     const [annotationResult, setAnnotationResult] = useState(null); // { id, url } after Done
@@ -1535,8 +1537,8 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                     <button
                         class="post-action-btn post-delete-btn"
                         type="button"
-                        title="Delete message"
-                        aria-label="Delete message"
+                        title=${t('post.deleteMessage')}
+                        aria-label=${t('post.deleteMessage')}
                         onClick=${handleDeleteClick}
                     >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1604,7 +1606,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                 `}
                 ${isHardTruncated && truncatedInfo && html`
                     <div class="post-content truncated">
-                        <div class="truncated-title">Message too large to display.</div>
+                        <div class="truncated-title">${t('post.tooLarge')}</div>
                         <div class="truncated-meta">
                             Original length: ${formatCount(truncatedInfo.originalLength)} chars
                             ${truncatedInfo.maxLength ? html` • Display limit: ${formatCount(truncatedInfo.maxLength)} chars` : ''}
@@ -1613,7 +1615,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                 `}
                 ${isPreview && truncatedInfo && html`
                     <div class="post-content preview">
-                        <div class="truncated-title">Preview truncated.</div>
+                        <div class="truncated-title">${t('post.previewTruncated')}</div>
                         <div class="truncated-meta">
                             Showing first ${formatCount(truncatedInfo.maxLength)} of ${formatCount(truncatedInfo.originalLength)} chars. Download full text below.
                         </div>
@@ -1711,7 +1713,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                                     <div class="adaptive-card-submission-header">
                                         <span class="adaptive-card-submission-icon" aria-hidden="true">✓</span>
                                         <div class="adaptive-card-submission-title-wrap">
-                                            <span class="adaptive-card-submission-title">Submitted</span>
+                                            <span class="adaptive-card-submission-title">${t('post.submitted')}</span>
                                             <span class="adaptive-card-submission-title-action">${meta.title}</span>
                                         </div>
                                     </div>
@@ -1828,7 +1830,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         Send
                     </button>
-                    <button class="post-annotation-discard-btn" onClick=${handleAnnotationDiscard}>Discard</button>
+                    <button class="post-annotation-discard-btn" onClick=${handleAnnotationDiscard}>${t('post.discard')}</button>
                 </div>
             </div>
         `}
@@ -1849,7 +1851,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                 <button
                     class="post-aside-add-btn"
                     onClick=${(e) => { e.preventDefault(); e.stopPropagation(); handleAddAside(); }}
-                    title="Add note"
+                    title=${t('post.addNote')}
                 >✎</button>
             </div>
         `}
@@ -1860,7 +1862,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
             >
                 <textarea
                     class="post-aside-textarea"
-                    placeholder="Add a note…"
+                    placeholder=${t('post.addNotePlaceholder')}
                     value=${asideText}
                     onInput=${(e) => setAsideText(e.currentTarget.value)}
                     onKeyDown=${(e) => {
@@ -1870,8 +1872,8 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                     ref=${(el) => el && requestAnimationFrame(() => el.focus())}
                 />
                 <div class="post-aside-input-actions">
-                    <button class="post-aside-save-btn" onClick=${handleSaveAside} disabled=${!asideText.trim()}>Save</button>
-                    <button class="post-aside-cancel-btn" onClick=${handleCancelAside}>Cancel</button>
+                    <button class="post-aside-save-btn" onClick=${handleSaveAside} disabled=${!asideText.trim()}>${t('post.save')}</button>
+                    <button class="post-aside-cancel-btn" onClick=${handleCancelAside}>${t('post.cancel')}</button>
                 </div>
             </div>
         `}

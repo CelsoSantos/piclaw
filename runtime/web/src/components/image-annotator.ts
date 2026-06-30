@@ -18,6 +18,7 @@
  */
 
 import { html, useState, useEffect, useRef, useCallback } from '../vendor/preact-htm.js';
+import { useTranslation } from '../utils/i18n.js';
 import { uploadMedia } from '../api.js';
 
 // ── Types ───────────────────────────────────────────────────────
@@ -194,6 +195,7 @@ export function canAnnotate(): boolean {
 // ── Component ───────────────────────────────────────────────────
 
 export function ImageAnnotator({ src, onSave, onCancel }) {
+  const { t: tr } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -546,7 +548,7 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
   }, [tool]);
 
   return html`
-    <div class="image-annotator" role="dialog" aria-modal="true" aria-label="Annotate image">
+    <div class="image-annotator" role="dialog" aria-modal="true" aria-label=${tr('annotator.title')}>
       <div class="image-annotator-stage">
         <div class="image-annotator-canvas-wrap" style="transform: scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px); transform-origin: center center;">
           <img
@@ -579,7 +581,7 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
                   if (e.key === 'Enter') commitTextLabel();
                   if (e.key === 'Escape') cancelTextLabel();
                 }}
-                placeholder="Type label…"
+                placeholder=${tr('annotator.typeLabel')}
                 style="color: ${color}"
               />
             </div>
@@ -601,8 +603,8 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
           <button
             class="image-annotator-tool-btn"
             onClick=${handleUndo}
-            title="Undo"
-            aria-label="Undo"
+            title=${tr('annotator.undo')}
+            aria-label=${tr('annotator.undo')}
             disabled=${saving}
             dangerouslySetInnerHTML=${{ __html: UNDO_ICON }}
           />
@@ -611,7 +613,7 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
               class="image-annotator-tool-btn"
               onClick=${() => { setZoom(1); setPanOffset({ x: 0, y: 0 }); }}
               title=${`Reset zoom (${Math.round(zoom * 100)}%)`}
-              aria-label="Reset zoom"
+              aria-label=${tr('annotator.resetZoom')}
             >${Math.round(zoom * 100)}%</button>
           `}
         </div>
