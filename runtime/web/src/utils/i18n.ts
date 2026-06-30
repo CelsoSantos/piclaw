@@ -304,6 +304,60 @@ type MessageKey =
   | 'settings.tools.enableCompaction'
   | 'settings.tools.noMatch'
   | 'settings.tools.footer'
+  // Settings slice 3: environment, quick-actions, providers.
+  | 'settings.environment.heading'
+  | 'settings.environment.introPre'
+  | 'settings.environment.introPost'
+  | 'settings.environment.refresh'
+  | 'settings.environment.addOverride'
+  | 'settings.environment.valuePlaceholder'
+  | 'settings.environment.save'
+  | 'settings.environment.countLine'
+  | 'settings.environment.overridden'
+  | 'settings.environment.inherited'
+  | 'settings.environment.kindOverride'
+  | 'settings.environment.kindProcess'
+  | 'settings.environment.clear'
+  | 'settings.environment.noMatch'
+  | 'settings.environment.refreshedToast'
+  | 'settings.environment.savedToast'
+  | 'settings.environment.clearedToast'
+  | 'settings.quickActions.loading'
+  | 'settings.quickActions.heading'
+  | 'settings.quickActions.intro'
+  | 'settings.quickActions.enableAll'
+  | 'settings.quickActions.saving'
+  | 'settings.quickActions.saveApply'
+  | 'settings.quickActions.workspaceCommands'
+  | 'settings.quickActions.noWorkspaceMatch'
+  | 'settings.quickActions.slashCommands'
+  | 'settings.quickActions.slashFallback'
+  | 'settings.quickActions.noSlashMatch'
+  | 'settings.quickActions.savingToast'
+  | 'settings.quickActions.savedToast'
+  | 'settings.providers.authApiKey'
+  | 'settings.providers.authConfigured'
+  | 'settings.providers.heading'
+  | 'settings.providers.tagCustom'
+  | 'settings.providers.logout'
+  | 'settings.providers.reconfigure'
+  | 'settings.providers.setUp'
+  | 'settings.providers.setupHint'
+  | 'settings.providers.starting'
+  | 'settings.providers.signInOAuth'
+  | 'settings.providers.apiKeyLabel'
+  | 'settings.providers.apiKeyPlaceholder'
+  | 'settings.providers.save'
+  | 'settings.providers.configuring'
+  | 'settings.providers.saveConfig'
+  | 'settings.providers.apiKeyEmpty'
+  | 'settings.providers.configuringToast'
+  | 'settings.providers.configured'
+  | 'settings.providers.startingOAuth'
+  | 'settings.providers.oauthOpened'
+  | 'settings.providers.oauthStarted'
+  | 'settings.providers.loggingOut'
+  | 'settings.providers.loggedOut'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -589,6 +643,59 @@ const EN: Record<MessageKey, string> = {
   'settings.tools.enableCompaction': 'Enable tool-result compaction for this tool',
   'settings.tools.noMatch': 'No tools match "{filter}"',
   'settings.tools.footer': 'Tool activation is managed by the agent runtime. Group checkboxes collapse/expand; the “Compact” column controls tool-result compaction eligibility.',
+  'settings.environment.heading': 'Environment',
+  'settings.environment.introPre': 'Showing non-keychain environment variables only. Overrides are stored in extension KV and applied to',
+  'settings.environment.introPost': ', so subsequent tool calls inherit them.',
+  'settings.environment.refresh': 'Refresh',
+  'settings.environment.addOverride': 'Add override',
+  'settings.environment.valuePlaceholder': 'value',
+  'settings.environment.save': 'Save',
+  'settings.environment.countLine': '{count} variables visible • {overrides} overrides active • {keychain} keychain-injected variables hidden',
+  'settings.environment.overridden': 'Overridden in KV',
+  'settings.environment.inherited': 'Inherited from process environment',
+  'settings.environment.kindOverride': 'override',
+  'settings.environment.kindProcess': 'process',
+  'settings.environment.clear': 'Clear',
+  'settings.environment.noMatch': 'No environment variables match "{filter}".',
+  'settings.environment.refreshedToast': 'Environment refreshed.',
+  'settings.environment.savedToast': 'Saved environment override for {name}.',
+  'settings.environment.clearedToast': 'Cleared environment override for {name}.',
+  'settings.quickActions.loading': 'Loading…',
+  'settings.quickActions.heading': 'Timeline Quick Actions',
+  'settings.quickActions.intro': 'Choose which actions appear in the timeline typeahead. Agents are always pinned first, then workspace commands, then slash commands.',
+  'settings.quickActions.enableAll': 'Enable all',
+  'settings.quickActions.saving': 'Saving…',
+  'settings.quickActions.saveApply': 'Save & apply',
+  'settings.quickActions.workspaceCommands': 'Workspace commands',
+  'settings.quickActions.noWorkspaceMatch': 'No workspace commands match this filter.',
+  'settings.quickActions.slashCommands': 'Slash commands',
+  'settings.quickActions.slashFallback': 'slash command',
+  'settings.quickActions.noSlashMatch': 'No slash commands match this filter.',
+  'settings.quickActions.savingToast': 'Saving quick actions…',
+  'settings.quickActions.savedToast': 'Quick Actions saved.',
+  'settings.providers.authApiKey': 'API key',
+  'settings.providers.authConfigured': 'Configured',
+  'settings.providers.heading': 'Providers',
+  'settings.providers.tagCustom': 'Custom',
+  'settings.providers.logout': 'Logout',
+  'settings.providers.reconfigure': 'Reconfigure',
+  'settings.providers.setUp': 'Set up',
+  'settings.providers.setupHint': 'Sign-in flows open in the browser. In narrow panes the setup form stacks vertically to avoid clipping.',
+  'settings.providers.starting': 'Starting…',
+  'settings.providers.signInOAuth': 'Sign in with OAuth',
+  'settings.providers.apiKeyLabel': 'API Key',
+  'settings.providers.apiKeyPlaceholder': 'Enter API key',
+  'settings.providers.save': 'Save',
+  'settings.providers.configuring': 'Configuring…',
+  'settings.providers.saveConfig': 'Save configuration',
+  'settings.providers.apiKeyEmpty': 'API key cannot be empty.',
+  'settings.providers.configuringToast': 'Configuring {provider}…',
+  'settings.providers.configured': '{provider} configured.',
+  'settings.providers.startingOAuth': 'Starting OAuth for {provider}…',
+  'settings.providers.oauthOpened': 'OAuth window opened. Complete the sign-in flow, then close this message.',
+  'settings.providers.oauthStarted': 'OAuth flow started for {provider}. Check the chat.',
+  'settings.providers.loggingOut': 'Logging out {provider}…',
+  'settings.providers.loggedOut': 'Logged out {provider}. Restart may be needed.',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -874,6 +981,59 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.tools.enableCompaction': '为此工具启用工具结果压缩',
   'settings.tools.noMatch': '没有匹配 “{filter}” 的工具',
   'settings.tools.footer': '工具激活由代理运行时管理。组复选框可折叠/展开；“压缩”列控制工具结果压缩资格。',
+  'settings.environment.heading': '环境',
+  'settings.environment.introPre': '仅显示非 keychain 环境变量。覆盖项存储在扩展 KV 中并应用于',
+  'settings.environment.introPost': '，因此后续工具调用会继承它们。',
+  'settings.environment.refresh': '刷新',
+  'settings.environment.addOverride': '添加覆盖',
+  'settings.environment.valuePlaceholder': '值',
+  'settings.environment.save': '保存',
+  'settings.environment.countLine': '{count} 个变量可见 • {overrides} 个覆盖生效 • {keychain} 个 keychain 注入变量已隐藏',
+  'settings.environment.overridden': '在 KV 中覆盖',
+  'settings.environment.inherited': '继承自进程环境',
+  'settings.environment.kindOverride': '覆盖',
+  'settings.environment.kindProcess': '进程',
+  'settings.environment.clear': '清除',
+  'settings.environment.noMatch': '没有匹配 “{filter}” 的环境变量。',
+  'settings.environment.refreshedToast': '环境已刷新。',
+  'settings.environment.savedToast': '已保存 {name} 的环境覆盖。',
+  'settings.environment.clearedToast': '已清除 {name} 的环境覆盖。',
+  'settings.quickActions.loading': '加载中…',
+  'settings.quickActions.heading': '时间线快捷操作',
+  'settings.quickActions.intro': '选择哪些操作出现在时间线预输入中。代理始终优先固定，然后是工作区命令，再是斜杠命令。',
+  'settings.quickActions.enableAll': '全部启用',
+  'settings.quickActions.saving': '保存中…',
+  'settings.quickActions.saveApply': '保存并应用',
+  'settings.quickActions.workspaceCommands': '工作区命令',
+  'settings.quickActions.noWorkspaceMatch': '没有匹配此筛选的工作区命令。',
+  'settings.quickActions.slashCommands': '斜杠命令',
+  'settings.quickActions.slashFallback': '斜杠命令',
+  'settings.quickActions.noSlashMatch': '没有匹配此筛选的斜杠命令。',
+  'settings.quickActions.savingToast': '正在保存快捷操作…',
+  'settings.quickActions.savedToast': '快捷操作已保存。',
+  'settings.providers.authApiKey': 'API 密钥',
+  'settings.providers.authConfigured': '已配置',
+  'settings.providers.heading': '提供商',
+  'settings.providers.tagCustom': '自定义',
+  'settings.providers.logout': '注销',
+  'settings.providers.reconfigure': '重新配置',
+  'settings.providers.setUp': '设置',
+  'settings.providers.setupHint': '登录流程在浏览器中打开。在狭窄面板中，设置表单会垂直堆叠以避免裁切。',
+  'settings.providers.starting': '启动中…',
+  'settings.providers.signInOAuth': '使用 OAuth 登录',
+  'settings.providers.apiKeyLabel': 'API 密钥',
+  'settings.providers.apiKeyPlaceholder': '输入 API 密钥',
+  'settings.providers.save': '保存',
+  'settings.providers.configuring': '配置中…',
+  'settings.providers.saveConfig': '保存配置',
+  'settings.providers.apiKeyEmpty': 'API 密钥不能为空。',
+  'settings.providers.configuringToast': '正在配置 {provider}…',
+  'settings.providers.configured': '{provider} 已配置。',
+  'settings.providers.startingOAuth': '正在为 {provider} 启动 OAuth…',
+  'settings.providers.oauthOpened': 'OAuth 窗口已打开。完成登录流程，然后关闭此消息。',
+  'settings.providers.oauthStarted': '已为 {provider} 启动 OAuth 流程。请查看聊天。',
+  'settings.providers.loggingOut': '正在注销 {provider}…',
+  'settings.providers.loggedOut': '已注销 {provider}。可能需要重启。',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -1159,6 +1319,59 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.tools.enableCompaction': 'このツールのツール結果コンパクションを有効化',
   'settings.tools.noMatch': '「{filter}」に一致するツールはありません',
   'settings.tools.footer': 'ツールのアクティベーションはエージェントランタイムが管理します。グループのチェックボックスで折りたたみ/展開でき、「コンパクト」列はツール結果コンパクションの対象可否を制御します。',
+  'settings.environment.heading': '環境',
+  'settings.environment.introPre': 'キーチェーン以外の環境変数のみを表示しています。オーバーライドは拡張機能の KV に保存され、',
+  'settings.environment.introPost': 'に適用されるため、以降のツール呼び出しに継承されます。',
+  'settings.environment.refresh': '更新',
+  'settings.environment.addOverride': 'オーバーライドを追加',
+  'settings.environment.valuePlaceholder': '値',
+  'settings.environment.save': '保存',
+  'settings.environment.countLine': '{count} 個の変数を表示 • {overrides} 個のオーバーライドが有効 • {keychain} 個のキーチェーン注入変数を非表示',
+  'settings.environment.overridden': 'KV でオーバーライド',
+  'settings.environment.inherited': 'プロセス環境から継承',
+  'settings.environment.kindOverride': 'オーバーライド',
+  'settings.environment.kindProcess': 'プロセス',
+  'settings.environment.clear': 'クリア',
+  'settings.environment.noMatch': '「{filter}」に一致する環境変数はありません。',
+  'settings.environment.refreshedToast': '環境を更新しました。',
+  'settings.environment.savedToast': '{name} の環境オーバーライドを保存しました。',
+  'settings.environment.clearedToast': '{name} の環境オーバーライドをクリアしました。',
+  'settings.quickActions.loading': '読み込み中…',
+  'settings.quickActions.heading': 'タイムラインクイックアクション',
+  'settings.quickActions.intro': 'タイムラインのタイプアヘッドに表示するアクションを選択します。エージェントは常に最初に固定され、次にワークスペースコマンド、その次にスラッシュコマンドが表示されます。',
+  'settings.quickActions.enableAll': 'すべて有効化',
+  'settings.quickActions.saving': '保存中…',
+  'settings.quickActions.saveApply': '保存して適用',
+  'settings.quickActions.workspaceCommands': 'ワークスペースコマンド',
+  'settings.quickActions.noWorkspaceMatch': 'このフィルターに一致するワークスペースコマンドはありません。',
+  'settings.quickActions.slashCommands': 'スラッシュコマンド',
+  'settings.quickActions.slashFallback': 'スラッシュコマンド',
+  'settings.quickActions.noSlashMatch': 'このフィルターに一致するスラッシュコマンドはありません。',
+  'settings.quickActions.savingToast': 'クイックアクションを保存中…',
+  'settings.quickActions.savedToast': 'クイックアクションを保存しました。',
+  'settings.providers.authApiKey': 'API キー',
+  'settings.providers.authConfigured': '設定済み',
+  'settings.providers.heading': 'プロバイダー',
+  'settings.providers.tagCustom': 'カスタム',
+  'settings.providers.logout': 'ログアウト',
+  'settings.providers.reconfigure': '再設定',
+  'settings.providers.setUp': 'セットアップ',
+  'settings.providers.setupHint': 'サインインフローはブラウザーで開きます。狭いペインではセットアップフォームが縦に積み重なってクリッピングを防ぎます。',
+  'settings.providers.starting': '開始中…',
+  'settings.providers.signInOAuth': 'OAuth でサインイン',
+  'settings.providers.apiKeyLabel': 'API キー',
+  'settings.providers.apiKeyPlaceholder': 'API キーを入力',
+  'settings.providers.save': '保存',
+  'settings.providers.configuring': '設定中…',
+  'settings.providers.saveConfig': '設定を保存',
+  'settings.providers.apiKeyEmpty': 'API キーを空にすることはできません。',
+  'settings.providers.configuringToast': '{provider} を設定中…',
+  'settings.providers.configured': '{provider} を設定しました。',
+  'settings.providers.startingOAuth': '{provider} の OAuth を開始中…',
+  'settings.providers.oauthOpened': 'OAuth ウィンドウを開きました。サインインフローを完了してから、このメッセージを閉じてください。',
+  'settings.providers.oauthStarted': '{provider} の OAuth フローを開始しました。チャットを確認してください。',
+  'settings.providers.loggingOut': '{provider} をログアウト中…',
+  'settings.providers.loggedOut': '{provider} をログアウトしました。再起動が必要な場合があります。',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
