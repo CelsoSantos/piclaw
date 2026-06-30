@@ -583,6 +583,53 @@ type MessageKey =
   | 'settings.tasks.resumedToast'
   | 'settings.tasks.actionFailed'
   | 'settings.tasks.loadFailed'
+  | 'settings.compaction.appliedNotice'
+  | 'settings.compaction.saving'
+  | 'settings.compaction.saveFailed'
+  | 'settings.compaction.saved'
+  | 'settings.compaction.clearing'
+  | 'settings.compaction.clearFailed'
+  | 'settings.compaction.cleared'
+  | 'settings.compaction.autoHeading'
+  | 'settings.compaction.enableToolResult'
+  | 'settings.compaction.enableToolResultHint'
+  | 'settings.compaction.semanticSummaries'
+  | 'settings.compaction.semanticSummariesHint'
+  | 'settings.compaction.inputLimit'
+  | 'settings.compaction.inputLimitAria'
+  | 'settings.compaction.inputLimitHint'
+  | 'settings.compaction.maxTokens'
+  | 'settings.compaction.maxTokensAria'
+  | 'settings.compaction.maxTokensHint'
+  | 'settings.compaction.summaryTimeout'
+  | 'settings.compaction.summaryTimeoutAria'
+  | 'settings.compaction.summaryTimeoutHint'
+  | 'settings.compaction.threshold'
+  | 'settings.compaction.thresholdAria'
+  | 'settings.compaction.thresholdHint'
+  | 'settings.compaction.timeout'
+  | 'settings.compaction.timeoutAria'
+  | 'settings.compaction.timeoutHint'
+  | 'settings.compaction.backoffBase'
+  | 'settings.compaction.backoffBaseAria'
+  | 'settings.compaction.backoffBaseHint'
+  | 'settings.compaction.backoffMax'
+  | 'settings.compaction.backoffMaxAria'
+  | 'settings.compaction.backoffMaxHint'
+  | 'settings.compaction.decayFactor'
+  | 'settings.compaction.decayFactorAria'
+  | 'settings.compaction.decayFactorHint'
+  | 'settings.compaction.watchdogHeading'
+  | 'settings.compaction.enableWatchdog'
+  | 'settings.compaction.enableWatchdogHint'
+  | 'settings.compaction.watchdogTimeout'
+  | 'settings.compaction.watchdogTimeoutAria'
+  | 'settings.compaction.watchdogTimeoutHint'
+  | 'settings.compaction.suppressionsHeading'
+  | 'settings.compaction.noBackoff'
+  | 'settings.compaction.clear'
+  | 'settings.compaction.phasesHeading'
+  | 'settings.compaction.noPhases'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -1144,6 +1191,53 @@ const EN: Record<MessageKey, string> = {
   'settings.tasks.resumedToast': 'Scheduled task {id} resumed.',
   'settings.tasks.actionFailed': 'Failed to {action} task.',
   'settings.tasks.loadFailed': 'Failed to load scheduled tasks.',
+  'settings.compaction.appliedNotice': 'Compaction settings applied. Existing turns keep their current timers; new turns use the updated values.',
+  'settings.compaction.saving': 'Saving compaction settings…',
+  'settings.compaction.saveFailed': 'Failed to save compaction settings.',
+  'settings.compaction.saved': 'Compaction settings saved.',
+  'settings.compaction.clearing': 'Clearing compaction suppression for {chat}…',
+  'settings.compaction.clearFailed': 'Failed to clear compaction suppression.',
+  'settings.compaction.cleared': 'Cleared compaction suppression for {chat}.',
+  'settings.compaction.autoHeading': 'Automatic compaction',
+  'settings.compaction.enableToolResult': 'Enable tool-result compaction',
+  'settings.compaction.enableToolResultHint': 'When disabled, large tool results stay inline and are not externalized into searchable tool-output handles.',
+  'settings.compaction.semanticSummaries': 'Semantic summaries for compacted tool results',
+  'settings.compaction.semanticSummariesHint': 'When enabled, compacted outputs include a semantic summary generated with the active model (preview fallback on failure).',
+  'settings.compaction.inputLimit': 'Semantic summary input limit (chars)',
+  'settings.compaction.inputLimitAria': 'semantic summary input limit',
+  'settings.compaction.inputLimitHint': 'Maximum characters sampled from full tool output for semantic summarization.',
+  'settings.compaction.maxTokens': 'Semantic summary output max tokens',
+  'settings.compaction.maxTokensAria': 'semantic summary max tokens',
+  'settings.compaction.maxTokensHint': 'Upper bound for generated summary length.',
+  'settings.compaction.summaryTimeout': 'Semantic summary timeout (sec)',
+  'settings.compaction.summaryTimeoutAria': 'semantic summary timeout',
+  'settings.compaction.summaryTimeoutHint': 'Abort semantic summary generation after this timeout and fall back to preview compaction.',
+  'settings.compaction.threshold': 'Compaction threshold (%)',
+  'settings.compaction.thresholdAria': 'compaction threshold',
+  'settings.compaction.thresholdHint': 'auto-compact when context exceeds this % of window',
+  'settings.compaction.timeout': 'Compaction timeout (sec)',
+  'settings.compaction.timeoutAria': 'compaction timeout',
+  'settings.compaction.timeoutHint': 'Abort a stuck pre-prompt/manual compaction instead of hanging forever.',
+  'settings.compaction.backoffBase': 'Failure backoff base (min)',
+  'settings.compaction.backoffBaseAria': 'compaction backoff base',
+  'settings.compaction.backoffBaseHint': 'First suppression window after a compaction failure.',
+  'settings.compaction.backoffMax': 'Failure backoff max (min)',
+  'settings.compaction.backoffMaxAria': 'compaction backoff max',
+  'settings.compaction.backoffMaxHint': 'Upper bound for exponential suppression after repeated failures.',
+  'settings.compaction.decayFactor': 'Backoff decay factor',
+  'settings.compaction.decayFactorAria': 'backoff decay factor',
+  'settings.compaction.decayFactorHint': '% — halves backoff after each successful compaction',
+  'settings.compaction.watchdogHeading': 'Stall watchdog',
+  'settings.compaction.enableWatchdog': 'Enable watchdog',
+  'settings.compaction.enableWatchdogHint': 'Disabled by default. When enabled, a helper process terminates the runtime if an active phase stops heartbeating.',
+  'settings.compaction.watchdogTimeout': 'Watchdog timeout (sec)',
+  'settings.compaction.watchdogTimeoutAria': 'watchdog timeout',
+  'settings.compaction.watchdogTimeoutHint': 'How long an active phase can go without a heartbeat before the watchdog kills the runtime.',
+  'settings.compaction.suppressionsHeading': 'Active compaction suppressions',
+  'settings.compaction.noBackoff': 'No chats are currently under compaction backoff.',
+  'settings.compaction.clear': 'Clear',
+  'settings.compaction.phasesHeading': 'Live watchdog phases',
+  'settings.compaction.noPhases': 'No active tracked phases right now.',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -1705,6 +1799,53 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.tasks.resumedToast': '计划任务 {id} 已恢复。',
   'settings.tasks.actionFailed': '执行 {action} 任务失败。',
   'settings.tasks.loadFailed': '加载计划任务失败。',
+  'settings.compaction.appliedNotice': '压缩设置已应用。现有回合保留其当前计时器；新回合使用更新后的值。',
+  'settings.compaction.saving': '正在保存压缩设置…',
+  'settings.compaction.saveFailed': '保存压缩设置失败。',
+  'settings.compaction.saved': '压缩设置已保存。',
+  'settings.compaction.clearing': '正在清除 {chat} 的压缩抑制…',
+  'settings.compaction.clearFailed': '清除压缩抑制失败。',
+  'settings.compaction.cleared': '已清除 {chat} 的压缩抑制。',
+  'settings.compaction.autoHeading': '自动压缩',
+  'settings.compaction.enableToolResult': '启用工具结果压缩',
+  'settings.compaction.enableToolResultHint': '禁用时，大型工具结果保持内联，不会外部化为可搜索的工具输出句柄。',
+  'settings.compaction.semanticSummaries': '压缩工具结果的语义摘要',
+  'settings.compaction.semanticSummariesHint': '启用时，压缩输出包含使用活动模型生成的语义摘要（失败时回退到预览）。',
+  'settings.compaction.inputLimit': '语义摘要输入限制（字符）',
+  'settings.compaction.inputLimitAria': '语义摘要输入限制',
+  'settings.compaction.inputLimitHint': '用于语义摘要的完整工具输出采样的最大字符数。',
+  'settings.compaction.maxTokens': '语义摘要输出最大令牌数',
+  'settings.compaction.maxTokensAria': '语义摘要最大令牌数',
+  'settings.compaction.maxTokensHint': '生成摘要长度的上限。',
+  'settings.compaction.summaryTimeout': '语义摘要超时（秒）',
+  'settings.compaction.summaryTimeoutAria': '语义摘要超时',
+  'settings.compaction.summaryTimeoutHint': '在此超时后中止语义摘要生成并回退到预览压缩。',
+  'settings.compaction.threshold': '压缩阈值（%）',
+  'settings.compaction.thresholdAria': '压缩阈值',
+  'settings.compaction.thresholdHint': '当上下文超过窗口的此百分比时自动压缩',
+  'settings.compaction.timeout': '压缩超时（秒）',
+  'settings.compaction.timeoutAria': '压缩超时',
+  'settings.compaction.timeoutHint': '中止卡住的预提示/手动压缩，而不是永远挂起。',
+  'settings.compaction.backoffBase': '失败退避基数（分钟）',
+  'settings.compaction.backoffBaseAria': '压缩退避基数',
+  'settings.compaction.backoffBaseHint': '压缩失败后的首个抑制窗口。',
+  'settings.compaction.backoffMax': '失败退避最大值（分钟）',
+  'settings.compaction.backoffMaxAria': '压缩退避最大值',
+  'settings.compaction.backoffMaxHint': '重复失败后指数抑制的上限。',
+  'settings.compaction.decayFactor': '退避衰减系数',
+  'settings.compaction.decayFactorAria': '退避衰减系数',
+  'settings.compaction.decayFactorHint': '% — 每次成功压缩后退避减半',
+  'settings.compaction.watchdogHeading': '停滞监视器',
+  'settings.compaction.enableWatchdog': '启用监视器',
+  'settings.compaction.enableWatchdogHint': '默认禁用。启用时，如果活动阶段停止心跳，辅助进程将终止运行时。',
+  'settings.compaction.watchdogTimeout': '监视器超时（秒）',
+  'settings.compaction.watchdogTimeoutAria': '监视器超时',
+  'settings.compaction.watchdogTimeoutHint': '活动阶段在监视器终止运行时之前可以无心跳持续多长时间。',
+  'settings.compaction.suppressionsHeading': '活动压缩抑制',
+  'settings.compaction.noBackoff': '当前没有聊天处于压缩退避状态。',
+  'settings.compaction.clear': '清除',
+  'settings.compaction.phasesHeading': '实时监视器阶段',
+  'settings.compaction.noPhases': '目前没有活动的跟踪阶段。',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -2266,6 +2407,53 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.tasks.resumedToast': 'スケジュールタスク {id} を再開しました。',
   'settings.tasks.actionFailed': '{action} タスクに失敗しました。',
   'settings.tasks.loadFailed': 'スケジュールタスクの読み込みに失敗しました。',
+  'settings.compaction.appliedNotice': '圧縮設定が適用されました。既存のターンは現在のタイマーを保持し、新しいターンは更新された値を使用します。',
+  'settings.compaction.saving': '圧縮設定を保存中…',
+  'settings.compaction.saveFailed': '圧縮設定の保存に失敗しました。',
+  'settings.compaction.saved': '圧縮設定を保存しました。',
+  'settings.compaction.clearing': '{chat} の圧縮抑制をクリア中…',
+  'settings.compaction.clearFailed': '圧縮抑制のクリアに失敗しました。',
+  'settings.compaction.cleared': '{chat} の圧縮抑制をクリアしました。',
+  'settings.compaction.autoHeading': '自動圧縮',
+  'settings.compaction.enableToolResult': 'ツール結果の圧縮を有効化',
+  'settings.compaction.enableToolResultHint': '無効にすると、大きなツール結果はインラインのまま残り、検索可能なツール出力ハンドルに外部化されません。',
+  'settings.compaction.semanticSummaries': '圧縮されたツール結果のセマンティック要約',
+  'settings.compaction.semanticSummariesHint': '有効にすると、圧縮された出力にアクティブモデルで生成されたセマンティック要約が含まれます（失敗時はプレビューにフォールバック）。',
+  'settings.compaction.inputLimit': 'セマンティック要約の入力上限（文字）',
+  'settings.compaction.inputLimitAria': 'セマンティック要約の入力上限',
+  'settings.compaction.inputLimitHint': 'セマンティック要約のために完全なツール出力からサンプリングする最大文字数。',
+  'settings.compaction.maxTokens': 'セマンティック要約の出力最大トークン数',
+  'settings.compaction.maxTokensAria': 'セマンティック要約の最大トークン数',
+  'settings.compaction.maxTokensHint': '生成される要約の長さの上限。',
+  'settings.compaction.summaryTimeout': 'セマンティック要約のタイムアウト（秒）',
+  'settings.compaction.summaryTimeoutAria': 'セマンティック要約のタイムアウト',
+  'settings.compaction.summaryTimeoutHint': 'このタイムアウト後にセマンティック要約の生成を中止し、プレビュー圧縮にフォールバックします。',
+  'settings.compaction.threshold': '圧縮しきい値（%）',
+  'settings.compaction.thresholdAria': '圧縮しきい値',
+  'settings.compaction.thresholdHint': 'コンテキストがウィンドウのこの％を超えたら自動圧縮',
+  'settings.compaction.timeout': '圧縮タイムアウト（秒）',
+  'settings.compaction.timeoutAria': '圧縮タイムアウト',
+  'settings.compaction.timeoutHint': 'スタックした事前プロンプト/手動圧縮を中止し、永久にハングしないようにします。',
+  'settings.compaction.backoffBase': '失敗バックオフ基準（分）',
+  'settings.compaction.backoffBaseAria': '圧縮バックオフ基準',
+  'settings.compaction.backoffBaseHint': '圧縮失敗後の最初の抑制ウィンドウ。',
+  'settings.compaction.backoffMax': '失敗バックオフ最大（分）',
+  'settings.compaction.backoffMaxAria': '圧縮バックオフ最大',
+  'settings.compaction.backoffMaxHint': '繰り返し失敗した後の指数的抑制の上限。',
+  'settings.compaction.decayFactor': 'バックオフ減衰係数',
+  'settings.compaction.decayFactorAria': 'バックオフ減衰係数',
+  'settings.compaction.decayFactorHint': '% — 圧縮が成功するたびにバックオフを半減',
+  'settings.compaction.watchdogHeading': 'ストール監視',
+  'settings.compaction.enableWatchdog': '監視を有効化',
+  'settings.compaction.enableWatchdogHint': 'デフォルトで無効。有効にすると、アクティブフェーズがハートビートを停止した場合、ヘルパープロセスがランタイムを終了します。',
+  'settings.compaction.watchdogTimeout': '監視タイムアウト（秒）',
+  'settings.compaction.watchdogTimeoutAria': '監視タイムアウト',
+  'settings.compaction.watchdogTimeoutHint': '監視がランタイムを強制終了するまでに、アクティブフェーズがハートビートなしで継続できる時間。',
+  'settings.compaction.suppressionsHeading': 'アクティブな圧縮抑制',
+  'settings.compaction.noBackoff': '現在、圧縮バックオフ中のチャットはありません。',
+  'settings.compaction.clear': 'クリア',
+  'settings.compaction.phasesHeading': 'ライブ監視フェーズ',
+  'settings.compaction.noPhases': '現在、追跡中のアクティブなフェーズはありません。',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
