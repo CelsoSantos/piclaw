@@ -42,11 +42,11 @@ import {
   getAutoCompactionTokenStatusForSession,
   getCompactionContextReport,
   isCompactionCancellationError,
+  maybeAutoCompactSessionAfterTurn,
   maybeAutoCompactSessionBeforePrompt,
   noteCompactionFailure,
   noteCompactionSuccess,
   runCompactionWithTimeout,
-  scheduleIdleAutoCompaction,
 } from "./compaction.js";
 import { buildPiclawCompactionEventFields, type PiclawCompactionTriggerMetadata } from "./compaction-trigger-context.js";
 import {
@@ -1956,8 +1956,16 @@ export async function runAgentPrompt(
       }
     });
 
-    if (runOptions.scheduleIdleAutoCompaction && runResult.status === "success") {
-      scheduleIdleAutoCompaction(session, chatJid, options, runOptions.onEvent);
+    if (runOptions.scheduleIdleAutoCompaction && (runResult.status === "success" || runResult.status === "tool_complete")) {
+      await maybeAutoCompactSessionAfterTurn(session, chatJid, options, (event) => {
+        const eventAny = event as { type?: string };
+        if (eventAny.type === "compaction_start") {
+          heartbeatTrackedPhase(chatJid, "preprompt_compaction", { eventType: "post_turn_compaction_start" });
+        } else if (eventAny.type === "compaction_end") {
+          heartbeatTrackedPhase(chatJid, "prompt", { eventType: "post_turn_compaction_end" });
+        }
+        runOptions.onEvent?.(event);
+      });
     }
 
     return runResult;

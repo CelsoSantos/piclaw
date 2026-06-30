@@ -1075,6 +1075,16 @@ export function scheduleIdleAutoCompaction(
   idleAutoCompactionTimers.set(chatJid, timer);
 }
 
+export async function maybeAutoCompactSessionAfterTurn(
+  session: AgentSession,
+  chatJid: string,
+  options: Pick<CompactionLifecycleOptions, "onInfo" | "onWarn">,
+  onEvent?: (event: AgentSessionEvent) => void,
+): Promise<void> {
+  cancelScheduledIdleAutoCompaction(chatJid);
+  await maybeAutoCompactSession(session, chatJid, options, onEvent, "idle");
+}
+
 export async function maybeAutoCompactSessionBeforePrompt(
   session: AgentSession,
   chatJid: string,

@@ -1205,9 +1205,9 @@ test("runAgentPrompt clears compaction backoff after a successful compaction", a
   }
 });
 
-test("runAgentPrompt schedules idle auto-compaction after a successful turn when enabled", async () => {
+test("runAgentPrompt runs idle auto-compaction before returning after a successful turn when enabled", async () => {
   const restoreEnv = setEnv({
-    PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "5",
+    PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "5000",
   });
   const chatJid = `web:idle-compact-${Date.now()}`;
 
@@ -1267,10 +1267,6 @@ test("runAgentPrompt schedules idle auto-compaction after a successful turn when
     });
 
     expect(result.status).toBe("success");
-    expect(session.calls).toEqual(["prompt"]);
-
-    await Bun.sleep(30);
-
     expect(session.calls).toEqual(["prompt", "compact"]);
     expect(events).toEqual([
       { type: "compaction_start", reason: "idle" },
@@ -1281,11 +1277,11 @@ test("runAgentPrompt schedules idle auto-compaction after a successful turn when
   }
 });
 
-test("runAgentPrompt cancels an older idle auto-compaction when a new turn starts", async () => {
+test("runAgentPrompt runs post-turn idle auto-compaction after each successful turn that still exceeds the threshold", async () => {
   const restoreEnv = setEnv({
-    PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "40",
+    PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "5000",
   });
-  const chatJid = `web:idle-cancel-${Date.now()}`;
+  const chatJid = `web:idle-repeat-${Date.now()}`;
 
   class StubSession {
     promptCalls = 0;
@@ -1345,11 +1341,8 @@ test("runAgentPrompt cancels an older idle auto-compaction when a new turn start
 
     expect(first.status).toBe("success");
     expect(second.status).toBe("success");
-
-    await Bun.sleep(80);
-
     expect(session.promptCalls).toBe(2);
-    expect(session.compactCalls).toBe(1);
+    expect(session.compactCalls).toBe(2);
   } finally {
     restoreEnv();
   }
