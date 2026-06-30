@@ -536,6 +536,53 @@ type MessageKey =
   | 'settings.keychain.copyUsername'
   | 'settings.keychain.secret'
   | 'settings.keychain.copySecret'
+  | 'settings.tasks.internalProtected'
+  | 'settings.tasks.noRunLogs'
+  | 'settings.tasks.noSummary'
+  | 'settings.tasks.selectPrompt'
+  | 'settings.tasks.pause'
+  | 'settings.tasks.resume'
+  | 'settings.tasks.delete'
+  | 'settings.tasks.status'
+  | 'settings.tasks.kind'
+  | 'settings.tasks.schedule'
+  | 'settings.tasks.nextRun'
+  | 'settings.tasks.lastRun'
+  | 'settings.tasks.lastResult'
+  | 'settings.tasks.chat'
+  | 'settings.tasks.model'
+  | 'settings.tasks.cwd'
+  | 'settings.tasks.timeout'
+  | 'settings.tasks.protection'
+  | 'settings.tasks.protectionHint'
+  | 'settings.tasks.command'
+  | 'settings.tasks.prompt'
+  | 'settings.tasks.recentRuns'
+  | 'settings.tasks.activeLabel'
+  | 'settings.tasks.pausedLabel'
+  | 'settings.tasks.completedLabel'
+  | 'settings.tasks.allStatuses'
+  | 'settings.tasks.filterChatPlaceholder'
+  | 'settings.tasks.refresh'
+  | 'settings.tasks.loading'
+  | 'settings.tasks.noneFound'
+  | 'settings.tasks.noneFoundHint'
+  | 'settings.tasks.listLabel'
+  | 'settings.tasks.next'
+  | 'settings.tasks.last'
+  | 'settings.tasks.noMatch'
+  | 'settings.tasks.confirmDelete'
+  | 'settings.tasks.confirmPause'
+  | 'settings.tasks.confirmResume'
+  | 'settings.tasks.confirmProtected'
+  | 'settings.tasks.deleting'
+  | 'settings.tasks.pausing'
+  | 'settings.tasks.resuming'
+  | 'settings.tasks.deletedToast'
+  | 'settings.tasks.pausedToast'
+  | 'settings.tasks.resumedToast'
+  | 'settings.tasks.actionFailed'
+  | 'settings.tasks.loadFailed'
   // Timeline / workspace hamburger menu (first localized v1 surface).
   | 'menu.title'
   | 'menu.showWorkspace'
@@ -1050,6 +1097,53 @@ const EN: Record<MessageKey, string> = {
   'settings.keychain.copyUsername': 'Copy username',
   'settings.keychain.secret': 'Secret',
   'settings.keychain.copySecret': 'Copy secret',
+  'settings.tasks.internalProtected': 'internal/protected',
+  'settings.tasks.noRunLogs': 'No run logs recorded yet.',
+  'settings.tasks.noSummary': 'No summary',
+  'settings.tasks.selectPrompt': 'Select a task to inspect schedule, status, and run history.',
+  'settings.tasks.pause': 'Pause',
+  'settings.tasks.resume': 'Resume',
+  'settings.tasks.delete': 'Delete',
+  'settings.tasks.status': 'Status',
+  'settings.tasks.kind': 'Kind',
+  'settings.tasks.schedule': 'Schedule',
+  'settings.tasks.nextRun': 'Next run',
+  'settings.tasks.lastRun': 'Last run',
+  'settings.tasks.lastResult': 'Last result',
+  'settings.tasks.chat': 'Chat',
+  'settings.tasks.model': 'Model',
+  'settings.tasks.cwd': 'CWD',
+  'settings.tasks.timeout': 'Timeout',
+  'settings.tasks.protection': 'Protection',
+  'settings.tasks.protectionHint': 'Internal task actions require explicit confirmation.',
+  'settings.tasks.command': 'Command',
+  'settings.tasks.prompt': 'Prompt',
+  'settings.tasks.recentRuns': 'Recent runs',
+  'settings.tasks.activeLabel': 'Active',
+  'settings.tasks.pausedLabel': 'Paused',
+  'settings.tasks.completedLabel': 'Completed',
+  'settings.tasks.allStatuses': 'All statuses',
+  'settings.tasks.filterChatPlaceholder': 'Filter chat JID…',
+  'settings.tasks.refresh': 'Refresh',
+  'settings.tasks.loading': 'Loading scheduled tasks…',
+  'settings.tasks.noneFound': 'No scheduled tasks found.',
+  'settings.tasks.noneFoundHint': 'Tasks created with reminders, `/tasks`, or the scheduler tool will appear here.',
+  'settings.tasks.listLabel': 'Scheduled tasks',
+  'settings.tasks.next': 'Next',
+  'settings.tasks.last': 'Last',
+  'settings.tasks.noMatch': 'No tasks match “{filter}”.',
+  'settings.tasks.confirmDelete': 'Delete scheduled task {id}?',
+  'settings.tasks.confirmPause': 'Pause scheduled task {id}?',
+  'settings.tasks.confirmResume': 'Resume scheduled task {id}?',
+  'settings.tasks.confirmProtected': 'Task {id} is internal/protected. Continue with {action}?',
+  'settings.tasks.deleting': 'Deleting {id}…',
+  'settings.tasks.pausing': 'Pausing {id}…',
+  'settings.tasks.resuming': 'Resuming {id}…',
+  'settings.tasks.deletedToast': 'Scheduled task {id} deleted.',
+  'settings.tasks.pausedToast': 'Scheduled task {id} paused.',
+  'settings.tasks.resumedToast': 'Scheduled task {id} resumed.',
+  'settings.tasks.actionFailed': 'Failed to {action} task.',
+  'settings.tasks.loadFailed': 'Failed to load scheduled tasks.',
   'menu.title': 'Menu',
   'menu.showWorkspace': 'Show workspace',
   'menu.hideWorkspace': 'Hide workspace',
@@ -1564,6 +1658,53 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.keychain.copyUsername': '复制用户名',
   'settings.keychain.secret': '密钥',
   'settings.keychain.copySecret': '复制密钥',
+  'settings.tasks.internalProtected': '内部/受保护',
+  'settings.tasks.noRunLogs': '尚未记录运行日志。',
+  'settings.tasks.noSummary': '无摘要',
+  'settings.tasks.selectPrompt': '选择一个任务以查看计划、状态和运行历史。',
+  'settings.tasks.pause': '暂停',
+  'settings.tasks.resume': '恢复',
+  'settings.tasks.delete': '删除',
+  'settings.tasks.status': '状态',
+  'settings.tasks.kind': '类型',
+  'settings.tasks.schedule': '计划',
+  'settings.tasks.nextRun': '下次运行',
+  'settings.tasks.lastRun': '上次运行',
+  'settings.tasks.lastResult': '上次结果',
+  'settings.tasks.chat': '聊天',
+  'settings.tasks.model': '模型',
+  'settings.tasks.cwd': '工作目录',
+  'settings.tasks.timeout': '超时',
+  'settings.tasks.protection': '保护',
+  'settings.tasks.protectionHint': '内部任务操作需要明确确认。',
+  'settings.tasks.command': '命令',
+  'settings.tasks.prompt': '提示',
+  'settings.tasks.recentRuns': '最近运行',
+  'settings.tasks.activeLabel': '活动',
+  'settings.tasks.pausedLabel': '已暂停',
+  'settings.tasks.completedLabel': '已完成',
+  'settings.tasks.allStatuses': '所有状态',
+  'settings.tasks.filterChatPlaceholder': '筛选聊天 JID…',
+  'settings.tasks.refresh': '刷新',
+  'settings.tasks.loading': '正在加载计划任务…',
+  'settings.tasks.noneFound': '未找到计划任务。',
+  'settings.tasks.noneFoundHint': '通过提醒、`/tasks` 或调度工具创建的任务将显示在此处。',
+  'settings.tasks.listLabel': '计划任务',
+  'settings.tasks.next': '下次',
+  'settings.tasks.last': '上次',
+  'settings.tasks.noMatch': '没有任务匹配 “{filter}”。',
+  'settings.tasks.confirmDelete': '删除计划任务 {id}？',
+  'settings.tasks.confirmPause': '暂停计划任务 {id}？',
+  'settings.tasks.confirmResume': '恢复计划任务 {id}？',
+  'settings.tasks.confirmProtected': '任务 {id} 是内部/受保护的。继续执行 {action}？',
+  'settings.tasks.deleting': '正在删除 {id}…',
+  'settings.tasks.pausing': '正在暂停 {id}…',
+  'settings.tasks.resuming': '正在恢复 {id}…',
+  'settings.tasks.deletedToast': '计划任务 {id} 已删除。',
+  'settings.tasks.pausedToast': '计划任务 {id} 已暂停。',
+  'settings.tasks.resumedToast': '计划任务 {id} 已恢复。',
+  'settings.tasks.actionFailed': '执行 {action} 任务失败。',
+  'settings.tasks.loadFailed': '加载计划任务失败。',
   'menu.title': '菜单',
   'menu.showWorkspace': '显示工作区',
   'menu.hideWorkspace': '隐藏工作区',
@@ -2078,6 +2219,53 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.keychain.copyUsername': 'ユーザー名をコピー',
   'settings.keychain.secret': 'シークレット',
   'settings.keychain.copySecret': 'シークレットをコピー',
+  'settings.tasks.internalProtected': '内部/保護済み',
+  'settings.tasks.noRunLogs': 'まだ実行ログが記録されていません。',
+  'settings.tasks.noSummary': '概要なし',
+  'settings.tasks.selectPrompt': 'タスクを選択してスケジュール、ステータス、実行履歴を確認します。',
+  'settings.tasks.pause': '一時停止',
+  'settings.tasks.resume': '再開',
+  'settings.tasks.delete': '削除',
+  'settings.tasks.status': 'ステータス',
+  'settings.tasks.kind': '種類',
+  'settings.tasks.schedule': 'スケジュール',
+  'settings.tasks.nextRun': '次回実行',
+  'settings.tasks.lastRun': '前回実行',
+  'settings.tasks.lastResult': '前回の結果',
+  'settings.tasks.chat': 'チャット',
+  'settings.tasks.model': 'モデル',
+  'settings.tasks.cwd': '作業ディレクトリ',
+  'settings.tasks.timeout': 'タイムアウト',
+  'settings.tasks.protection': '保護',
+  'settings.tasks.protectionHint': '内部タスクの操作には明示的な確認が必要です。',
+  'settings.tasks.command': 'コマンド',
+  'settings.tasks.prompt': 'プロンプト',
+  'settings.tasks.recentRuns': '最近の実行',
+  'settings.tasks.activeLabel': 'アクティブ',
+  'settings.tasks.pausedLabel': '一時停止',
+  'settings.tasks.completedLabel': '完了',
+  'settings.tasks.allStatuses': 'すべてのステータス',
+  'settings.tasks.filterChatPlaceholder': 'チャット JID をフィルター…',
+  'settings.tasks.refresh': '更新',
+  'settings.tasks.loading': 'スケジュールタスクを読み込み中…',
+  'settings.tasks.noneFound': 'スケジュールされたタスクが見つかりません。',
+  'settings.tasks.noneFoundHint': 'リマインダー、`/tasks`、またはスケジューラツールで作成されたタスクがここに表示されます。',
+  'settings.tasks.listLabel': 'スケジュールされたタスク',
+  'settings.tasks.next': '次回',
+  'settings.tasks.last': '前回',
+  'settings.tasks.noMatch': '「{filter}」に一致するタスクはありません。',
+  'settings.tasks.confirmDelete': 'スケジュールタスク {id} を削除しますか？',
+  'settings.tasks.confirmPause': 'スケジュールタスク {id} を一時停止しますか？',
+  'settings.tasks.confirmResume': 'スケジュールタスク {id} を再開しますか？',
+  'settings.tasks.confirmProtected': 'タスク {id} は内部/保護済みです。{action} を続行しますか？',
+  'settings.tasks.deleting': '{id} を削除中…',
+  'settings.tasks.pausing': '{id} を一時停止中…',
+  'settings.tasks.resuming': '{id} を再開中…',
+  'settings.tasks.deletedToast': 'スケジュールタスク {id} を削除しました。',
+  'settings.tasks.pausedToast': 'スケジュールタスク {id} を一時停止しました。',
+  'settings.tasks.resumedToast': 'スケジュールタスク {id} を再開しました。',
+  'settings.tasks.actionFailed': '{action} タスクに失敗しました。',
+  'settings.tasks.loadFailed': 'スケジュールタスクの読み込みに失敗しました。',
   'menu.title': 'メニュー',
   'menu.showWorkspace': 'ワークスペースを表示',
   'menu.hideWorkspace': 'ワークスペースを非表示',
