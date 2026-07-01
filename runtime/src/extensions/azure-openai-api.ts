@@ -12,6 +12,7 @@ import {
   processResponsesStream as upstreamProcessResponsesStream,
   type OpenAIResponsesStreamOptions,
 } from "@earendil-works/pi-ai/api/openai-responses-shared";
+import { estimateAzureRequestTokens } from "../utils/azure-tool-call-limit.js";
 
 type AsyncIterableLike<T> = AsyncIterable<T> | Iterable<T>;
 
@@ -218,6 +219,10 @@ export interface AzureBaseOptionsInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface AzureBaseContextInput {
+  messages?: unknown[];
+}
+
 /** Output contract returned by buildBaseOptions(). */
 export interface AzureBaseOptions {
   temperature?: number;
@@ -232,18 +237,38 @@ export interface AzureBaseOptions {
   metadata?: Record<string, unknown>;
 }
 
+const CONTEXT_SAFETY_TOKENS = 4096;
+const MIN_MAX_TOKENS = 1;
+
+/** Clamp output tokens to the remaining context window, mirroring pi-ai 0.80.3. */
+export function clampAzureMaxTokensToContext(
+  model: { contextWindow?: number },
+  context: AzureBaseContextInput | undefined,
+  maxTokens: number,
+): number {
+  const normalizedMax = Math.max(MIN_MAX_TOKENS, Math.floor(maxTokens));
+  const contextWindow = Number(model.contextWindow);
+  if (!Number.isFinite(contextWindow) || contextWindow <= 0) return normalizedMax;
+
+  const estimatedInputTokens = estimateAzureRequestTokens(context?.messages || []);
+  const available = Math.floor(contextWindow - estimatedInputTokens - CONTEXT_SAFETY_TOKENS);
+  return Math.min(normalizedMax, Math.max(MIN_MAX_TOKENS, available));
+}
+
 /**
  * Build base stream options for simple stream wrappers.
  * Mirrors pi-ai's simple-options behavior without requiring extension-side deep imports.
  */
 export function buildBaseOptions(
-  model: { maxTokens: number },
+  model: { maxTokens: number; contextWindow?: number },
+  context: AzureBaseContextInput | undefined,
   options: AzureBaseOptionsInput | undefined,
-  apiKey: string | undefined
+  apiKey: string | undefined,
 ): AzureBaseOptions {
+  const requestedMaxTokens = options?.maxTokens ?? Math.min(model.maxTokens, 32000);
   return {
     temperature: options?.temperature,
-    maxTokens: options?.maxTokens || Math.min(model.maxTokens, 32000),
+    maxTokens: clampAzureMaxTokensToContext(model, context, requestedMaxTokens),
     signal: options?.signal,
     apiKey: apiKey || options?.apiKey,
     cacheRetention: options?.cacheRetention,

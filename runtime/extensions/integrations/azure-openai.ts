@@ -232,6 +232,24 @@ export function resolveAzureRetryDelayMs(options: { attempt: number; error: unkn
   return Math.max(2000, (options.attempt + 1) * 2000);
 }
 
+export function parseAzureDeploymentNameMap(value?: string): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!value) return map;
+  for (const entry of value.split(",")) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    const [modelId, deploymentName] = trimmed.split("=", 2).map((part) => part?.trim());
+    if (!modelId || !deploymentName) continue;
+    map.set(modelId, deploymentName);
+  }
+  return map;
+}
+
+export function resolveAzureDeploymentName(modelId: string, mapValue?: string): string {
+  const effectiveMap = mapValue ?? process.env.AOAI_DEPLOYMENT_NAME_MAP ?? process.env.AZURE_OPENAI_DEPLOYMENT_NAME_MAP ?? "";
+  return parseAzureDeploymentNameMap(effectiveMap).get(modelId) || modelId;
+}
+
 /**
  * Derive a context-window-based replay budget for Azure models.
  *
@@ -731,6 +749,37 @@ function logStreamFailureEvent(event: any, requestSummary?: Record<string, unkno
   }
 }
 
+function getAzureErrorPayload(error: unknown): any {
+  const err = error as { response?: any; error?: any } | null | undefined;
+  return err?.response?.data?.error
+    || err?.response?.data
+    || err?.error?.error
+    || err?.error
+    || null;
+}
+
+export function formatAzureOpenAIError(error: unknown): string {
+  if (error instanceof Error && error.message.startsWith("Azure request failed:")) {
+    return error.message;
+  }
+
+  const err = error as { message?: string; status?: number; code?: string; type?: string; response?: any } | null | undefined;
+  const payload = getAzureErrorPayload(error);
+  const status = err?.status ?? err?.response?.status ?? payload?.status ?? payload?.statusCode;
+  const code = payload?.code ?? err?.code;
+  const type = payload?.type ?? err?.type;
+  const message = payload?.message
+    ?? payload?.error_description
+    ?? payload?.error
+    ?? err?.message
+    ?? String(error);
+
+  const statusPart = typeof status === "number" && Number.isFinite(status) ? ` (${status})` : "";
+  const meta = [code, type].filter(Boolean).join("/");
+  const metaPart = meta ? ` [${meta}]` : "";
+  return `Azure OpenAI API error${statusPart}${metaPart}: ${message}`;
+}
+
 function logAzureError(modelId: string, error: unknown, requestSummary?: Record<string, unknown>, loggedRef?: { logged: boolean }): void {
   const err = error as { name?: string; message?: string; status?: number; code?: string; type?: string; response?: any; error?: any };
   const details = {
@@ -741,6 +790,7 @@ function logAzureError(modelId: string, error: unknown, requestSummary?: Record<
     type: err?.type,
     response: err?.response?.data,
     error: err?.error,
+    formatted: formatAzureOpenAIError(error),
   };
   console.error(`[azure-openai] Error for ${modelId}:`, JSON.stringify(details));
   if (requestSummary && loggedRef && !loggedRef.logged) {
@@ -1160,8 +1210,10 @@ function streamAzureOpenAIResponses(model: any, context: any, options: any) {
       // and trimming decisions have been applied. Everything above this point
       // mutates the reconstructed history; everything below this point should
       // treat `messages` as the request we intend to send.
+      const deploymentName = resolveAzureDeploymentName(model.id);
+      if (requestSummary) requestSummary.deploymentName = deploymentName;
       const params: Record<string, any> = {
-        model: model.id,
+        model: deploymentName,
         input: messages,
         stream: true,
         store: false,
@@ -1385,8 +1437,7 @@ function streamAzureOpenAIResponses(model: any, context: any, options: any) {
       for (const block of output.content) delete (block as any).index;
       output.stopReason = options?.signal?.aborted ? "aborted" : "error";
       // Prefer the stream-level error detail over the generic thrown message.
-      const rawMsg = error instanceof Error ? error.message : JSON.stringify(error);
-      output.errorMessage = streamErrorDetail || rawMsg;
+      output.errorMessage = streamErrorDetail || formatAzureOpenAIError(error);
       stream.push({ type: "error", reason: output.stopReason, error: output });
       stream.end();
     }
@@ -1398,7 +1449,7 @@ function streamAzureOpenAIResponses(model: any, context: any, options: any) {
 // Thin adapter that converts pi-ai simple-stream options into the richer Azure
 // Responses wrapper above. Keep policy in streamAzureOpenAIResponses, not here.
 function streamSimpleAzureOpenAIResponses(model: any, context: any, options: any) {
-  const base = buildBaseOptions(model, options, options?.apiKey);
+  const base = buildBaseOptions(model, context, options, options?.apiKey);
   const reasoningEffort = getSupportedThinkingLevels(model).includes("xhigh") ? options?.reasoning : clampReasoning(options?.reasoning);
 
   return streamAzureOpenAIResponses(model, context, {
