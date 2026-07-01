@@ -137,13 +137,15 @@ export function formatAgentTokenStats(usage) {
     if (!usage || typeof usage !== 'object') return null;
     const input = readUsageNumber(usage, 'input_tokens');
     const output = readUsageNumber(usage, 'output_tokens');
+    const reasoning = readUsageNumber(usage, 'reasoning_tokens');
     const cacheRead = readUsageNumber(usage, 'cache_read_tokens');
     const cacheWrite = readUsageNumber(usage, 'cache_write_tokens');
     const total = readUsageNumber(usage, 'total_tokens') || input + output + cacheRead + cacheWrite;
-    if (!total && !input && !output && !cacheRead && !cacheWrite) return null;
+    if (!total && !input && !output && !reasoning && !cacheRead && !cacheWrite) return null;
     const parts = [`${formatCount(total)} total`];
     if (input) parts.push(`${formatCount(input)} in`);
     if (output) parts.push(`${formatCount(output)} out`);
+    if (reasoning) parts.push(`${formatCount(reasoning)} reasoning`);
     const cache = cacheRead + cacheWrite;
     if (cache) parts.push(`${formatCount(cache)} cache`);
     return `Tokens ${parts.join(' · ')}`;

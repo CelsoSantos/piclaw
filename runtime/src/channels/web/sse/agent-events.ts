@@ -628,9 +628,11 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
       const retrySuffix = `retrying (attempt ${e.attempt ?? "?"}/${e.maxAttempts ?? "?"}, ${delaySec}s delay)`;
       const title = isRateLimit
         ? `${describeRateLimit(errorMessage)} — ${retrySuffix}`
-        : isNetwork
-          ? `${providerError?.title || describeNetworkError(errorMessage)} — ${retrySuffix}`
-          : `Retrying after error (attempt ${e.attempt ?? "?"}/${e.maxAttempts ?? "?"}, ${delaySec}s delay)`;
+        : providerError
+          ? `${providerError.title} — ${retrySuffix}`
+          : isNetwork
+            ? `${describeNetworkError(errorMessage)} — ${retrySuffix}`
+            : `Retrying after error (attempt ${e.attempt ?? "?"}/${e.maxAttempts ?? "?"}, ${delaySec}s delay)`;
       const detail = providerError?.detail || sanitizeProviderErrorDetail(errorMessage);
       options.emitter.status({
         ...base,
@@ -647,9 +649,11 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
         const providerError = formatProviderError(finalError);
         const title = isRateLimitError(finalError)
           ? `${describeRateLimit(finalError)} — retry budget exhausted`
-          : providerError?.category === "network" || isNetworkError(finalError)
-            ? `${providerError?.title || describeNetworkError(finalError)} — retry budget exhausted`
-            : sanitizeProviderErrorDetail(finalError) || finalError;
+          : providerError
+            ? `${providerError.title} — retry budget exhausted`
+            : isNetworkError(finalError)
+              ? `${describeNetworkError(finalError)} — retry budget exhausted`
+              : sanitizeProviderErrorDetail(finalError) || finalError;
         options.emitter.status({
           ...base,
           type: "error",

@@ -29,7 +29,7 @@ import {
 import { getQuickActionsSettingsData, saveQuickActionsSettings } from "../handlers/quick-actions-settings.js";
 import { handleScheduledTasksManagementAction, handleScheduledTasksManagementList } from "../handlers/scheduled-tasks-management.js";
 import { getWorkspaceSettingsData, saveWorkspaceSettings } from "../handlers/workspace-settings.js";
-import { getServerUiState, setServerUiMetersConfig, setServerUiThemeConfig } from "../ui-state.js";
+import { getServerUiState, setServerUiMetersConfig, setServerUiOutputConfig, setServerUiThemeConfig } from "../ui-state.js";
 import {
   clearEnvironmentOverride,
   getEnvironmentSettingsData,
@@ -331,6 +331,15 @@ const EXACT_AGENT_ROUTES: ExactAgentRoute[] = [
         response.ui_meters = nextMeters;
         channel.broadcastEvent("ui_meters", { mode: "set", ...nextMeters });
       }
+      if (body?.ui_output && typeof body.ui_output === "object") {
+        const outputBody = body.ui_output as Record<string, unknown>;
+        const parsedPad = Number(outputBody.outputPad ?? outputBody.output_pad);
+        const nextOutput = setServerUiOutputConfig({
+          ...(Number.isFinite(parsedPad) ? { outputPad: parsedPad } : {}),
+        });
+        response.ui_output = nextOutput;
+        channel.broadcastEvent("ui_theme", { outputPad: nextOutput.outputPad });
+      }
       return channel.json(response, 200);
     },
   },
@@ -427,7 +436,7 @@ const EXACT_AGENT_ROUTES: ExactAgentRoute[] = [
       try {
         const body = await req.json().catch(() => ({}));
         const saved = await saveGeneralSettings((body && typeof body === "object") ? body as Record<string, unknown> : {});
-        channel.broadcastEvent("ui_theme", { theme: saved.uiTheme, tint: saved.uiTint });
+        channel.broadcastEvent("ui_theme", { theme: saved.uiTheme, tint: saved.uiTint, outputPad: saved.outputPad });
         channel.broadcastEvent("profile_update", buildGeneralSettingsProfileUpdate(saved));
         return channel.json({ ok: true, settings: saved });
       } catch (error) {

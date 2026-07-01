@@ -237,6 +237,8 @@ type MessageKey =
   | 'settings.appearance.tint'
   | 'settings.appearance.clearTint'
   | 'settings.appearance.none'
+  | 'settings.appearance.outputPadding'
+  | 'settings.appearance.outputPaddingHint'
   // Settings slice 2: keyboard, workspace, models, tools.
   | 'settings.keyboard.heading'
   | 'settings.keyboard.hint1'
@@ -849,6 +851,8 @@ const EN: Record<MessageKey, string> = {
   'settings.appearance.tint': 'Tint:',
   'settings.appearance.clearTint': 'Clear tint',
   'settings.appearance.none': 'none',
+  'settings.appearance.outputPadding': 'Output padding',
+  'settings.appearance.outputPaddingHint': 'Extra space around messages and thinking panels.',
   'settings.keyboard.heading': 'Keyboard',
   'settings.keyboard.hint1': 'Customize app-wide shortcuts as comma-separated bindings. Changes apply immediately.',
   'settings.keyboard.hint1b': 'is reserved for dismiss/abort and cannot be rebound.',
@@ -1457,6 +1461,8 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.appearance.tint': '色调：',
   'settings.appearance.clearTint': '清除色调',
   'settings.appearance.none': '无',
+  'settings.appearance.outputPadding': '输出内边距',
+  'settings.appearance.outputPaddingHint': '消息和思考面板周围的额外空间。',
   'settings.keyboard.heading': '键盘',
   'settings.keyboard.hint1': '将应用级快捷键自定义为逗号分隔的绑定。更改立即生效。',
   'settings.keyboard.hint1b': '已保留用于关闭/中止，无法重新绑定。',
@@ -2065,6 +2071,8 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.appearance.tint': '色調：',
   'settings.appearance.clearTint': '色調をクリア',
   'settings.appearance.none': 'なし',
+  'settings.appearance.outputPadding': '出力の余白',
+  'settings.appearance.outputPaddingHint': 'メッセージと思考パネルの周囲に追加する余白です。',
   'settings.keyboard.heading': 'キーボード',
   'settings.keyboard.hint1': 'アプリ全体のショートカットをカンマ区切りのバインディングとしてカスタマイズします。変更はすぐに反映されます。',
   'settings.keyboard.hint1b': 'は閉じる/中止用に予約されており、再割り当てできません。',

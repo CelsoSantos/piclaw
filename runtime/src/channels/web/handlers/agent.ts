@@ -1935,16 +1935,18 @@ export async function processChat(
     };
     const inputTokens = readNumber("input", "inputTokens", "promptTokens");
     const outputTokens = readNumber("output", "outputTokens", "completionTokens");
+    const reasoningTokens = readNumber("reasoning", "reasoningTokens", "reasoning_tokens");
     const cacheReadTokens = readNumber("cacheRead", "cacheReadTokens");
     const cacheWriteTokens = readNumber("cacheWrite", "cacheWriteTokens");
     const explicitTotal = readNumber("totalTokens", "total", "total_tokens");
     const totalTokens = explicitTotal || inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
-    if (!totalTokens && !inputTokens && !outputTokens && !cacheReadTokens && !cacheWriteTokens) return null;
+    if (!totalTokens && !inputTokens && !outputTokens && !reasoningTokens && !cacheReadTokens && !cacheWriteTokens) return null;
     const cost = record.cost && typeof record.cost === "object" ? record.cost as Record<string, unknown> : null;
     const costTotal = cost ? Number(cost.total) : Number(record.costTotal ?? record.cost_total);
     return {
       input_tokens: inputTokens,
       output_tokens: outputTokens,
+      reasoning_tokens: reasoningTokens,
       cache_read_tokens: cacheReadTokens,
       cache_write_tokens: cacheWriteTokens,
       total_tokens: totalTokens,

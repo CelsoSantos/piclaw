@@ -265,7 +265,7 @@
 }
 
 .agent-thinking {
-    padding: var(--chat-surface-padding-y) var(--chat-surface-padding-x);
+    padding: calc(var(--chat-surface-padding-y) + var(--output-pad, 0px)) calc(var(--chat-surface-padding-x) + var(--output-pad, 0px));
     margin: 0;
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);

@@ -495,6 +495,7 @@ function createSchema(database: Database): void {
       run_at TEXT NOT NULL,
       input_tokens INTEGER DEFAULT 0,
       output_tokens INTEGER DEFAULT 0,
+      reasoning_tokens INTEGER DEFAULT 0,
       cache_read_tokens INTEGER DEFAULT 0,
       cache_write_tokens INTEGER DEFAULT 0,
       total_tokens INTEGER DEFAULT 0,
@@ -660,14 +661,21 @@ function ensureKeychainNoteColumns(database: Database): void {
 function ensureTokenUsageColumns(database: Database): void {
   const columns = database.prepare("PRAGMA table_info(token_usage)").all() as Array<{ name: string }>;
   const existing = new Set(columns.map((col) => col.name));
-  if (existing.has("response_model")) return;
-  try {
-    database.exec("ALTER TABLE token_usage ADD COLUMN response_model TEXT");
-  } catch (err) {
-    debugSuppressedError(log, "Token-usage response_model migration raced an already-updated schema state.", err, {
-      operation: "db.ensure_token_usage_columns.add_response_model",
-    });
-  }
+  const ensureColumn = (name: string, type: string) => {
+    if (existing.has(name)) return;
+    try {
+      database.exec(`ALTER TABLE token_usage ADD COLUMN ${name} ${type}`);
+    } catch (err) {
+      debugSuppressedError(log, "Token-usage column migration raced an already-updated schema state.", err, {
+        operation: "db.ensure_token_usage_columns.add_column",
+        name,
+        type,
+      });
+    }
+  };
+
+  ensureColumn("response_model", "TEXT");
+  ensureColumn("reasoning_tokens", "INTEGER DEFAULT 0");
 }
 
 function ensureScheduledTaskColumns(database: Database): void {

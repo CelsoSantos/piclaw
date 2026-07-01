@@ -2940,6 +2940,61 @@ test("runAgentPrompt surfaces provider error instead of returning null result", 
   expect(result.result).toBeNull();
 });
 
+test("runAgentPrompt treats provider length stop as an error with preserved partial draft", async () => {
+  class StubSession {
+    private listeners: Array<(event: any) => void> = [];
+    sessionManager = { getLeafId: () => "leaf-1" };
+    isStreaming = false;
+    isCompacting = false;
+    isRetrying = false;
+    subscribe(listener: (event: any) => void) {
+      this.listeners.push(listener);
+      return () => {
+        this.listeners = this.listeners.filter((entry) => entry !== listener);
+      };
+    }
+    async prompt() {
+      for (const listener of this.listeners) {
+        listener({
+          type: "message_update",
+          assistantMessageEvent: {
+            type: "text_delta",
+            delta: "partial answer",
+            contentIndex: 0,
+            partial: { content: [{ type: "text" }] },
+          },
+        });
+        listener({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            stopReason: "length",
+            content: [{ type: "text", text: "partial answer" }],
+          },
+        });
+      }
+    }
+    async abort() {}
+  }
+
+  const session = new StubSession();
+  const result = await runAgentPrompt("hello", "web:default", { timeoutMs: 0 }, {
+    getOrCreateRuntime: async () => createRuntime(session) as any,
+    turnCoordinator: new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} }),
+    clearAttachments: () => {},
+    takeAttachments: () => [],
+    logsDir: createTestLogsDir(),
+    setActiveForkBaseLeaf: () => {},
+    clearActiveForkBaseLeaf: () => {},
+  });
+
+  expect(result.status).toBe("error");
+  expect(result.result).toBeNull();
+  expect(result.error).toContain("maximum output length");
+  expect(result.error).toContain("partial answer was preserved");
+  expect(result.recovery?.lastClassifier).toBe("length_stop");
+});
+
 test("runAgentPrompt surfaces latent session state errors when no final text is emitted", async () => {
   class StubSession {
     private listeners: Array<(event: any) => void> = [];

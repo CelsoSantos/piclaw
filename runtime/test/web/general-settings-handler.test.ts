@@ -14,6 +14,8 @@ test('saveGeneralSettings persists and applies general settings immediately', as
     const handler = await importFresh<typeof import('../../src/channels/web/handlers/general-settings.js')>(
       '../src/channels/web/handlers/general-settings.js',
     );
+    const db = await importFresh<typeof import('../../src/db.js')>('../src/db.js');
+    db.initDatabase();
     const config = await import('../../src/core/config.js');
     config.setUserAvatarBackground('');
 
@@ -30,6 +32,7 @@ test('saveGeneralSettings persists and applies general settings immediately', as
       toolUseBudget: 23,
       uiTheme: 'dracula',
       uiTint: '#7c3aed',
+      outputPad: 12,
     });
 
     expect(saved).toMatchObject({
@@ -45,6 +48,7 @@ test('saveGeneralSettings persists and applies general settings immediately', as
       toolUseBudget: 23,
       uiTheme: 'dracula',
       uiTint: '#7c3aed',
+      outputPad: 12,
     });
     expect(saved.instanceTotp.configured).toBe(false);
     expect(handler.getGeneralSettingsData()).toMatchObject(saved);

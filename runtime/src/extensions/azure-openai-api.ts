@@ -195,6 +195,24 @@ export { convertResponsesMessages, convertResponsesTools };
  * flavor. Adapt the other provider-native forms to the existing summary events so
  * the UI consistently receives `thinking_*` updates instead of Draft pollution.
  */
+function extractResponseReasoningTokens(response: unknown): number {
+  const usage = response && typeof response === "object" ? (response as { usage?: unknown }).usage : null;
+  const details = usage && typeof usage === "object" ? (usage as { output_tokens_details?: unknown }).output_tokens_details : null;
+  const reasoning = details && typeof details === "object" ? (details as { reasoning_tokens?: unknown }).reasoning_tokens : null;
+  return typeof reasoning === "number" && Number.isFinite(reasoning) && reasoning > 0 ? reasoning : 0;
+}
+
+async function* captureReasoningUsageEvents(
+  events: AsyncIterableLike<any>,
+  onReasoningTokens: (tokens: number) => void,
+): AsyncGenerator<any> {
+  for await (const event of events) {
+    const tokens = extractResponseReasoningTokens(event?.response);
+    if (tokens > 0) onReasoningTokens(tokens);
+    yield event;
+  }
+}
+
 export async function processResponsesStream<TApi extends Api>(
   openaiStream: AsyncIterableLike<any>,
   output: AssistantMessage,
@@ -202,7 +220,15 @@ export async function processResponsesStream<TApi extends Api>(
   model: Model<TApi>,
   options?: OpenAIResponsesStreamOptions,
 ): Promise<void> {
-  await upstreamProcessResponsesStream(adaptAzureReasoningEvents(openaiStream) as any, output, stream, model, options);
+  let reasoningTokens = 0;
+  const events = captureReasoningUsageEvents(
+    adaptAzureReasoningEvents(openaiStream) as any,
+    (tokens) => { reasoningTokens = tokens; },
+  );
+  await upstreamProcessResponsesStream(events as any, output, stream, model, options);
+  if (reasoningTokens > 0 && output.usage) {
+    (output.usage as typeof output.usage & { reasoningTokens?: number; reasoning_tokens?: number }).reasoningTokens = reasoningTokens;
+  }
 }
 
 /** Input contract accepted by buildBaseOptions(). */

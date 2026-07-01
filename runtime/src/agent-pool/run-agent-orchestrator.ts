@@ -18,6 +18,7 @@ import {
   decideAutomaticRecovery,
   getAutomaticRecoveryConfig,
   getAutomaticRecoveryDelayMs,
+  isLengthStopFailure,
   type RecoveryAttemptSnapshot,
   type RecoveryClassifier,
   type RecoveryStrategy,
@@ -536,6 +537,13 @@ function resolveToolBudgetSoftStopThreshold(budget: number): number {
 
 function isAbortFailureText(errorText: string): boolean {
   return /\b(?:aborterror|aborted|operation was aborted|request was aborted)\b/i.test(errorText);
+}
+
+function buildLengthStopError(partialText: string | null | undefined): string {
+  const partialDetail = partialText && partialText.trim()
+    ? " The partial answer was preserved; ask me to continue to resume from it."
+    : " Ask me to continue and I will retry with a shorter final answer.";
+  return `Provider stopped because it hit the maximum output length before finalization (finish reason: length).${partialDetail}`;
 }
 
 function findToolBudgetDiagnostic(diagnostics: AgentRecoveryDiagnosticEntry[]): AgentRecoveryDiagnosticEntry | null {
@@ -1344,6 +1352,13 @@ async function runPromptAttempt(
       output = { status: "error", result: null, error: turnError.errorMessage };
     } else if (latentStateError) {
       output = { status: "error", result: null, error: latentStateError };
+    } else if (lastAssistantState?.stopReason === "length" || isLengthStopFailure(lastAssistantState?.errorMessage)) {
+      output = {
+        status: "error",
+        result: null,
+        error: buildLengthStopError(finalText),
+        ...(finalUsage ? { usage: finalUsage } : {}),
+      };
     } else {
       const blankTurnDelta = inspectBlankTurnSessionDelta(session, sessionEntryBaseline);
       if (!finalText && finalAttachments.length === 0 && !hadCompletedTurnOutput) {
