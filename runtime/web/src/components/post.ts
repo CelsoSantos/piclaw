@@ -1153,12 +1153,13 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
     const speakableText = useMemo(() => buildSpeakablePostText(post), [post]);
     const isSpeakingThisPost = Boolean(speechPlaybackState.speaking && speechPlaybackState.activePostId === post.id);
 
-    const handleImageClick = (e, mediaId) => {
+    const handleImageClick = (e, mediaId, mimeType) => {
         e.stopPropagation();
+        const src = getMediaUrl(mediaId);
         if (canAnnotate()) {
-            setAnnotatingImage(getMediaUrl(mediaId));
+            setAnnotatingImage({ src, mimeType });
         } else {
-            setZoomedImage(getMediaUrl(mediaId));
+            setZoomedImage(src);
         }
     };
 
@@ -1767,7 +1768,7 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
                                     alt="Media"
                                     loading="lazy"
                                     decoding="async"
-                                    onClick=${(e) => handleImageClick(e, id)}
+                                    onClick=${(e) => handleImageClick(e, id, mimeType)}
                                 />
                             `;
                         })}
@@ -1818,7 +1819,8 @@ export function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMe
         ${annotatingImage && html`
             <div class="post-inline-annotator">
                 <${ImageAnnotator}
-                    src=${annotatingImage}
+                    src=${annotatingImage.src}
+                    mimeType=${annotatingImage.mimeType}
                     onSave=${handleAnnotationSave}
                     onCancel=${() => setAnnotatingImage(null)}
                 />

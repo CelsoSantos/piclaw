@@ -31,3 +31,17 @@ test("image annotator treats two-finger gestures as pinch instead of committed d
   expect(source).toContain("redrawAll(ctx, historyRef.current, canvas.width, canvas.height)");
   expect(source).toContain("suppressTouchDrawUntilRef.current = Date.now() + 250");
 });
+
+test("image annotator rasterizes SVG sources into a canvas before annotation/export", () => {
+  expect(source).toContain("function isSvgImageSource(src: string, mimeType?: string): boolean");
+  expect(source).toContain("const isSvgSource = isSvgImageSource(src, mimeType)");
+  expect(source).toContain("sourceCanvasRef");
+  expect(source).toContain("sctx.drawImage(img, 0, 0, w, h)");
+  expect(source).toContain("image-annotator-source-raster-canvas");
+  expect(source).toContain("if (rasterSource) octx.drawImage(rasterSource, 0, 0, out.width, out.height)");
+
+  for (const css of [classicCss, visualCss]) {
+    expect(css).toContain(".image-annotator-source-raster-canvas {");
+    expect(css).toContain(".image-annotator-source-hidden {");
+  }
+});

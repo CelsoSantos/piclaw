@@ -81,6 +81,13 @@ function isShapeTool(tool: Tool): boolean {
   return tool === 'arrow' || tool === 'rectangle';
 }
 
+function isSvgImageSource(src: string, mimeType?: string): boolean {
+  const type = String(mimeType || '').toLowerCase();
+  if (type.startsWith('image/svg')) return true;
+  const value = String(src || '').toLowerCase();
+  return value.startsWith('data:image/svg+xml') || /\.svg(?:[?#]|$)/.test(value);
+}
+
 function canvasPointFromTouch(canvas: HTMLCanvasElement, t: Touch | { clientX: number; clientY: number }): Point {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -194,10 +201,12 @@ export function canAnnotate(): boolean {
 
 // ── Component ───────────────────────────────────────────────────
 
-export function ImageAnnotator({ src, onSave, onCancel }) {
+export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
   const { t: tr } = useTranslation();
+  const isSvgSource = isSvgImageSource(src, mimeType);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const sourceCanvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const historyRef = useRef<HistoryEntry[]>([]);
   const drawingRef = useRef(false);
@@ -208,6 +217,7 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [saving, setSaving] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [sourceRasterReady, setSourceRasterReady] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState<Point>({ x: 0, y: 0 });
   const zoomRef = useRef(1);
@@ -234,7 +244,9 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
     return PEN_WIDTH;
   }, []);
 
-  // Initialize canvas to match displayed image size
+  // Initialize canvas to match displayed image size. SVG sources are rasterized
+  // into a canvas first, so the annotation editor operates on pixels and the
+  // final upload is a flattened PNG instead of trying to preserve SVG vectors.
   const initCanvas = useCallback(() => {
     const img = imgRef.current;
     const canvas = canvasRef.current;
@@ -242,14 +254,30 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
     if (!img || !canvas || !overlay) return;
     const rect = img.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    const w = Math.round(rect.width * dpr);
-    const h = Math.round(rect.height * dpr);
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
     canvas.width = w;
     canvas.height = h;
     overlay.width = w;
     overlay.height = h;
+
+    if (isSvgSource) {
+      setSourceRasterReady(false);
+      const sourceCanvas = sourceCanvasRef.current;
+      const sctx = sourceCanvas?.getContext('2d');
+      if (sourceCanvas && sctx) {
+        sourceCanvas.width = w;
+        sourceCanvas.height = h;
+        sourceCanvas.style.width = `${rect.width}px`;
+        sourceCanvas.style.height = `${rect.height}px`;
+        sctx.clearRect(0, 0, w, h);
+        sctx.drawImage(img, 0, 0, w, h);
+        setSourceRasterReady(true);
+      }
+    }
+
     setCanvasReady(true);
-  }, []);
+  }, [isSvgSource]);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -521,7 +549,9 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
       out.height = canvas.height;
       const octx = out.getContext('2d');
       if (!octx) return;
-      octx.drawImage(img, 0, 0, out.width, out.height);
+      const rasterSource = isSvgSource && sourceRasterReady ? sourceCanvasRef.current : null;
+      if (rasterSource) octx.drawImage(rasterSource, 0, 0, out.width, out.height);
+      else octx.drawImage(img, 0, 0, out.width, out.height);
       octx.drawImage(canvas, 0, 0);
 
       const blob: Blob = await new Promise((resolve, reject) => {
@@ -536,7 +566,7 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
     } finally {
       setSaving(false);
     }
-  }, [onSave]);
+  }, [isSvgSource, onSave, sourceRasterReady]);
 
   // Commit text on tool switch
   useEffect(() => {
@@ -554,10 +584,17 @@ export function ImageAnnotator({ src, onSave, onCancel }) {
           <img
             ref=${imgRef}
             src=${src}
-            class="image-annotator-source"
+            class=${`image-annotator-source${isSvgSource && sourceRasterReady ? ' image-annotator-source-hidden' : ''}`}
             alt="Source"
             draggable="false"
           />
+          ${isSvgSource && html`
+            <canvas
+              ref=${sourceCanvasRef}
+              class="image-annotator-source-raster-canvas"
+              hidden=${!sourceRasterReady}
+            />
+          `}
           <canvas
             ref=${canvasRef}
             class="image-annotator-draw-canvas"
