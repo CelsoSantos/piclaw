@@ -277,6 +277,7 @@ function createSchema(database: Database): void {
       command TEXT,
       cwd TEXT,
       timeout_sec INTEGER,
+      notify_on_complete INTEGER NOT NULL DEFAULT 1,
       schedule_type TEXT NOT NULL,
       schedule_value TEXT NOT NULL,
       next_run TEXT,
@@ -699,6 +700,7 @@ function ensureScheduledTaskColumns(database: Database): void {
   ensureColumn("command", "TEXT");
   ensureColumn("cwd", "TEXT");
   ensureColumn("timeout_sec", "INTEGER");
+  ensureColumn("notify_on_complete", "INTEGER NOT NULL DEFAULT 1");
 }
 
 function ensureWebSessionColumns(database: Database): void {
