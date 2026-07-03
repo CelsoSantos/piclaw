@@ -11,8 +11,8 @@
  *     preventing preventDefault() from stopping scroll/bounce.
  *   - Pencil draws (pointerType === 'pen'); finger scrolls unless
  *     no pencil is detected, in which case finger also draws.
- *   - Tools: pen, highlighter, arrow, rectangle, text, eraser, undo
- *   - Done → flatten overlay PNG → upload via API
+ *   - Tools: pen, highlighter, arrow, rectangle, text, crop, eraser, undo
+ *   - Done → flatten raster source + overlay PNG → upload via API
  *
  * Consumers: Post component wraps this inline when the user taps an image on iPad.
  */
@@ -23,9 +23,16 @@ import { uploadMedia } from '../api.js';
 
 // ── Types ───────────────────────────────────────────────────────
 
-type Tool = 'pen' | 'highlighter' | 'arrow' | 'rectangle' | 'text' | 'eraser';
+type Tool = 'pen' | 'highlighter' | 'arrow' | 'rectangle' | 'text' | 'crop' | 'eraser';
 
 interface Point { x: number; y: number; }
+
+interface CropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface Stroke {
   tool: Tool;
@@ -70,6 +77,7 @@ const TOOLS: { id: Tool; label: string; icon: string }[] = [
   { id: 'arrow',       label: 'Arrow',       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>' },
   { id: 'rectangle',   label: 'Rectangle',   icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>' },
   { id: 'text',        label: 'Text',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
+  { id: 'crop',        label: 'Crop',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>' },
   { id: 'eraser',      label: 'Eraser',      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l5.3 5.3c1 1 1 2.5 0 3.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>' },
 ];
 
@@ -94,6 +102,36 @@ function canvasPointFromTouch(canvas: HTMLCanvasElement, t: Touch | { clientX: n
     x: (t.clientX - rect.left) * (canvas.width / rect.width),
     y: (t.clientY - rect.top) * (canvas.height / rect.height),
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeCropRect(start: Point, end: Point, width: number, height: number): CropRect | null {
+  const x0 = clamp(Math.min(start.x, end.x), 0, width);
+  const y0 = clamp(Math.min(start.y, end.y), 0, height);
+  const x1 = clamp(Math.max(start.x, end.x), 0, width);
+  const y1 = clamp(Math.max(start.y, end.y), 0, height);
+  const w = Math.round(x1 - x0);
+  const h = Math.round(y1 - y0);
+  if (w < 8 || h < 8) return null;
+  return { x: Math.round(x0), y: Math.round(y0), width: w, height: h };
+}
+
+function drawCropOverlay(ctx: CanvasRenderingContext2D, rect: CropRect, width: number, height: number): void {
+  ctx.save();
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+  ctx.fillRect(0, 0, width, rect.y);
+  ctx.fillRect(0, rect.y + rect.height, width, height - rect.y - rect.height);
+  ctx.fillRect(0, rect.y, rect.x, rect.height);
+  ctx.fillRect(rect.x + rect.width, rect.y, width - rect.x - rect.width, rect.height);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = Math.max(2, Math.round(Math.min(width, height) / 320));
+  ctx.setLineDash([12, 8]);
+  ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+  ctx.restore();
 }
 
 function drawTextStroke(ctx: CanvasRenderingContext2D, entry: TextStroke): void {
@@ -211,6 +249,7 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
   const historyRef = useRef<HistoryEntry[]>([]);
   const drawingRef = useRef(false);
   const shapeStartRef = useRef<Point | null>(null);
+  const cropSelectionRef = useRef<CropRect | null>(null);
   const currentPointsRef = useRef<Point[]>([]);
 
   const [tool, setTool] = useState<Tool>('pen');
@@ -218,6 +257,7 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
   const [sourceRasterReady, setSourceRasterReady] = useState(false);
+  const [cropSelection, setCropSelection] = useState<CropRect | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState<Point>({ x: 0, y: 0 });
   const zoomRef = useRef(1);
@@ -244,14 +284,15 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
     return PEN_WIDTH;
   }, []);
 
-  // Initialize canvas to match displayed image size. SVG sources are rasterized
-  // into a canvas first, so the annotation editor operates on pixels and the
+  // Initialize canvas to match displayed image size. All sources are rasterized
+  // into a canvas first, so crop/annotation edits operate on pixels and the
   // final upload is a flattened PNG instead of trying to preserve SVG vectors.
   const initCanvas = useCallback(() => {
     const img = imgRef.current;
     const canvas = canvasRef.current;
     const overlay = overlayRef.current;
-    if (!img || !canvas || !overlay) return;
+    const sourceCanvas = sourceCanvasRef.current;
+    if (!img || !canvas || !overlay || !sourceCanvas) return;
     const rect = img.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const w = Math.max(1, Math.round(rect.width * dpr));
@@ -260,24 +301,19 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
     canvas.height = h;
     overlay.width = w;
     overlay.height = h;
+    sourceCanvas.width = w;
+    sourceCanvas.height = h;
+    sourceCanvas.style.width = `${rect.width}px`;
+    sourceCanvas.style.height = `${rect.height}px`;
 
-    if (isSvgSource) {
-      setSourceRasterReady(false);
-      const sourceCanvas = sourceCanvasRef.current;
-      const sctx = sourceCanvas?.getContext('2d');
-      if (sourceCanvas && sctx) {
-        sourceCanvas.width = w;
-        sourceCanvas.height = h;
-        sourceCanvas.style.width = `${rect.width}px`;
-        sourceCanvas.style.height = `${rect.height}px`;
-        sctx.clearRect(0, 0, w, h);
-        sctx.drawImage(img, 0, 0, w, h);
-        setSourceRasterReady(true);
-      }
+    const sctx = sourceCanvas.getContext('2d');
+    if (sctx) {
+      sctx.clearRect(0, 0, w, h);
+      sctx.drawImage(img, 0, 0, w, h);
+      setSourceRasterReady(true);
     }
-
     setCanvasReady(true);
-  }, [isSvgSource]);
+  }, []);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -328,7 +364,9 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
     const cancelActiveDrawing = () => {
       drawingRef.current = false;
       shapeStartRef.current = null;
+      cropSelectionRef.current = null;
       currentPointsRef.current = [];
+      setCropSelection(null);
       clearOverlay();
       const ctx = canvas.getContext('2d');
       if (ctx) redrawAll(ctx, historyRef.current, canvas.width, canvas.height);
@@ -385,7 +423,12 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
 
       gestureModeRef.current = 'draw';
       drawingRef.current = true;
-      if (isShapeTool(currentTool)) {
+      if (currentTool === 'crop') {
+        shapeStartRef.current = pt;
+        cropSelectionRef.current = null;
+        setCropSelection(null);
+        clearOverlay();
+      } else if (isShapeTool(currentTool)) {
         shapeStartRef.current = pt;
       } else {
         currentPointsRef.current = [pt];
@@ -408,7 +451,14 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
       const lineWidth = getLineWidth(currentTool);
       const overlay = overlayRef.current;
 
-      if (isShapeTool(currentTool) && shapeStartRef.current) {
+      if (currentTool === 'crop' && shapeStartRef.current) {
+        if (!overlay) return;
+        const octx = overlay.getContext('2d');
+        const rect = octx ? normalizeCropRect(shapeStartRef.current, pt, canvas.width, canvas.height) : null;
+        if (!octx || !rect) return;
+        cropSelectionRef.current = rect;
+        drawCropOverlay(octx, rect, overlay.width, overlay.height);
+      } else if (isShapeTool(currentTool) && shapeStartRef.current) {
         if (!overlay) return;
         const octx = overlay.getContext('2d');
         if (!octx) return;
@@ -476,7 +526,17 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
       const lineWidth = getLineWidth(currentTool);
       const overlay = overlayRef.current;
 
-      if (isShapeTool(currentTool) && shapeStartRef.current) {
+      if (currentTool === 'crop' && shapeStartRef.current) {
+        const touch = e.changedTouches[0];
+        const end = touch ? canvasPointFromTouch(canvas, touch) : shapeStartRef.current;
+        const rect = normalizeCropRect(shapeStartRef.current, end, canvas.width, canvas.height);
+        const octx = overlay?.getContext('2d');
+        shapeStartRef.current = null;
+        cropSelectionRef.current = rect;
+        setCropSelection(rect);
+        if (rect && octx && overlay) drawCropOverlay(octx, rect, overlay.width, overlay.height);
+        else clearOverlay();
+      } else if (isShapeTool(currentTool) && shapeStartRef.current) {
         // Use last known touch point from the changedTouches
         const touch = e.changedTouches[0];
         const end = touch ? canvasPointFromTouch(canvas, touch) : shapeStartRef.current;
@@ -538,6 +598,63 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
     redrawAll(ctx, historyRef.current, canvas.width, canvas.height);
   }, []);
 
+  const clearCropSelection = useCallback(() => {
+    cropSelectionRef.current = null;
+    setCropSelection(null);
+    const overlay = overlayRef.current;
+    const octx = overlay?.getContext('2d');
+    if (overlay && octx) octx.clearRect(0, 0, overlay.width, overlay.height);
+  }, []);
+
+  const handleApplyCrop = useCallback(() => {
+    const rect = cropSelection || cropSelectionRef.current;
+    const sourceCanvas = sourceCanvasRef.current;
+    const drawCanvas = canvasRef.current;
+    const overlay = overlayRef.current;
+    if (!rect || !sourceCanvas || !drawCanvas || !overlay) return;
+    const sctx = sourceCanvas.getContext('2d');
+    const dctx = drawCanvas.getContext('2d');
+    const octx = overlay.getContext('2d');
+    if (!sctx || !dctx || !octx) return;
+
+    const sourceRect = sourceCanvas.getBoundingClientRect();
+    const cssScale = sourceCanvas.width ? sourceRect.width / sourceCanvas.width : 1;
+    const cropWidth = Math.max(1, rect.width);
+    const cropHeight = Math.max(1, rect.height);
+    const merged = document.createElement('canvas');
+    merged.width = cropWidth;
+    merged.height = cropHeight;
+    const mctx = merged.getContext('2d');
+    if (!mctx) return;
+    mctx.drawImage(sourceCanvas, rect.x, rect.y, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    // Flatten existing annotations into the cropped source so future redraws,
+    // highlighter strokes, and undo do not lose or misplace pre-crop marks.
+    mctx.drawImage(drawCanvas, rect.x, rect.y, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+    sourceCanvas.width = cropWidth;
+    sourceCanvas.height = cropHeight;
+    sourceCanvas.style.width = `${Math.max(1, cropWidth * cssScale)}px`;
+    sourceCanvas.style.height = `${Math.max(1, cropHeight * cssScale)}px`;
+    sctx.clearRect(0, 0, cropWidth, cropHeight);
+    sctx.drawImage(merged, 0, 0);
+
+    drawCanvas.width = cropWidth;
+    drawCanvas.height = cropHeight;
+    dctx.clearRect(0, 0, cropWidth, cropHeight);
+    overlay.width = cropWidth;
+    overlay.height = cropHeight;
+    octx.clearRect(0, 0, cropWidth, cropHeight);
+
+    historyRef.current = [];
+    currentPointsRef.current = [];
+    shapeStartRef.current = null;
+    cropSelectionRef.current = null;
+    setCropSelection(null);
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+    setTool('pen');
+  }, [cropSelection]);
+
   const handleDone = useCallback(async () => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
@@ -549,7 +666,7 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
       out.height = canvas.height;
       const octx = out.getContext('2d');
       if (!octx) return;
-      const rasterSource = isSvgSource && sourceRasterReady ? sourceCanvasRef.current : null;
+      const rasterSource = sourceRasterReady ? sourceCanvasRef.current : null;
       if (rasterSource) octx.drawImage(rasterSource, 0, 0, out.width, out.height);
       else octx.drawImage(img, 0, 0, out.width, out.height);
       octx.drawImage(canvas, 0, 0);
@@ -566,7 +683,7 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
     } finally {
       setSaving(false);
     }
-  }, [isSvgSource, onSave, sourceRasterReady]);
+  }, [onSave, sourceRasterReady]);
 
   // Commit text on tool switch
   useEffect(() => {
@@ -584,17 +701,15 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
           <img
             ref=${imgRef}
             src=${src}
-            class=${`image-annotator-source${isSvgSource && sourceRasterReady ? ' image-annotator-source-hidden' : ''}`}
+            class=${`image-annotator-source${sourceRasterReady ? ' image-annotator-source-hidden' : ''}`}
             alt="Source"
             draggable="false"
           />
-          ${isSvgSource && html`
-            <canvas
-              ref=${sourceCanvasRef}
-              class="image-annotator-source-raster-canvas"
-              hidden=${!sourceRasterReady}
-            />
-          `}
+          <canvas
+            ref=${sourceCanvasRef}
+            class=${`image-annotator-source-raster-canvas${isSvgSource ? ' image-annotator-source-svg-raster' : ''}`}
+            hidden=${!sourceRasterReady}
+          />
           <canvas
             ref=${canvasRef}
             class="image-annotator-draw-canvas"
@@ -652,6 +767,22 @@ export function ImageAnnotator({ src, mimeType, onSave, onCancel }) {
               title=${`Reset zoom (${Math.round(zoom * 100)}%)`}
               aria-label=${tr('annotator.resetZoom')}
             >${Math.round(zoom * 100)}%</button>
+          `}
+          ${cropSelection && html`
+            <button
+              class="image-annotator-tool-btn image-annotator-crop-apply-btn"
+              onClick=${handleApplyCrop}
+              title="Apply crop"
+              aria-label="Apply crop"
+              disabled=${saving}
+            >Crop</button>
+            <button
+              class="image-annotator-tool-btn image-annotator-crop-cancel-btn"
+              onClick=${clearCropSelection}
+              title="Cancel crop"
+              aria-label="Cancel crop"
+              disabled=${saving}
+            >×</button>
           `}
         </div>
         <div class="image-annotator-colors">
