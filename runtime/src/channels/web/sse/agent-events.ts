@@ -226,6 +226,7 @@ export interface StreamingEventHandlerOptions {
   includeThoughtFull?: () => boolean;
   includeDraftFull?: () => boolean;
   onThoughtBuffer?: (text: string, totalLines: number) => void;
+  onThinkingComplete?: (text: string, totalLines: number, durationMs: number) => void;
   onDraftBuffer?: (text: string, totalLines: number) => void;
 }
 
@@ -236,6 +237,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
   const previewMaxCharsPerLine = options.previewMaxCharsPerLine ?? 160;
 
   let thoughtBuffer = "";
+  let thoughtStartedAt = 0;
   let draftBuffer = "";
   let thoughtHasDelta = false;
   let thoughtDeltaActive = false;
@@ -349,6 +351,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
       const messageEvent = event.assistantMessageEvent;
       if (messageEvent.type === "thinking_start") {
         thoughtBuffer = "";
+        thoughtStartedAt = Date.now();
         thoughtHasDelta = false;
         thoughtDeltaActive = false;
         if (options.includeThoughtFull?.()) {
@@ -399,6 +402,8 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
           previewMaxCharsPerLine
         );
         options.onThoughtBuffer?.(thoughtBuffer, totalLines);
+        const thinkingDurationMs = thoughtStartedAt > 0 ? Date.now() - thoughtStartedAt : 0;
+        options.onThinkingComplete?.(thoughtBuffer, totalLines, thinkingDurationMs);
         options.emitter.thought({
           ...base,
           text: preview,

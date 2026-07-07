@@ -85,6 +85,8 @@ const envConfig = readEnvFile([
   "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
   "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",
   "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS",
+  "PICLAW_WEB_PERSIST_THINKING",
+  "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS",
   "PICLAW_WEB_VNC_ALLOW_DIRECT",
   "PICLAW_VNC_ALLOW_DIRECT",
   "PICLAW_WEB_VNC_TARGETS",
@@ -662,6 +664,30 @@ export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
 /** Return grouped web auth/session/runtime settings for handlers and tests. */
 export function getWebRuntimeConfig(): Readonly<WebRuntimeConfig> {
   return WEB_RUNTIME_CONFIG;
+}
+
+export function isPersistThinkingEnabled(): boolean {
+  const envOverride = pickBoolean({
+    PICLAW_WEB_PERSIST_THINKING: process.env.PICLAW_WEB_PERSIST_THINKING
+      ?? envConfig.PICLAW_WEB_PERSIST_THINKING,
+  }, ["PICLAW_WEB_PERSIST_THINKING"]);
+  const configValue =
+    pickBoolean(webConfig, ["persistThinking", "persist_thinking", "PICLAW_WEB_PERSIST_THINKING"])
+    ?? pickBoolean(piclawConfig, ["webPersistThinking"]);
+  return envOverride ?? configValue ?? false;
+}
+
+export function getPersistThinkingMaxChars(): number {
+  const envOverride = pickNumber({
+    PICLAW_WEB_PERSIST_THINKING_MAX_CHARS:
+      process.env.PICLAW_WEB_PERSIST_THINKING_MAX_CHARS
+      ?? envConfig.PICLAW_WEB_PERSIST_THINKING_MAX_CHARS,
+  }, ["PICLAW_WEB_PERSIST_THINKING_MAX_CHARS"]);
+  const configValue =
+    pickNumber(webConfig, ["persistThinkingMaxChars", "persist_thinking_max_chars", "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS"])
+    ?? pickNumber(piclawConfig, ["webPersistThinkingMaxChars"]);
+  const value = envOverride ?? configValue ?? 100000;
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 100000;
 }
 
 /** Persist and apply the web terminal toggle so new requests see it immediately. */

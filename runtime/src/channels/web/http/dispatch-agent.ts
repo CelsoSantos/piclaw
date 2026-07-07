@@ -51,6 +51,7 @@ import {
   handleWebPushSubscriptionUpsert,
   handleWebPushVapidPublicKey,
 } from "../push/web-push-routes.js";
+import { getThinkingContentForChat } from "../../../db/messages.js";
 
 interface ExactAgentRoute {
   method: string;
@@ -72,6 +73,34 @@ const EXACT_AGENT_ROUTES: ExactAgentRoute[] = [
     method: "POST",
     path: "/agent/thought/visibility",
     handle: (channel, req) => channel.handleThoughtVisibility(req),
+  },
+  {
+    method: "GET",
+    path: "/agent/thinking",
+    handle: (_channel, _req, url) => {
+      const messageId = url.searchParams.get("message_id");
+      const chatJid = url.searchParams.get("chat_jid");
+      if (!messageId || !chatJid) {
+        return new Response(JSON.stringify({ error: "Missing message_id or chat_jid" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      // Single validated lookup: message must exist in chat_jid, be a bot
+      // reply, and carry a thinking_ref content block. 404 is returned
+      // uniformly for any failure to avoid distinguishing why (no
+      // enumeration oracle for message_ids across chats).
+      const result = getThinkingContentForChat(chatJid, messageId);
+      if (!result) {
+        return new Response(JSON.stringify({ error: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
   },
   {
     method: "GET",
