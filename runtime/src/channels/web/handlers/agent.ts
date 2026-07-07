@@ -55,7 +55,7 @@ import { resolveToolStatusHints } from "../../../tool-status-hints.js";
 import "../../../extensions/local-core-tool-status-hints.js";
 import "../../../extensions/generic-tool-status-hints.js";
 import { createUuid } from "../../../utils/ids.js";
-import { createLogger } from "../../../utils/logger.js";
+import { createLogger, debugSuppressedError } from "../../../utils/logger.js";
 import type { AttachmentInfo } from "../../../agent-pool/attachments.js";
 import { cancelScheduledIdleAutoCompaction, isCompactionCancellationError, maybeAutoCompactSessionBeforePrompt } from "../../../agent-pool/compaction.js";
 import { checkPendingShutdown } from "../../../runtime/shutdown-registry.js";
