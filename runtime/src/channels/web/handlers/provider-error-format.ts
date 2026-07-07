@@ -221,7 +221,7 @@ export function parseProviderError(errorText: string | null | undefined): Parsed
   const raw = sanitizeProviderErrorDetail(errorText);
   if (!raw) return null;
 
-  const prefixMatch = raw.match(/^([A-Za-z][A-Za-z0-9 ._-]{1,40})\s+error\s*:/i);
+  const prefixMatch = raw.match(/^([A-Za-z][A-Za-z0-9 ._-]{1,40})\s+(?:api\s+)?error(?:\s*\(([45]\d\d)\))?\s*:/i);
   const parsed = extractJsonObject(raw);
   const isModelAvailabilityOnly = MODEL_AVAILABILITY_PATTERN.test(raw);
   const isNetworkOnly = NETWORK_ERROR_PATTERN.test(raw);
@@ -240,7 +240,7 @@ export function parseProviderError(errorText: string | null | undefined): Parsed
   const code = readString(nested?.code, parsed?.code, nested?.error_code, parsed?.error_code);
   const type = readString(nested?.type, parsed?.type, nested?.error, parsed?.error);
   const statusFromRaw = raw.match(/\b([45]\d\d)\b/)?.[1];
-  const status = readNumber(nested?.status, nested?.status_code, parsed?.status, parsed?.status_code, statusFromRaw);
+  const status = readNumber(nested?.status, nested?.status_code, parsed?.status, parsed?.status_code, prefixMatch?.[2], statusFromRaw);
   const requestId = parsed ? extractRequestId(raw, parsed, nested) : extractRequestId(raw, {}, null);
   const sequenceNumber = readNumber(parsed?.sequence_number, parsed?.sequenceNumber, nested?.sequence_number, nested?.sequenceNumber);
 

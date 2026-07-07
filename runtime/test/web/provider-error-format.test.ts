@@ -23,3 +23,14 @@ test("formatProviderError does not misclassify context-length pressure as output
 
   expect(formatted?.category).not.toBe("output_limit");
 });
+
+test("formatProviderError parses API error status prefixes for Azure rate limits", () => {
+  const formatted = formatProviderError(
+    "Azure OpenAI API error (429): RateLimitReached. Wait about 30s before retrying."
+  );
+
+  expect(formatted).toMatchObject({
+    category: "rate_limit",
+  });
+  expect(formatted?.detail).toContain("status: 429");
+});

@@ -283,6 +283,18 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
 
   let pendingRateLimit: { message: string } | null = null;
   let pendingRateLimitTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentModelLabel: string | null = null;
+
+  const appendModelContext = (detail: string | undefined): string | undefined => {
+    if (!currentModelLabel) return detail;
+    if (detail?.includes(currentModelLabel)) return detail;
+    return [detail, `model: ${currentModelLabel}`].filter(Boolean).join(" — ");
+  };
+
+  const rateLimitTitle = (message?: string): string => {
+    const baseTitle = describeRateLimit(message);
+    return currentModelLabel ? `${baseTitle} on ${currentModelLabel}` : baseTitle;
+  };
 
   const scheduleRateLimitIntent = () => {
     if (pendingRateLimitTimer) return;
@@ -295,8 +307,8 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
       options.emitter.status({
         ...base,
         type: "intent",
-        title: describeRateLimit(detail),
-        detail,
+        title: rateLimitTitle(detail),
+        detail: appendModelContext(detail),
       });
       pendingRateLimit = null;
       pendingRateLimitTimer = null;
@@ -323,6 +335,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
       const record = event as { model?: unknown; previousModel?: unknown; source?: unknown };
       const model = modelLabelFromEventModel(record.model);
       if (model) {
+        currentModelLabel = model;
         options.emitter.modelChanged({
           ...base,
           model,
@@ -627,7 +640,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
       const isNetwork = providerError?.category === "network" || isNetworkError(errorMessage);
       const retrySuffix = `retrying (attempt ${e.attempt ?? "?"}/${e.maxAttempts ?? "?"}, ${delaySec}s delay)`;
       const title = isRateLimit
-        ? `${describeRateLimit(errorMessage)} — ${retrySuffix}`
+        ? `${rateLimitTitle(errorMessage)} — ${retrySuffix}`
         : providerError
           ? `${providerError.title} — ${retrySuffix}`
           : isNetwork
@@ -638,7 +651,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
         ...base,
         type: "intent",
         title,
-        detail: detail || undefined,
+        detail: appendModelContext(detail || undefined),
       });
     }
 
@@ -648,7 +661,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
         const finalError = e.finalError || "Request failed after retries";
         const providerError = formatProviderError(finalError);
         const title = isRateLimitError(finalError)
-          ? `${describeRateLimit(finalError)} — retry budget exhausted`
+          ? `${rateLimitTitle(finalError)} — retry budget exhausted`
           : providerError
             ? `${providerError.title} — retry budget exhausted`
             : isNetworkError(finalError)
@@ -658,7 +671,7 @@ export function createStreamingEventHandler(options: StreamingEventHandlerOption
           ...base,
           type: "error",
           title,
-          detail: providerError?.detail || undefined,
+          detail: appendModelContext(providerError?.detail || undefined),
         });
       }
     }
