@@ -4,8 +4,7 @@ Interactive widgets posted via `send_dashboard_widget` run in a sandboxed iframe
 with `allow-scripts allow-same-origin`. The CSP allows inline scripts and
 same-origin script loading (`script-src 'unsafe-inline' 'self'`).
 
-The following libraries are vendored as static assets and available to any widget
-and to generated HTML artifacts from the `visual-artifact-generator` skill:
+The following libraries are vendored as static assets. Dashboard widgets and generated HTML artifacts from the `visual-artifact-generator` skill can load them explicitly from the paths below; the iframe does not inherit scripts or styles from the host page.
 
 ## Babylon.js 9.16
 
@@ -97,6 +96,74 @@ layouts (treemap, pack, partition, cluster), Voronoi, contours, and more.
 </script>
 ```
 
+## Preact 10.29.7 + HTM 3.1.1
+
+**Size:** 16 KiB (minified ESM)
+**Path:** `/static/common/js/vendor/preact-htm.js`
+**Exports:** `h`, `html`, `render`, `Component`, contexts, and Preact hooks
+**Licenses:** MIT (Preact), Apache-2.0 (HTM)
+
+This is the preferred small component runtime for Piclaw web panes and lightweight widgets that need component state without a compile step.
+
+```html
+<div id="app"></div>
+<script type="module">
+  import { html, render, useState } from '/static/common/js/vendor/preact-htm.js';
+
+  function Counter() {
+    const [count, setCount] = useState(0);
+    return html`<button onClick=${() => setCount(count + 1)}>Count: ${count}</button>`;
+  }
+
+  render(html`<${Counter} />`, document.getElementById('app'));
+</script>
+```
+
+## Marked 18.0.6
+
+**Size:** 41 KiB (minified IIFE)
+**Path:** `/static/common/js/marked.min.js`
+**Global:** `marked`
+**License:** MIT
+
+Markdown parser used by the host web UI and available to widgets that need client-side Markdown rendering. Sanitize untrusted HTML separately; Marked parses Markdown but is not an HTML sanitizer.
+
+```html
+<div id="output"></div>
+<script src="/static/common/js/marked.min.js"></script>
+<script>
+  document.getElementById('output').innerHTML = marked.parse('# Widget output');
+</script>
+```
+
+## KaTeX 0.17.0
+
+**Size:** 267 KiB (minified IIFE), plus fonts
+**Path:** `/static/common/js/vendor/katex.min.js`
+**Global:** `katex`
+**License:** MIT
+
+KaTeX powers host-side math rendering. Its WOFF2 fonts are vendored under `/static/common/fonts/`. The host app bundles the matching KaTeX CSS; sandboxed widgets do not inherit that CSS and must provide compatible styles if they render formulas themselves.
+
+```html
+<div id="output"></div>
+<script src="/static/common/js/vendor/katex.min.js"></script>
+<script>
+  katex.render('c = \\pm\\sqrt{a^2 + b^2}', document.getElementById('output'), {
+    throwOnError: false
+  });
+</script>
+```
+
+## Adaptive Cards 3.0.6
+
+**Size:** 331 KiB (minified IIFE)
+**Path:** `/static/common/js/vendor/adaptivecards.min.js`
+**Global:** `AdaptiveCards`
+**License:** MIT
+
+This is the browser renderer used by Piclaw's structured timeline cards. Extension authors should normally post cards through `send_adaptive_card` rather than rendering the SDK in a dashboard widget; the static bundle is documented here for host UI maintenance and specialized pane use.
+
 ## Widget bridge
 
 All interactive widgets get `window.piclawWidget` automatically:
@@ -138,6 +205,25 @@ Mermaid diagram renderer with enhanced theming. Exposes
 </script>
 ```
 
+## Dependency provenance and rebuilding
+
+Each generated bundle has a nearby `*.meta.json` file recording its package version, license, repository, SHA-256 digest, size, source entry point, and exact build command. Manifests for build-script-managed bundles live in `runtime/vendor-manifests/`.
+
+Do not hand-edit generated bundles. To rebuild the standard runtime vendor set from the repository root:
+
+```bash
+bun run build:vendor
+```
+
+For one manifest, use the build command captured in that bundle's metadata, for example:
+
+```bash
+cd runtime
+bun run scripts/build-vendored-dependency.ts --manifest vendor-manifests/preact-htm.json
+```
+
+Bundles not included in `build:vendor`, such as Adaptive Cards, can use the same command with their own manifest. Commit the source/manifest change, generated asset, and regenerated metadata together. `runtime/test/scripts/runtime-vendors.test.ts` covers reproducible builds and browser globals for the Preact/HTM, Marked, and KaTeX bundles.
+
 ## Vendored fonts
 
 Two font families are vendored as WOFF2 assets for use in generated HTML
@@ -145,7 +231,7 @@ artifacts and widgets:
 
 ### IBM Plex Sans
 
-**Path:** `/static/fonts/ibm-plex-sans/`
+**Path:** `/static/common/fonts/ibm-plex-sans/`
 **Weights:** Regular (400), Medium (500), SemiBold (600), Bold (700)
 **License:** OFL 1.1
 
@@ -153,13 +239,13 @@ artifacts and widgets:
 @font-face {
   font-family: 'IBM Plex Sans';
   font-weight: 400;
-  src: url(/static/fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2) format('woff2');
+  src: url(/static/common/fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2) format('woff2');
 }
 ```
 
 ### JetBrains Mono Nerd Font Mono
 
-**Path:** `/static/fonts/jetbrains-mono-nf/`
+**Path:** `/static/common/fonts/jetbrains-mono-nf/`
 **Weights:** Regular (400), Medium (500)
 **License:** OFL 1.1
 
@@ -170,13 +256,15 @@ file-type glyphs. Also serves as the terminal font.
 @font-face {
   font-family: 'JetBrains Mono NF';
   font-weight: 400;
-  src: url(/static/fonts/jetbrains-mono-nf/JetBrainsMonoNFM-Regular.woff2) format('woff2');
+  src: url(/static/common/fonts/jetbrains-mono-nf/JetBrainsMonoNFM-Regular.woff2) format('woff2');
 }
 ```
 
-> **Widget sandbox note:** Interactive widgets do not receive
-> `allow-same-origin`. Treat the iframe as an opaque-origin execution context
-> and use the `piclawWidget` bridge for host communication.
+> **Widget sandbox note:** Interactive widgets receive `allow-scripts`,
+> `allow-same-origin`, and `allow-forms` so they can load vendored/workspace
+> assets and use authenticated local endpoints. Treat widget HTML as trusted
+> code, keep host interaction explicit, and prefer the `piclawWidget` bridge
+> for returning user decisions to the chat.
 
 ## Mermaid post-processing helper
 
