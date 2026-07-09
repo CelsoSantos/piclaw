@@ -7,10 +7,10 @@ same-origin script loading (`script-src 'unsafe-inline' 'self'`).
 The following libraries are vendored as static assets and available to any widget
 and to generated HTML artifacts from the `visual-artifact-generator` skill:
 
-## Babylon.js 9.5
+## Babylon.js 9.16
 
-**Size:** 7.7 MB (UMD)
-**Path:** `/static/js/vendor/babylon/babylon.js`
+**Size:** 7.8 MiB (UMD)
+**Path:** `/static/common/js/vendor/babylon/babylon.js`
 **Global:** `BABYLON`
 **License:** Apache-2.0
 
@@ -19,7 +19,7 @@ SceneLoader (STL, glTF), physics, particles, and post-processing.
 
 ```html
 <canvas id="renderCanvas"></canvas>
-<script src="/static/js/vendor/babylon/babylon.js"></script>
+<script src="/static/common/js/vendor/babylon/babylon.js"></script>
 <script>
   var canvas = document.getElementById('renderCanvas');
   var engine = new BABYLON.Engine(canvas, true);
@@ -33,10 +33,10 @@ SceneLoader (STL, glTF), physics, particles, and post-processing.
 </script>
 ```
 
-## ECharts 6.0
+## ECharts 6.1
 
 **Size:** 1.1 MB (minified UMD)
-**Path:** `/static/js/vendor/echarts/echarts.min.js`
+**Path:** `/static/common/js/vendor/echarts/echarts.min.js`
 **Global:** `echarts`
 **License:** Apache-2.0
 
@@ -48,7 +48,7 @@ Dark theme built in.
 
 ```html
 <div id="chart" style="width:100%;height:400px"></div>
-<script src="/static/js/vendor/echarts/echarts.min.js"></script>
+<script src="/static/common/js/vendor/echarts/echarts.min.js"></script>
 <script>
   var chart = echarts.init(document.getElementById('chart'), 'dark');
   chart.setOption({
@@ -60,10 +60,27 @@ Dark theme built in.
 </script>
 ```
 
+## Three.js r185.1
+
+**Size:** 357 KiB (ESM module) plus 376 KiB (core)
+**Path:** `/static/common/js/vendor/three/three.module.min.js`
+**Global:** none (ESM import)
+**License:** MIT
+
+3D rendering library for scenes, geometries, materials, loaders, and
+post-processing. Import the module build directly:
+
+```html
+<script type="module">
+  import * as THREE from '/static/common/js/vendor/three/three.module.min.js';
+  const scene = new THREE.Scene();
+</script>
+```
+
 ## D3 7.9
 
 **Size:** 274 KB (minified UMD)
-**Path:** `/static/js/vendor/d3/d3.min.js`
+**Path:** `/static/common/js/vendor/d3/d3.min.js`
 **Global:** `d3`
 **License:** ISC
 
@@ -73,7 +90,7 @@ layouts (treemap, pack, partition, cluster), Voronoi, contours, and more.
 
 ```html
 <svg id="viz" width="600" height="400"></svg>
-<script src="/static/js/vendor/d3/d3.min.js"></script>
+<script src="/static/common/js/vendor/d3/d3.min.js"></script>
 <script>
   var svg = d3.select('#viz');
   // Full D3 API available
@@ -98,7 +115,7 @@ window.addEventListener('piclaw:widget-message', function (e) {
 ## Mermaid (beautiful-mermaid)
 
 **Size:** ~1.5 MB (bundled)
-**Path:** `/static/js/vendor/beautiful-mermaid.js`
+**Path:** `/static/common/js/vendor/beautiful-mermaid.js`
 **Global:** `window.beautifulMermaid`
 **License:** MIT
 
@@ -107,7 +124,7 @@ Mermaid diagram renderer with enhanced theming. Exposes
 `mermaid.initialize()` patterns here.
 
 ```html
-<script src="/static/js/vendor/beautiful-mermaid.js"></script>
+<script src="/static/common/js/vendor/beautiful-mermaid.js"></script>
 <script>
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   beautifulMermaid.renderMermaidSVGAsync(source, {
@@ -171,7 +188,7 @@ handles all required fixups:
 **Exposes:** `window.fixupMermaidSVG(container, options)`
 
 ```html
-<script src="/static/js/vendor/beautiful-mermaid.js"></script>
+<script src="/static/common/js/vendor/beautiful-mermaid.js"></script>
 <script src="/workspace/.pi/skills/visual-artifact-generator/scripts/mermaid-fixup.js"></script>
 <script>
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
