@@ -416,7 +416,7 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const keep = 15;
+            const keep = 10;
             const { owner, repo } = context.repo;
             const releases = await github.paginate(github.rest.repos.listReleases, {
               owner,
