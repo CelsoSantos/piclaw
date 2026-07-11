@@ -95,8 +95,8 @@ const source = buildSource();
 async function ensureBaselineWorktree() {
   try {
     await $`git -C ${repoRoot} worktree remove --force ${baselineRoot}`.quiet();
-  } catch {
-    // The path may not be registered yet.
+  } catch (error) {
+    console.warn('[markdown-editor-speed-audit] baseline worktree was not registered before setup', error);
   }
   rmSync(baselineRoot, { recursive: true, force: true });
   await $`git -C ${repoRoot} worktree add --detach --quiet ${baselineRoot} ${baselineRef}`;
