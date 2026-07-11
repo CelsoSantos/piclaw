@@ -272,11 +272,12 @@ function buildMergePrompt(input: {
   });
   if (input.final) {
     const files = input.fileOps ? fileListsFromOps(input.fileOps) : { readFiles: [], modifiedFiles: [] };
-    sections.push("\nOutput this exact final format:");
-    sections.push(SYSTEM_PROMPT.replace(/^You are[\s\S]*?Use this EXACT format:\n\n/, ""));
     sections.push("\nFile facts from deterministic tool analysis:");
+    sections.push("Use these as source data only. Do not reproduce these labels; deterministic file blocks are appended separately after validation.");
     sections.push(`Modified files:\n${files.modifiedFiles.length ? compressFilePaths(files.modifiedFiles) : "- (none)"}`);
     sections.push(`Read files:\n${files.readFiles.length ? compressFilePaths(files.readFiles) : "- (none)"}`);
+    sections.push("\nOutput this exact final format:");
+    sections.push(SYSTEM_PROMPT.replace(/^You are[\s\S]*?Use this EXACT format:\n\n/, ""));
   } else {
     sections.push("\nReturn a concise structured intermediate summary with the same headings as the chunk summaries.");
   }

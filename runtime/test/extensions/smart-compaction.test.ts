@@ -1340,6 +1340,57 @@ describe("smart-compaction", () => {
       }
     });
 
+    it("places deterministic file facts before the terminal schema so they are not echoed as trailing commentary", async () => {
+      const longMessages = Array.from({ length: 24 }, (_, i) => userMsg(`File-fact ordering ${i}: ${"x".repeat(3_000)}`));
+      const validFinal = "## Goal\nPreserve deterministic file facts\n\n## Current Active Topic\n- progressive output validation\n\n## Historical / Background Context\n- chunk summaries were merged\n\n## Constraints & Preferences\n- keep terminal output structured\n\n## Progress\n### Done\n- [x] progressive chunks summarized\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Prompt ordering**: source facts precede the output schema\n\n## Next Steps\n1. continue\n\n## Critical Context\n- deterministic file facts remain available";
+      const finalPrompts: string[] = [];
+      (completeSimple as any).mockImplementation(async (_model: any, context: any) => {
+        const prompt = context.messages[0].content[0].text as string;
+        if (prompt.includes("deterministic chunk") || prompt.includes("smaller intermediate summary")) {
+          return {
+            content: [{ type: "text", text: "## Chunk Range\n- range\n\n## Goals / User Intent\n- preserve file facts\n\n## Constraints & Preferences\n- none\n\n## Decisions\n- none\n\n## Files / Commands / Tool Outcomes\n- /workspace/progressive.ts modified\n\n## Progress\n- Done: chunk summarized\n- In progress: final merge\n- Blocked: none\n\n## Open Questions / Next Steps\n- merge\n\n## Key Continuity Facts\n- file facts" }],
+            stopReason: "stop",
+          };
+        }
+        finalPrompts.push(prompt);
+        const fileFactsAfterTerminalSchema = prompt.lastIndexOf("File facts from deterministic tool analysis:") > prompt.lastIndexOf("## Critical Context");
+        return {
+          content: [{
+            type: "text",
+            text: fileFactsAfterTerminalSchema
+              ? `${validFinal}\nFile facts from deterministic tool analysis:\nModified files:\n/workspace/progressive.ts`
+              : validFinal,
+          }],
+          stopReason: "stop",
+        };
+      });
+
+      const result = await handler!(
+        {
+          preparation: makePreparation(longMessages.length, {
+            messagesToSummarize: longMessages,
+            tokensBefore: 90_000,
+            settings: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 1_000 },
+            fileOps: {
+              read: new Set(["/workspace/context.ts"]),
+              written: new Set<string>(),
+              edited: new Set(["/workspace/progressive.ts"]),
+            },
+          }),
+          branchEntries: [],
+          signal: new AbortController().signal,
+        },
+        makeCtx({ model: { provider: "test", id: "file-fact-ordering", contextWindow: 16_000, reasoning: false } }),
+      );
+
+      expect(result.compaction.summary).toContain("Preserve deterministic file facts");
+      expect(result.compaction.summary).toContain("<read-files>");
+      expect(result.compaction.summary).toContain("<modified-files>");
+      expect(finalPrompts).toHaveLength(1);
+      expect(finalPrompts[0].lastIndexOf("File facts from deterministic tool analysis:"))
+        .toBeLessThan(finalPrompts[0].lastIndexOf("## Critical Context"));
+    });
+
     it("cancels when the repaired final merge remains malformed", async () => {
       const longMessages = Array.from({ length: 24 }, (_, i) => userMsg(`Malformed final fact ${i}: ${"x".repeat(3_000)}`));
       let finalCalls = 0;
