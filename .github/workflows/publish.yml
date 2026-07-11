@@ -149,7 +149,8 @@ jobs:
       - name: Upload portable artifact
         uses: actions/upload-artifact@v7
         with:
-          retention-days: 7
+          # Temporary handoff to the release-publishing job; durable copy lives in Releases.
+          retention-days: 1
           name: piclaw-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}-portable
           path: artifacts/release/*
           if-no-files-found: error
@@ -194,7 +195,8 @@ jobs:
       - name: Upload experimental shell artifact
         uses: actions/upload-artifact@v7
         with:
-          retention-days: 7
+          # Temporary handoff to the release-publishing job; durable copy lives in Releases.
+          retention-days: 1
           name: piclaw-desktop-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: artifacts/release/piclaw-desktop-*
           if-no-files-found: error
@@ -239,7 +241,8 @@ jobs:
           provenance: false
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
+          # Keep only the final-stage cache; mode=max retained several GiB of intermediate layers.
+          cache-to: type=gha,mode=min,scope=amd64
           build-args: |
             BUN_VERSION=${{ needs.resolve-runtime-versions.outputs.bun_version }}
             BUN_PREFER_BASELINE=${{ env.BUN_PREFER_BASELINE }}
@@ -296,7 +299,8 @@ jobs:
           provenance: false
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
+          # Keep only the final-stage cache; mode=max retained several GiB of intermediate layers.
+          cache-to: type=gha,mode=min,scope=arm64
           build-args: |
             BUN_VERSION=${{ needs.resolve-runtime-versions.outputs.bun_version }}
             BUN_PREFER_BASELINE=${{ env.BUN_PREFER_BASELINE }}
@@ -559,6 +563,31 @@ jobs:
             }
 
             core.info('Actions history cleanup completed.');
+
+      - name: Delete current release handoff artifacts
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              {
+                owner,
+                repo,
+                run_id: context.runId,
+                per_page: 100,
+              },
+            );
+
+            core.info(`Deleting ${artifacts.length} current-run artifact(s) after Release publication.`);
+            for (const artifact of artifacts) {
+              core.info(`Deleting ${artifact.name} (${artifact.size_in_bytes} bytes, id ${artifact.id}).`);
+              await github.rest.actions.deleteArtifact({
+                owner,
+                repo,
+                artifact_id: artifact.id,
+              });
+            }
 
   # GitHub-native cleanup boundary: GHCR package pruning remains in `github-script`
   # because it uses GitHub package APIs directly and is not meaningfully reusable
