@@ -463,12 +463,20 @@ async function completeCompactionPrompt(
 
     const repairReason = (err as { validationReason?: string })?.validationReason ?? message;
     const repairInstruction = buildCompactionRepairInstruction(schema, repairReason);
+    const appendRepairInstruction = (sourcePrompt: string): string => {
+      const marker = schema === "final"
+        ? "\nOutput this exact final format:"
+        : "\nReturn a concise structured intermediate summary with the same headings as the chunk summaries.";
+      const markerIndex = sourcePrompt.lastIndexOf(marker);
+      if (markerIndex < 0) return `${sourcePrompt}${repairInstruction}`;
+      return `${sourcePrompt.slice(0, markerIndex)}${repairInstruction}\n${sourcePrompt.slice(markerIndex)}`;
+    };
     // Every progressive prompt is source-bearing: chunks contain raw messages,
     // while merge/final prompts contain the only summaries of messages that will
     // be discarded. Never trim any of them for repair, or a successful retry
     // could claim coverage for omitted history. Retry only when the complete
     // original prompt plus the bounded repair instruction still fits.
-    const repairedPrompt = `${promptText}${repairInstruction}`;
+    const repairedPrompt = appendRepairInstruction(promptText);
     if (!hasSafeCompactionOutputRoom(model, repairedPrompt, maxTokens)) throw err;
     log.debug("Progressive compaction retrying rejected output once", {
       operation: "smart_compaction.progressive_output_retry",
