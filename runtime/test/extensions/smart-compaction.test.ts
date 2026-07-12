@@ -1329,7 +1329,8 @@ describe("smart-compaction", () => {
         .filter((prompt: string) => prompt.includes("final continuity state"));
       expect(finalPrompts).toHaveLength(2);
       expect(finalPrompts.at(-1)).toContain("Output Repair Requirement");
-      expect(finalPrompts[1].startsWith(finalPrompts[0])).toBe(true);
+      expect(finalPrompts[1].lastIndexOf("## Output Repair Requirement"))
+        .toBeLessThan(finalPrompts[1].lastIndexOf("## Critical Context"));
       expect(finalPrompts[1]).toContain("fact 0-");
       for (const prompt of finalPrompts) {
         expect(() => getSafeCompactionMaxTokens(
@@ -1389,6 +1390,51 @@ describe("smart-compaction", () => {
       expect(finalPrompts).toHaveLength(1);
       expect(finalPrompts[0].lastIndexOf("File facts from deterministic tool analysis:"))
         .toBeLessThan(finalPrompts[0].lastIndexOf("## Critical Context"));
+    });
+
+    it("places progressive final repair instructions before the terminal output schema", async () => {
+      const longMessages = Array.from({ length: 24 }, (_, i) => userMsg(`Repair ordering ${i}: ${"x".repeat(3_000)}`));
+      const validFinal = "## Goal\nRepair ordering\n\n## Current Active Topic\n- progressive output validation\n\n## Historical / Background Context\n- chunk summaries were merged\n\n## Constraints & Preferences\n- keep terminal output structured\n\n## Progress\n### Done\n- [x] progressive chunks summarized\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Repair prompt ordering**: repair text must precede the output schema\n\n## Next Steps\n1. continue\n\n## Critical Context\n- repaired final merge remains structured";
+      const finalPrompts: string[] = [];
+      let finalCalls = 0;
+      (completeSimple as any).mockImplementation(async (_model: any, context: any) => {
+        const prompt = context.messages[0].content[0].text as string;
+        if (prompt.includes("deterministic chunk") || prompt.includes("smaller intermediate summary")) {
+          return {
+            content: [{ type: "text", text: "## Chunk Range\n- range\n\n## Goals / User Intent\n- preserve repair ordering\n\n## Constraints & Preferences\n- none\n\n## Decisions\n- none\n\n## Files / Commands / Tool Outcomes\n- none\n\n## Progress\n- Done: chunk summarized\n- In progress: final merge\n- Blocked: none\n\n## Open Questions / Next Steps\n- merge\n\n## Key Continuity Facts\n- repair ordering facts" }],
+            stopReason: "stop",
+          };
+        }
+        finalPrompts.push(prompt);
+        finalCalls += 1;
+        return {
+          content: [{
+            type: "text",
+            text: finalCalls === 1
+              ? `${validFinal}\nThis plain trailing sentence must be rejected.`
+              : validFinal,
+          }],
+          stopReason: "stop",
+        };
+      });
+
+      const result = await handler!(
+        {
+          preparation: makePreparation(longMessages.length, {
+            messagesToSummarize: longMessages,
+            tokensBefore: 90_000,
+            settings: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 1_000 },
+          }),
+          branchEntries: [],
+          signal: new AbortController().signal,
+        },
+        makeCtx({ model: { provider: "test", id: "repair-ordering", contextWindow: 16_000, reasoning: false } }),
+      );
+
+      expect(result.compaction.summary).toContain("Repair ordering");
+      expect(finalPrompts).toHaveLength(2);
+      expect(finalPrompts[1].lastIndexOf("## Output Repair Requirement"))
+        .toBeLessThan(finalPrompts[1].lastIndexOf("## Critical Context"));
     });
 
     it("cancels when the repaired final merge remains malformed", async () => {
