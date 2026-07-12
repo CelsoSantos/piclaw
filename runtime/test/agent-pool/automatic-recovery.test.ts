@@ -3,12 +3,40 @@ import { expect, test } from "bun:test";
 import {
   decideAutomaticRecovery,
   DEFAULT_AUTOMATIC_RECOVERY_CONFIG,
+  getAutomaticRecoveryConfig,
   isContextPressureFailure,
   isLengthStopFailure,
   isNonRecoverableFailure,
   isProviderAuthConfigFailure,
   isTransientFailure,
 } from "../../src/agent-pool/automatic-recovery.js";
+
+test("keeps turn auto-recovery enabled when generic retry is disabled", () => {
+  const previous = process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED;
+  delete process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED;
+  try {
+    const config = getAutomaticRecoveryConfig({ enabled: false, maxRetries: 7, baseDelayMs: 1234, maxDelayMs: 5678 });
+    expect(config.enabled).toBe(true);
+    expect(config.maxAttempts).toBe(7);
+    expect(config.baseDelayMs).toBe(1234);
+    expect(config.maxDelayMs).toBe(5678);
+  } finally {
+    if (previous === undefined) delete process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED;
+    else process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED = previous;
+  }
+});
+
+test("honors explicit turn auto-recovery env disable", () => {
+  const previous = process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED;
+  process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED = "0";
+  try {
+    const config = getAutomaticRecoveryConfig({ enabled: true, maxRetries: 7, baseDelayMs: 1234, maxDelayMs: 5678 });
+    expect(config.enabled).toBe(false);
+  } finally {
+    if (previous === undefined) delete process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED;
+    else process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED = previous;
+  }
+});
 
 test("classifies context-limit failures as compact-then-retry", () => {
   const decision = decideAutomaticRecovery({

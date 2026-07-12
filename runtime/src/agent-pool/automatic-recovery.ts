@@ -109,7 +109,12 @@ export function normalizeRetryBackoffSettings(settings?: Partial<RetryBackoffSet
 export function getAutomaticRecoveryConfig(retrySettings?: Partial<RetryBackoffSettings> | null): Readonly<AutomaticRecoveryConfig> {
   const normalizedRetry = normalizeRetryBackoffSettings(retrySettings);
   return Object.freeze({
-    enabled: parseBoolean(process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED, normalizedRetry.enabled),
+    // The SDK retry toggle controls provider/request retries. Piclaw turn recovery
+    // is a separate safety mechanism for intentional mid-turn aborts such as
+    // context/tool-history pressure. Only the explicit Piclaw env override should
+    // disable it; otherwise hosts with generic retry disabled surface our own
+    // session.abort() as "Request was aborted" instead of compacting and retrying.
+    enabled: parseBoolean(process.env.PICLAW_TURN_AUTO_RECOVERY_ENABLED, DEFAULT_AUTOMATIC_RECOVERY_CONFIG.enabled),
     maxAttempts: parsePositiveInt(process.env.PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS, normalizedRetry.maxRetries),
     totalBudgetMs: parsePositiveInt(process.env.PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS, DEFAULT_AUTOMATIC_RECOVERY_CONFIG.totalBudgetMs),
     baseDelayMs: normalizedRetry.baseDelayMs,
