@@ -30,6 +30,7 @@ import { startExternalProgressWatchdogMonitor } from "./progress-watchdog-superv
 import type { RuntimeState } from "./state.js";
 import { launchWorkspaceIndexProcess } from "../workspace-index-process.js";
 import { SystemMetricsSampler } from "../channels/web/agent/system-metrics.js";
+import { setAddonAgentMessageEnqueuer } from "../addons/runtime-contributions.js";
 // import { registerLazyViewerRoutes } from "../channels/web/http/lazy-viewer-routes.js"; // removed: office-viewer is now @rcarmo/piclaw-addon-office-viewer
 
 const log = createLogger("runtime.startup");
@@ -520,6 +521,11 @@ export async function startWebChannel(queue: AgentQueue, agentPool: AgentPool): 
   captureStartupMemorySnapshot(agentPool, { label: "post-web-start" });
   queueStartupSessionWarmup(agentPool, resolveStartupSessionWarmupOptions());
   runWebStartupRecoveryBootstrap(web);
+
+  // Wire the first-class add-on runtime API to the web channel's in-process
+  // message storage/queue/run path. Add-ons should use this instead of
+  // synthesizing authenticated localhost HTTP requests to /agent/:id/message.
+  setAddonAgentMessageEnqueuer((request) => web.enqueueAgentMessage(request));
 
   // Wire the messages tool post action to use the web channel for broadcast.
   setMessagesPostFn((chatJid, content, isBot, mediaIds, contentBlocks) => {
