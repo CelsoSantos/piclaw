@@ -617,14 +617,26 @@ test("agent control cycle and agent identity commands", async () => {
   const cycleThinking = await applyControlCommand(runtime as any, cycleRegistry, { type: "cycle_thinking", raw: "/cycle-thinking" });
   expect(cycleThinking.message).toContain("Thinking level set");
 
+  session.model = {
+    provider: "openai",
+    id: "gpt-5.6-sol",
+    reasoning: true,
+    thinkingLevelMap: { xhigh: "xhigh", max: "max" },
+  } as any;
   const maxOnOpenAi = await applyControlCommand(runtime as any, cycleRegistry, { type: "thinking", level: "max", raw: "/thinking max" });
-  expect(maxOnOpenAi.status).toBe("error");
-  expect(maxOnOpenAi.message).toContain("Unknown thinking level: max");
+  expect(maxOnOpenAi.status).toBe("success");
+  expect(maxOnOpenAi.thinking_level).toBe("max");
+  expect(maxOnOpenAi.thinking_level_label).toBe("max");
 
-  session.model = { provider: "anthropic", id: "claude-opus-4-6", reasoning: true } as any;
+  session.model = {
+    provider: "anthropic",
+    id: "claude-opus-4-6",
+    reasoning: true,
+    thinkingLevelMap: { max: "max" },
+  } as any;
   const maxOnAnthropic = await applyControlCommand(runtime as any, cycleRegistry, { type: "thinking", level: "max", raw: "/thinking max" });
   expect(maxOnAnthropic.status).toBe("success");
-  expect(maxOnAnthropic.thinking_level).toBe("xhigh");
+  expect(maxOnAnthropic.thinking_level).toBe("max");
   expect(maxOnAnthropic.thinking_level_label).toBe("max");
   expect(maxOnAnthropic.message).toContain("Thinking level set to max");
 

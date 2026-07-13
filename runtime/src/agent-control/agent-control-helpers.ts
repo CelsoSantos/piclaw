@@ -22,23 +22,22 @@ import { getChatJid } from "../core/chat-context.js";
 import { isContextPressureFailure } from "../agent-pool/automatic-recovery.js";
 import { runWithPiclawCompactionTrigger } from "../agent-pool/compaction-trigger-context.js";
 
-/** Ordered list of supported thinking levels from off to xhigh. */
-export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+/** Ordered list of supported thinking levels from off to max. */
+export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+type ThinkingModelDescriptor = Pick<Model<Api>, "provider" | "thinkingLevelMap">;
 
 /**
- * Provider-native aliases for thinking levels.
- * Anthropic uses "effort" terminology: "max" maps to internal "xhigh".
+ * Detect pre-0.80.6/custom model metadata that exposed provider `max` through
+ * Pi's old `xhigh` slot. Native `max` must remain distinct when both exist.
  */
-export const EFFORT_PROVIDER_THINKING_LEVEL_ALIASES: Record<string, string> = {
-  max: "xhigh",
-};
+export function usesLegacyMaxThinkingAlias(model: ThinkingModelDescriptor | null | undefined): boolean {
+  return model?.thinkingLevelMap?.xhigh === "max" && model.thinkingLevelMap.max == null;
+}
 
-/** Resolve a user-provided level name through provider-native aliases for the active provider. */
-export function resolveThinkingAlias(level: string, provider: string | undefined | null): string {
-  if (isEffortProvider(provider)) {
-    return EFFORT_PROVIDER_THINKING_LEVEL_ALIASES[level] ?? level;
-  }
-  return level;
+/** Resolve the legacy `max` alias without collapsing native 0.80.6 `max`. */
+export function resolveThinkingAlias(level: string, model: ThinkingModelDescriptor | null | undefined): string {
+  return level === "max" && usesLegacyMaxThinkingAlias(model) ? "xhigh" : level;
 }
 
 /** Check if a provider uses "effort" terminology (e.g. Anthropic). */
@@ -46,13 +45,9 @@ export function isEffortProvider(provider: string | undefined | null): boolean {
   return provider?.toLowerCase() === "anthropic";
 }
 
-/**
- * Format a thinking level for display, using provider-native terms when appropriate.
- * For Anthropic: "xhigh" displays as "max".
- */
-export function formatThinkingLevelForDisplay(level: string, provider: string | undefined | null): string {
-  if (isEffortProvider(provider) && level === "xhigh") return "max";
-  return level;
+/** Display legacy `xhigh: max` metadata as max while preserving native xhigh. */
+export function formatThinkingLevelForDisplay(level: string, model: ThinkingModelDescriptor | null | undefined): string {
+  return level === "xhigh" && usesLegacyMaxThinkingAlias(model) ? "max" : level;
 }
 
 /** Return the preferred working directory for shell commands (configured workspace or cwd). */
@@ -272,13 +267,12 @@ export async function runPromptAndCapture(
 ): Promise<string> {
   let assistantBuffer = "";
   const customBuffers: string[] = [];
-  let providerError: string | null = null;
+  let providerError: string | null;
   let compacted = false;
 
   const resetCapturedOutput = () => {
     assistantBuffer = "";
     customBuffers.length = 0;
-    providerError = null;
   };
 
   const onEvent = (event: AgentSessionEvent) => {

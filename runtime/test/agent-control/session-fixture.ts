@@ -1,4 +1,5 @@
 import type { AgentSessionRuntime } from "@earendil-works/pi-coding-agent";
+import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { mkdirSync, writeFileSync, rmSync, readdirSync } from "fs";
 import { dirname, join } from "path";
 
@@ -234,11 +235,11 @@ export class TestAgentControlSession {
   }
 
   getAvailableThinkingLevels() {
-    return ["off", "low", "medium", "high"] as any;
+    return getSupportedThinkingLevels(this.model) as any;
   }
 
   setThinkingLevel(level: any) {
-    this.thinkingLevel = level;
+    this.thinkingLevel = clampThinkingLevel(this.model, level) as any;
   }
 
   async setModel(model: any) {

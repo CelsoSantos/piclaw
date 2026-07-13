@@ -73,7 +73,7 @@ function createInvalidDeferredBranchSeedError(chatJid: string, reason: string, c
 }
 
 export function normalizeThinkingLevel(value: string | null | undefined): ThinkingLevel | null {
-  return value === "off" || value === "minimal" || value === "low" || value === "medium" || value === "high" || value === "xhigh"
+  return value === "off" || value === "minimal" || value === "low" || value === "medium" || value === "high" || value === "xhigh" || value === "max"
     ? value
     : null;
 }
