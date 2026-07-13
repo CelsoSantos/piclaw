@@ -2996,6 +2996,7 @@ test("runAgentPrompt treats provider length stop as an error with preserved part
 });
 
 test("runAgentPrompt surfaces latent session state errors when no final text is emitted", async () => {
+  const restoreEnv = setEnv({ PICLAW_TURN_AUTO_RECOVERY_ENABLED: "0" });
   class StubSession {
     private listeners: Array<(event: any) => void> = [];
     sessionManager = { getLeafId: () => "leaf-1" };
@@ -3030,20 +3031,24 @@ test("runAgentPrompt surfaces latent session state errors when no final text is 
     recordMessageUsage: () => {},
   });
 
-  const result = await runAgentPrompt("hello", "web:default", { timeoutMs: 0 }, {
-    getOrCreateRuntime: async () => createRuntime(session, { enabled: false }) as any,
-    turnCoordinator,
-    clearAttachments: () => {},
-    takeAttachments: () => [],
-    logsDir: createTestLogsDir(),
-    setActiveForkBaseLeaf: () => {},
-    clearActiveForkBaseLeaf: () => {},
-  });
+  try {
+    const result = await runAgentPrompt("hello", "web:default", { timeoutMs: 0 }, {
+      getOrCreateRuntime: async () => createRuntime(session, { enabled: false }) as any,
+      turnCoordinator,
+      clearAttachments: () => {},
+      takeAttachments: () => [],
+      logsDir: createTestLogsDir(),
+      setActiveForkBaseLeaf: () => {},
+      clearActiveForkBaseLeaf: () => {},
+    });
 
-  expect(result.status).toBe("error");
-  expect(result.error).toContain("429");
-  expect(result.error).toContain("rate limit");
-  expect(result.result).toBeNull();
+    expect(result.status).toBe("error");
+    expect(result.error).toContain("429");
+    expect(result.error).toContain("rate limit");
+    expect(result.result).toBeNull();
+  } finally {
+    restoreEnv();
+  }
 });
 
 test("runAgentPrompt returns completed commentary-only visible output", async () => {
