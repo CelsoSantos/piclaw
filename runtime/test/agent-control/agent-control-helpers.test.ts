@@ -105,12 +105,17 @@ test("normalizeModelMatch finds provider/id case-insensitively", () => {
   expect(match?.provider).toBe("OpenAI");
 });
 
-test("thinking aliases and labels are provider-aware", () => {
-  expect(resolveThinkingAlias("max", "anthropic")).toBe("xhigh");
-  expect(resolveThinkingAlias("max", "openai")).toBe("max");
-  expect(resolveThinkingAlias("high", "anthropic")).toBe("high");
-  expect(formatThinkingLevelForDisplay("xhigh", "anthropic")).toBe("max");
-  expect(formatThinkingLevelForDisplay("xhigh", "openai")).toBe("xhigh");
+test("thinking aliases preserve native max while supporting legacy model metadata", () => {
+  const legacy = { provider: "anthropic", thinkingLevelMap: { xhigh: "max" } } as any;
+  const legacyWithExplicitNull = { provider: "anthropic", thinkingLevelMap: { xhigh: "max", max: null } } as any;
+  const native = { provider: "anthropic", thinkingLevelMap: { xhigh: "xhigh", max: "max" } } as any;
+  expect(resolveThinkingAlias("max", legacy)).toBe("xhigh");
+  expect(resolveThinkingAlias("max", legacyWithExplicitNull)).toBe("xhigh");
+  expect(resolveThinkingAlias("max", native)).toBe("max");
+  expect(resolveThinkingAlias("high", legacy)).toBe("high");
+  expect(formatThinkingLevelForDisplay("xhigh", legacy)).toBe("max");
+  expect(formatThinkingLevelForDisplay("xhigh", native)).toBe("xhigh");
+  expect(formatThinkingLevelForDisplay("max", native)).toBe("max");
 });
 
 test("runPromptAndCapture captures assistant output", async () => {

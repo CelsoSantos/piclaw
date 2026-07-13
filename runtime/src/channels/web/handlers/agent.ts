@@ -1764,11 +1764,28 @@ export async function processChat(
     effectiveThreadRootId
   );
 
+  const liveThinkingLevelLabels = new Map<string, string>();
+  try {
+    const modelState = await channel.agentPool.getAvailableModels(chatJid);
+    modelState.available_thinking_levels.forEach((level, index) => {
+      liveThinkingLevelLabels.set(level, modelState.available_thinking_level_labels[index] ?? level);
+    });
+    if (modelState.thinking_level && modelState.thinking_level_label) {
+      liveThinkingLevelLabels.set(modelState.thinking_level, modelState.thinking_level_label);
+    }
+  } catch (err) {
+    debugSuppressedError(log, "Failed to prepare live thinking-level labels.", err, {
+      operation: "process_chat.init_thinking_labels",
+      chatJid,
+    });
+  }
+
   const streamingHandler = createStreamingEventHandler({
     emitter: trackedEmitter,
     agentId,
     threadId,
     turnId,
+    formatThinkingLevel: (level) => liveThinkingLevelLabels.get(level) ?? level,
     thoughtPreviewLines: THOUGHT_PREVIEW_LINES,
     draftPreviewLines: DRAFT_PREVIEW_LINES,
     previewMaxCharsPerLine: PREVIEW_MAX_CHARS_PER_LINE,

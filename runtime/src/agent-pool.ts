@@ -216,7 +216,9 @@ export class AgentPool {
   private logsDir = join(WORKSPACE_DIR, "logs");
   private createSession?: AgentPoolOptions["createSession"];
   private createSideSession?: AgentPoolOptions["createSideSession"];
-  private bashOperations = createTrackedBashOperations();
+  private bashOperations = createTrackedBashOperations({
+    shellPath: () => this.settingsManager.getShellPath(),
+  });
   private attachments: AgentPoolServices["attachments"];
   private sessionBinder: AgentPoolServices["sessionBinder"];
   private toolFactory: AgentPoolServices["toolFactory"];
