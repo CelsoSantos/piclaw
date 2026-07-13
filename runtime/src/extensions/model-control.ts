@@ -6,7 +6,6 @@
  */
 import type { ExtensionAPI, ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import { findModel, parseModelInput } from "../utils/model-utils.js";
@@ -14,6 +13,7 @@ import { resolveModelScope, type EnabledModelsSettingsProvider } from "../utils/
 import { getChatContext } from "../core/chat-context.js";
 import {
   formatThinkingLevelForDisplay,
+  getAvailableThinkingLevelsForModel,
   resolveThinkingAlias,
 } from "../agent-control/agent-control-helpers.js";
 import { updateSessionModel } from "./session-status.js";
@@ -46,7 +46,7 @@ function modelLabel(model: Model<Api> | null | undefined): string | null {
 function getAvailableLevels(model: Model<Api> | undefined): ThinkingLevel[] {
   if (!model) return ["off"];
   return Array.from(new Set(
-    (getSupportedThinkingLevels(model) as ThinkingLevel[])
+    getAvailableThinkingLevelsForModel(model)
       .map((level) => formatThinkingLevelForDisplay(level, model) as ThinkingLevel),
   ));
 }

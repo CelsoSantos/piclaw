@@ -8,11 +8,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentSession, AgentSessionRuntime, ModelRegistry, AuthStorage, SettingsManager } from "@earendil-works/pi-coding-agent";
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 
 import { applyControlCommand, type AgentControlCommand, type AgentControlResult } from "../agent-control/index.js";
 import { getLatestTokenUsageModel } from "../db.js";
-import { formatThinkingLevelForDisplay } from "../agent-control/agent-control-helpers.js";
+import { formatThinkingLevelForDisplay, getAvailableThinkingLevelsForModel } from "../agent-control/agent-control-helpers.js";
 import { SESSIONS_DIR } from "../core/config.js";
 import { detectChannel } from "../router.js";
 import { executeSlashCommand } from "./slash-command.js";
@@ -573,9 +572,12 @@ export class AgentRuntimeFacade {
     const supportsThinking = session && typeof (session as AgentSession & { supportsThinking?: () => boolean }).supportsThinking === "function"
       ? (session as AgentSession & { supportsThinking: () => boolean }).supportsThinking()
       : Boolean(currentModelDescriptor?.reasoning);
-    const availableThinkingLevels: string[] = session && typeof (session as AgentSession & { getAvailableThinkingLevels?: () => string[] }).getAvailableThinkingLevels === "function"
+    const baseThinkingLevels: string[] = session && typeof (session as AgentSession & { getAvailableThinkingLevels?: () => string[] }).getAvailableThinkingLevels === "function"
       ? (session as AgentSession & { getAvailableThinkingLevels: () => string[] }).getAvailableThinkingLevels()
-      : currentModelDescriptor ? getSupportedThinkingLevels(currentModelDescriptor) : ["off"];
+      : ["off"];
+    const availableThinkingLevels: string[] = currentModelDescriptor
+      ? getAvailableThinkingLevelsForModel(currentModelDescriptor, baseThinkingLevels)
+      : baseThinkingLevels;
     const providerUsage = session?.model?.provider
       ? (peekProviderUsage(session.model.provider, { allowStale: true }) ?? null)
       : currentModelOption?.provider

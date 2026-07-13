@@ -14,7 +14,7 @@
  */
 
 import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import { existsSync } from "fs";
 import { getConfigPath, WORKSPACE_DIR } from "../core/config.js";
 import { readJsonConfig, writeJsonConfig } from "../core/config-store.js";
@@ -25,14 +25,16 @@ import { runWithPiclawCompactionTrigger } from "../agent-pool/compaction-trigger
 /** Ordered list of supported thinking levels from off to max. */
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
-type ThinkingModelDescriptor = Pick<Model<Api>, "provider" | "thinkingLevelMap">;
+type ThinkingLevelMapWithFutureLevels = Record<string, string | null | undefined>;
+type ThinkingModelDescriptor = Pick<Model<Api>, "provider" | "reasoning" | "thinkingLevelMap">;
 
 /**
  * Detect pre-0.80.6/custom model metadata that exposed provider `max` through
  * Pi's old `xhigh` slot. Native `max` must remain distinct when both exist.
  */
 export function usesLegacyMaxThinkingAlias(model: ThinkingModelDescriptor | null | undefined): boolean {
-  return model?.thinkingLevelMap?.xhigh === "max" && model.thinkingLevelMap.max == null;
+  const thinkingLevelMap = model?.thinkingLevelMap as ThinkingLevelMapWithFutureLevels | undefined;
+  return thinkingLevelMap?.xhigh === "max" && thinkingLevelMap.max == null;
 }
 
 /** Resolve the legacy `max` alias without collapsing native 0.80.6 `max`. */
@@ -48,6 +50,87 @@ export function isEffortProvider(provider: string | undefined | null): boolean {
 /** Display legacy `xhigh: max` metadata as max while preserving native xhigh. */
 export function formatThinkingLevelForDisplay(level: string, model: ThinkingModelDescriptor | null | undefined): string {
   return level === "xhigh" && usesLegacyMaxThinkingAlias(model) ? "max" : level;
+}
+
+/**
+ * Return Piclaw's view of model-supported thinking levels.
+ *
+ * Pi 0.80.x still exposes the historical `off..xhigh` type surface, while
+ * provider metadata can already advertise native `max`. Merge explicit
+ * thinkingLevelMap slots so UI/status/control paths can surface and preserve
+ * native max without treating legacy `xhigh: max` aliases as the same thing.
+ */
+export function getAvailableThinkingLevelsForModel(
+  model: ThinkingModelDescriptor | null | undefined,
+  baseLevels?: readonly string[],
+): string[] {
+  if (!model?.reasoning) return ["off"];
+
+  const levels: string[] = [];
+  const add = (level: string | null | undefined) => {
+    if (!level || levels.includes(level)) return;
+    levels.push(level);
+  };
+
+  for (const level of baseLevels ?? getSupportedThinkingLevels(model as Model<Api>)) {
+    add(level);
+  }
+
+  const thinkingLevelMap = model.thinkingLevelMap as ThinkingLevelMapWithFutureLevels | undefined;
+  if (thinkingLevelMap) {
+    for (const level of THINKING_LEVELS) {
+      if (thinkingLevelMap[level] !== null && thinkingLevelMap[level] !== undefined) {
+        add(level);
+      }
+    }
+  }
+
+  return levels.length > 0 ? levels : ["off"];
+}
+
+/** Set a thinking level, bypassing old Pi clamping when model metadata supports a newer slot. */
+export function setSessionThinkingLevelCompat(session: AgentSession, level: string): string | null | undefined {
+  const model = session.model as ThinkingModelDescriptor | null | undefined;
+  const sessionAvailable = typeof session.getAvailableThinkingLevels === "function"
+    ? session.getAvailableThinkingLevels() as readonly string[]
+    : [];
+  const piclawAvailable = getAvailableThinkingLevelsForModel(model, sessionAvailable);
+  const needsCompatForce = level === "max" && Boolean(model?.reasoning) && piclawAvailable.includes(level) && !sessionAvailable.includes(level);
+
+  if (!needsCompatForce) {
+    session.setThinkingLevel(level as never);
+    return session.thinkingLevel ?? null;
+  }
+
+  const forcedLevel = String(level);
+  const previousLevel = (session.thinkingLevel ?? null) as string | null;
+  const anySession = session as unknown as {
+    agent?: { state?: { thinkingLevel?: string } };
+    thinkingLevel?: string;
+    sessionManager?: { appendThinkingLevelChange?: (thinkingLevel: string) => unknown };
+    settingsManager?: { setDefaultThinkingLevel?: (thinkingLevel: string) => unknown };
+    supportsThinking?: () => boolean;
+    _emit?: (event: { type: string; level: string }) => unknown;
+    _extensionRunner?: { emit?: (event: { type: string; level: string; previousLevel: string | null }) => unknown };
+  };
+
+  if (anySession.agent?.state) {
+    anySession.agent.state.thinkingLevel = forcedLevel;
+  }
+  // Some AgentSession builds expose thinkingLevel through a getter only; Reflect.set
+  // returns false instead of throwing for that fallback path.
+  Reflect.set(anySession, "thinkingLevel", forcedLevel);
+
+  if (previousLevel !== forcedLevel) {
+    anySession.sessionManager?.appendThinkingLevelChange?.(forcedLevel);
+    if (anySession.supportsThinking?.() || forcedLevel !== "off") {
+      anySession.settingsManager?.setDefaultThinkingLevel?.(forcedLevel);
+    }
+    anySession._emit?.({ type: "thinking_level_changed", level: forcedLevel });
+    void anySession._extensionRunner?.emit?.({ type: "thinking_level_select", level: forcedLevel, previousLevel });
+  }
+
+  return session.thinkingLevel ?? anySession.agent?.state?.thinkingLevel ?? anySession.thinkingLevel ?? null;
 }
 
 /** Return the preferred working directory for shell commands (configured workspace or cwd). */
