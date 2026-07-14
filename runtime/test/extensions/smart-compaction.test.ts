@@ -1167,22 +1167,25 @@ describe("smart-compaction", () => {
       stopReason: "stop",
     });
 
+    // Use a logical workspace path rather than this test's physical checkout:
+    // pre-push runs under .piclaw/tmp, which is intentionally junk-filtered.
+    const fixtureProjectRoot = "/workspace/fixture-project";
     const prep = makePreparation(60, {
       fileOps: {
         read: new Set([
-          "/workspace/piclaw/runtime/src/channels/web/http/dispatch-agent.ts",
+          path.resolve(fixtureProjectRoot, "runtime/src/channels/web/http/dispatch-agent.ts"),
           "tmp/pr474-dispatch.patch",
           ".piclaw/tmp/pi-bash-123.log",
           ".pi/agent/sessions/abc/session.jsonl",
           "node_modules/pkg/index.js",
         ]),
         written: new Set([
-          "/workspace/piclaw/runtime/src/utils/logger.ts",
+          path.resolve(fixtureProjectRoot, "runtime/src/utils/logger.ts"),
           "tmp/edit_probe.txt",
           ".piclaw/tmp/pi-edit-123.log",
         ]),
         edited: new Set([
-          "/workspace/piclaw/runtime/src/extensions/observability.ts",
+          path.resolve(fixtureProjectRoot, "runtime/src/extensions/observability.ts"),
           ".pi/agent/models.json",
         ]),
       },
@@ -1206,8 +1209,9 @@ describe("smart-compaction", () => {
     expect(readFilesBlock).not.toContain(".pi/agent/sessions/abc/session.jsonl");
     expect(readFilesBlock).not.toContain("node_modules/pkg/index.js");
 
-    expect(modifiedFilesBlock).toContain("src/extensions/observability.ts");
-    expect(modifiedFilesBlock).toContain("src/utils/logger.ts");
+    expect(modifiedFilesBlock).toContain("base: fixture-project/runtime/src/");
+    expect(modifiedFilesBlock).toContain("extensions/observability.ts");
+    expect(modifiedFilesBlock).toContain("utils/logger.ts");
     expect(modifiedFilesBlock).toContain("tmp/edit_probe.txt");
     expect(modifiedFilesBlock).toContain(".piclaw/tmp/pi-edit-123.log");
     expect(modifiedFilesBlock).toContain(".pi/agent/models.json");
@@ -1877,6 +1881,44 @@ describe("smart-compaction", () => {
         const prompts = (completeSimple as any).mock.calls.map((call: any[]) => call[1].messages[0].content[0].text as string);
         expect(prompts.some((prompt: string) => prompt.includes("### group-0001 [source=0]"))).toBe(true);
         expect(prompts.every((prompt: string) => !prompt.includes("source-entry-"))).toBe(true);
+
+        const sparseSourceEntryIds = sourceEntryIds.map((entryId, index) => index === 2 ? undefined : entryId);
+        const sparsePrepared = prepareCompactionSource({
+          rawMessages: messages,
+          rawSourceEntryIds: sparseSourceEntryIds,
+          modelSafeSourceMessages: messages,
+          modelSafeSourceIndexes: messages.map((_, index) => index),
+          fileOps: { read: new Set(), written: new Set(), edited: new Set() },
+        });
+        const sparseToolUnit = buildCanonicalPipelineSourceUnits(assemblePipelineEvents(sparsePrepared).groups)
+          .find((unit) => unit.sourceIndexes.includes(2));
+        expect(sparseToolUnit).toMatchObject({
+          sourceIndexes: [2, 3],
+          sourceEntryIds: ["source-entry-3"],
+        });
+
+        // The unit's first entry ID belongs to source index 3, not the exact
+        // unsummarized start at index 2. Never advance the retained boundary
+        // to that later ID; cancel when the exact source event has no mapping.
+        now = 1_000;
+        const sparseCtx = makeCtx({ model: { provider: "test", id: "selective-atomic-sparse", contextWindow: 128_000, reasoning: false } });
+        const sparseResult = await handler!(
+          {
+            preparation: makePreparation(messages.length, {
+              messagesToSummarize: messages,
+              tokensBefore: 70_000,
+              firstKeptEntryId: "source-entry-4",
+              settings: { enabled: true, reserveTokens: 8192, keepRecentTokens: 1000 },
+              fileOps: { read: new Set(), written: new Set(), edited: new Set() },
+            }),
+            branchEntries: branchEntries.filter((_, index) => index !== 2),
+            signal: new AbortController().signal,
+          },
+          sparseCtx,
+        );
+        expect(sparseResult).toEqual({ cancel: true });
+        expect(consumeCompactionCancellationReason(sparseCtx, Number.POSITIVE_INFINITY))
+          .toContain("could not identify the first unsummarized entry");
       } finally {
         dateSpy.mockRestore();
         if (previousMethod === undefined) delete process.env.PICLAW_SMART_COMPACTION_METHOD;

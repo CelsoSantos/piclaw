@@ -503,12 +503,18 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           let adjusted = false;
 
           if (!progressiveResult.complete) {
-            const partialFirstKeptEntryId = progressiveResult.nextUnprocessedEntryId
-              ?? resolveFirstKeptEntryIdForSourceMessageIndex(
-                branchEntries,
-                discardedSourceMessages,
-                progressiveResult.nextUnprocessedSourceMessageIndex,
-              );
+            // The source index is authoritative. A source-unit's entry-ID list
+            // omits undefined IDs, so its first ID can belong to a later event
+            // in the same atomic group and must not be used as the cut point.
+            const partialSourceMessageIndex = progressiveResult.nextUnprocessedSourceMessageIndex;
+            const partialFirstKeptEntryId = partialSourceMessageIndex == null
+              ? null
+              : rawSourceEntryIds[partialSourceMessageIndex]
+                ?? resolveFirstKeptEntryIdForSourceMessageIndex(
+                  branchEntries,
+                  discardedSourceMessages,
+                  partialSourceMessageIndex,
+                );
             if (!partialFirstKeptEntryId) {
               return cancelCompactionWithReason(
                 ctx,
