@@ -52,6 +52,7 @@ import { rotateSession, type SessionRotationResult } from "./session-rotation.js
 import { type AvailableModelsResult } from "./agent-pool/runtime-facade.js";
 import { createAgentPoolServices, type AgentPoolServices } from "./agent-pool/service-factory.js";
 import { type AgentSessionManagerInstrumentationSnapshot, type PoolEntry } from "./agent-pool/session-manager.js";
+import { installLegacySessionAffinityCompatibility } from "./agent-pool/session-affinity-compat.js";
 import {
   type ChatBranchRecord,
   type MergeChatBranchIntoParentResult,
@@ -234,6 +235,7 @@ export class AgentPool {
     this.createSideSession = options.createSideSession;
     this.authStorage = AuthStorage.create();
     this.modelRegistry = options.modelRegistry ?? ModelRegistry.create(this.authStorage);
+    installLegacySessionAffinityCompatibility(this.modelRegistry, (message, details) => log.warn(message, details));
     this.applyRateLimitRetryDefaults();
     ({
       attachments: this.attachments,

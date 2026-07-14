@@ -38,7 +38,6 @@ import { buildChannelSystemPromptAppendix } from "../channels/formatting.js";
 import { detectChannel } from "../router.js";
 import { createBuiltinExtensionFactories } from "../extensions/index.js";
 import { freezeExtensionRoutes } from "../channels/web/http/extension-routes.js";
-import { bindImmediateToolActivation } from "./tool-activation-live-update.js";
 import { ensureExtensionNodeModulesLink } from "./session-node-modules-link.js";
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
 import { installAddonRuntimeApi } from "../addons/runtime-contributions.js";
@@ -759,8 +758,6 @@ export async function createSessionInDir(
     if (typeof result.session.setAutoCompactionEnabled === "function") {
       result.session.setAutoCompactionEnabled(false);
     }
-
-    bindImmediateToolActivation(result.session as any);
 
     return {
       ...result,
