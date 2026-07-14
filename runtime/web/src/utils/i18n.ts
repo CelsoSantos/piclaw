@@ -593,6 +593,13 @@ type MessageKey =
   | 'settings.compaction.clearFailed'
   | 'settings.compaction.cleared'
   | 'settings.compaction.autoHeading'
+  | 'settings.compaction.enableAutomatic'
+  | 'settings.compaction.enableAutomaticHint'
+  | 'settings.compaction.processingMethod'
+  | 'settings.compaction.methodSelective'
+  | 'settings.compaction.methodSelectiveHint'
+  | 'settings.compaction.methodTraditionalPipelined'
+  | 'settings.compaction.methodTraditionalPipelinedHint'
   | 'settings.compaction.enableToolResult'
   | 'settings.compaction.enableToolResultHint'
   | 'settings.compaction.semanticSummaries'
@@ -1203,6 +1210,13 @@ const EN: Record<MessageKey, string> = {
   'settings.compaction.clearFailed': 'Failed to clear compaction suppression.',
   'settings.compaction.cleared': 'Cleared compaction suppression for {chat}.',
   'settings.compaction.autoHeading': 'Automatic compaction',
+  'settings.compaction.enableAutomatic': 'Enable automatic compaction',
+  'settings.compaction.enableAutomaticHint': 'Piclaw-managed pre-prompt/idle compaction. The upstream agent auto-compactor stays suppressed internally.',
+  'settings.compaction.processingMethod': 'Processing method',
+  'settings.compaction.methodSelective': 'Selective',
+  'settings.compaction.methodSelectiveHint': 'Extract high-value continuity excerpts, using complete progressive coverage whenever a bounded prompt cannot represent every discarded source event.',
+  'settings.compaction.methodTraditionalPipelined': 'Traditional pipelined',
+  'settings.compaction.methodTraditionalPipelinedHint': 'Canonicalize and classify every discarded source event with an auditable coverage ledger before summarizing.',
   'settings.compaction.enableToolResult': 'Enable tool-result compaction',
   'settings.compaction.enableToolResultHint': 'When disabled, large tool results stay inline and are not externalized into searchable tool-output handles.',
   'settings.compaction.semanticSummaries': 'Semantic summaries for compacted tool results',
@@ -1813,6 +1827,13 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.compaction.clearFailed': '清除压缩抑制失败。',
   'settings.compaction.cleared': '已清除 {chat} 的压缩抑制。',
   'settings.compaction.autoHeading': '自动压缩',
+  'settings.compaction.enableAutomatic': '启用自动压缩',
+  'settings.compaction.enableAutomaticHint': '由 Piclaw 管理的提示前/空闲压缩。上游代理自动压缩器会继续在内部保持禁用。',
+  'settings.compaction.processingMethod': '处理方法',
+  'settings.compaction.methodSelective': '选择性',
+  'settings.compaction.methodSelectiveHint': '提取高价值的连续性片段；当有界提示无法表示所有被丢弃的源事件时，使用完整的渐进式覆盖。',
+  'settings.compaction.methodTraditionalPipelined': '传统流水线',
+  'settings.compaction.methodTraditionalPipelinedHint': '在摘要前，对每个被丢弃的源事件进行规范化和分类，并生成可审计的覆盖账本。',
   'settings.compaction.enableToolResult': '启用工具结果压缩',
   'settings.compaction.enableToolResultHint': '禁用时，大型工具结果保持内联，不会外部化为可搜索的工具输出句柄。',
   'settings.compaction.semanticSummaries': '压缩工具结果的语义摘要',
@@ -2423,6 +2444,13 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.compaction.clearFailed': '圧縮抑制のクリアに失敗しました。',
   'settings.compaction.cleared': '{chat} の圧縮抑制をクリアしました。',
   'settings.compaction.autoHeading': '自動圧縮',
+  'settings.compaction.enableAutomatic': '自動圧縮を有効化',
+  'settings.compaction.enableAutomaticHint': 'Piclaw が管理するプロンプト前/アイドル時の圧縮です。上流エージェントの自動圧縮は内部的に抑制されたままです。',
+  'settings.compaction.processingMethod': '処理方式',
+  'settings.compaction.methodSelective': '選択型',
+  'settings.compaction.methodSelectiveHint': '重要な継続情報を抽出し、制限付きプロンプトですべての破棄対象イベントを表現できない場合は完全な段階的カバレッジを使用します。',
+  'settings.compaction.methodTraditionalPipelined': '従来型パイプライン',
+  'settings.compaction.methodTraditionalPipelinedHint': '要約前に、破棄対象の各ソースイベントを正規化・分類し、監査可能なカバレッジ台帳を作成します。',
   'settings.compaction.enableToolResult': 'ツール結果の圧縮を有効化',
   'settings.compaction.enableToolResultHint': '無効にすると、大きなツール結果はインラインのまま残り、検索可能なツール出力ハンドルに外部化されません。',
   'settings.compaction.semanticSummaries': '圧縮されたツール結果のセマンティック要約',

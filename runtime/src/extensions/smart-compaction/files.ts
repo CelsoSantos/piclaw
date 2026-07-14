@@ -138,7 +138,11 @@ export function fileListsFromOps(fileOps: FileOperations): {
   readFiles: string[];
   modifiedFiles: string[];
 } {
-  const modified = new Set(filterJunkPaths(normalizePathSet([...fileOps.written, ...fileOps.edited])));
+  // Successful mutations are deterministic user-visible file facts, even for
+  // paths that are noisy when merely read (lockfiles, bundles, source maps,
+  // metadata manifests, temp outputs, etc.). Filter junk from read-only context
+  // only; never falsify observed writes/edits.
+  const modified = new Set(normalizePathSet([...fileOps.written, ...fileOps.edited]));
   const readOnly = filterJunkPaths(normalizePathSet([...fileOps.read]).filter((f) => !modified.has(f)));
   return { readFiles: readOnly, modifiedFiles: [...modified] };
 }

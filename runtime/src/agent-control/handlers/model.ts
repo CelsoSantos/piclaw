@@ -204,11 +204,13 @@ export async function handleModel(session: AgentSession, modelRegistry: ModelReg
       };
     }
 
-    noteCompactionSuccess(session, chatJid, isModelDownshift ? "model_downshift" : "model_switch", {
-      onInfo: (message, details) => log.info(message, details),
-      onWarn: (message, details) => log.warn(message, details),
-      countSuccess: false,
-    });
+    if (!compactionResult.joined) {
+      noteCompactionSuccess(session, chatJid, isModelDownshift ? "model_downshift" : "model_switch", {
+        onInfo: (message, details) => log.info(message, details),
+        onWarn: (message, details) => log.warn(message, details),
+        countSuccess: false,
+      });
+    }
     compactedBeforeSwitch = true;
     const remainingFitError = getContextFitError(session, selected);
     if (remainingFitError) {

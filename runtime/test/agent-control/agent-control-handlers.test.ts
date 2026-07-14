@@ -362,7 +362,8 @@ test("agent control queue, compact, and abort commands", async () => {
     const compactTimeout = await applyControlCommand(runtime as any, registry, { type: "compact", raw: "/compact" });
     expect(compactTimeout.status).toBe("error");
     expect(compactTimeout.message).toContain("Compaction timed out");
-    expect(compactTimeout.message).toContain("session was not rewritten");
+    expect(compactTimeout.message).toContain("physical compaction may still be settling");
+    expect(compactTimeout.message).toContain("external failsafe remains armed");
     expect(session.abortCompactionCalls).toBe(1);
   } finally {
     restoreTimeoutEnv();
@@ -370,9 +371,15 @@ test("agent control queue, compact, and abort commands", async () => {
     session.isCompacting = false;
   }
 
-  const autoCompact = await applyControlCommand(runtime as any, registry, { type: "auto_compact", enabled: true, raw: "/auto-compact on" });
-  expect(autoCompact.message).toContain("on");
-  expect(session.autoCompactionEnabled).toBe(true);
+  const autoCompactOff = await applyControlCommand(runtime as any, registry, { type: "auto_compact", enabled: false, raw: "/auto-compact off" });
+  expect(autoCompactOff.message).toContain("off");
+  const autoCompactOn = await applyControlCommand(runtime as any, registry, { type: "auto_compact", enabled: true, raw: "/auto-compact on" });
+  expect(autoCompactOn.message).toContain("on");
+  const configModule = await import("../../src/core/config.js");
+  expect(configModule.getCompactionRuntimeConfig().autoCompactionEnabled).toBe(true);
+  expect(JSON.parse(readFileSync(getConfigPath(), "utf-8")).compaction.autoCompactionEnabled).toBe(true);
+  // Piclaw owns this preference; the upstream session auto-compactor remains suppressed.
+  expect(session.autoCompactionEnabled).toBe(false);
 
   const autoRetry = await applyControlCommand(runtime as any, registry, { type: "auto_retry", enabled: true, raw: "/auto-retry on" });
   expect(autoRetry.message).toContain("on");
@@ -748,7 +755,9 @@ test("agent control idempotent mode commands stay stable across repeats", async 
   const autoCompactSecond = await applyControlCommand(runtime as any, registry, { type: "auto_compact", enabled: true, raw: "/auto-compact on" });
   expect(autoCompactFirst.status).toBe("success");
   expect(autoCompactSecond.status).toBe("success");
-  expect(session.autoCompactionEnabled).toBe(true);
+  const configModule = await import("../../src/core/config.js");
+  expect(configModule.getCompactionRuntimeConfig().autoCompactionEnabled).toBe(true);
+  expect(session.autoCompactionEnabled).toBe(false);
 
   const autoRetryFirst = await applyControlCommand(runtime as any, registry, { type: "auto_retry", enabled: false, raw: "/auto-retry off" });
   const autoRetrySecond = await applyControlCommand(runtime as any, registry, { type: "auto_retry", enabled: false, raw: "/auto-retry off" });

@@ -10,10 +10,15 @@ export function CompactionSection({
   data: SettingsData;
   onSaveCompaction: (field: string, value: unknown) => void;
 }) {
-  const timeoutSec = useSignal(data.compactionTimeoutSec ?? 0);
+  const autoCompactionEnabled = useSignal(data.autoCompactionEnabled ?? true);
+  const processingMethod = useSignal<"selective" | "traditional_pipelined">(
+    data.smartCompactionMethod === "traditional_pipelined" ? "traditional_pipelined" : "selective"
+  );
+  const timeoutSec = useSignal(data.compactionTimeoutSec ?? 300);
   const backoffBase = useSignal(data.compactionBackoffBaseMin ?? 0);
   const backoffMax = useSignal(data.compactionBackoffMaxMin ?? 0);
-  const watchdogTimeout = useSignal(data.progressWatchdogTimeoutSec ?? 0);
+  const thresholdPercent = useSignal(data.compactionThresholdPercent ?? 80);
+  const watchdogTimeout = useSignal(data.progressWatchdogTimeoutSec ?? 300);
   const toolsInput = useSignal((data.toolResultCompactionTools ?? []).join(", "));
   const semanticSummaryMaxInputChars = useSignal(data.toolResultSemanticSummaryMaxInputChars ?? 4000);
   const semanticSummaryMaxTokens = useSignal(data.toolResultSemanticSummaryMaxTokens ?? 512);
@@ -51,10 +56,59 @@ export function CompactionSection({
 
       <h3 className="settings-panel__subsection-title">Automatic compaction</h3>
 
+      <div className="settings-panel__field settings-panel__checkbox-row">
+        <input
+          id="autoCompactionEnabled"
+          type="checkbox"
+          checked={autoCompactionEnabled.value}
+          onChange={(e) => {
+            const value = (e.target as HTMLInputElement).checked;
+            autoCompactionEnabled.value = value;
+            onSaveCompaction("autoCompactionEnabled", value);
+          }}
+        />
+        <label htmlFor="autoCompactionEnabled" className="settings-panel__label">
+          Enable automatic compaction
+        </label>
+        <span className="settings-panel__description">Piclaw-managed pre-prompt/idle compaction. The upstream agent auto-compactor stays suppressed internally.</span>
+      </div>
+
+      <div className="settings-panel__field">
+        <label className="settings-panel__label" htmlFor="smartCompactionMethod">Processing method</label>
+        <div className="settings-panel__field-content">
+          <select
+            id="smartCompactionMethod"
+            className="settings-panel__input"
+            value={processingMethod.value}
+            onChange={(event) => {
+              const value = (event.target as HTMLSelectElement).value === "traditional_pipelined"
+                ? "traditional_pipelined"
+                : "selective";
+              processingMethod.value = value;
+              onSaveCompaction("smartCompactionMethod", value);
+            }}
+          >
+            <option value="selective">Selective</option>
+            <option value="traditional_pipelined">Traditional pipelined</option>
+          </select>
+          <span className="settings-panel__description">
+            {processingMethod.value === "traditional_pipelined"
+              ? "Canonicalize and classify every discarded source event with an auditable coverage ledger before summarizing."
+              : "Extract the highest-value continuity excerpts and use complete progressive coverage when the bounded prompt cannot represent all source."}
+          </span>
+        </div>
+      </div>
+
       <div className="settings-panel__field">
         <label className="settings-panel__label">Compaction timeout (sec)</label>
         <NumberStepper value={timeoutSec} min={1} max={3600} step={10} onSave={(v) => onSaveCompaction("compactionTimeoutSec", v)} />
         <span className="settings-panel__description">Abort a stuck pre-prompt/manual compaction instead of hanging forever.</span>
+      </div>
+
+      <div className="settings-panel__field">
+        <label className="settings-panel__label">Automatic threshold (%)</label>
+        <NumberStepper value={thresholdPercent} min={10} max={95} step={1} onSave={(v) => onSaveCompaction("compactionThresholdPercent", v)} />
+        <span className="settings-panel__description">Start automatic compaction when active context reaches this percentage of its effective window.</span>
       </div>
 
       <div className="settings-panel__field">

@@ -80,9 +80,12 @@ export interface SettingsData {
   uiTint?: string | null;
   themes?: Theme[];
   /* compaction */
+  autoCompactionEnabled?: boolean;
+  smartCompactionMethod?: "selective" | "traditional_pipelined";
   compactionTimeoutSec?: number;
   compactionBackoffBaseMin?: number;
   compactionBackoffMaxMin?: number;
+  compactionThresholdPercent?: number;
   progressWatchdogEnabled?: boolean;
   progressWatchdogTimeoutSec?: number;
   compactionBackoffs?: CompactionBackoff[];

@@ -51,14 +51,15 @@ import {
 } from "./compaction.js";
 import { buildPiclawCompactionEventFields, type PiclawCompactionTriggerMetadata } from "./compaction-trigger-context.js";
 import {
-  getContextThresholdTokens,
-  getSystemPromptOverheadTokens,
-} from "../utils/context-window-budget.js";
-import {
   inspectBlankTurnSessionDelta,
   isBlankTurnSessionDelta,
   snapshotSessionEntryCount,
 } from "./blank-turn-detection.js";
+import {
+  didPromptAdvanceSession,
+  getSessionLeafId,
+  RECOVERY_CONTINUATION_PROMPT,
+} from "./context-pressure-retry.js";
 import type { AgentTurnCoordinator } from "./turn-coordinator.js";
 import type { AgentOutput, AgentRecoveryDiagnosticEntry, AgentRecoveryMetadata, RetrySettingsProvider, RunAgentOptions } from "./contracts.js";
 import { isPendingShutdown } from "../runtime/shutdown-registry.js";
@@ -494,6 +495,7 @@ function getSessionStateErrorMessage(session: AgentSession): string | null {
 interface PromptAttemptResult {
   output: AgentOutput;
   snapshot: RecoveryAttemptSnapshot;
+  promptWasPersisted: boolean;
 }
 
 function buildRecoveryDiagnosticEntry(
@@ -688,7 +690,7 @@ async function runRecoveryCompaction(
   if (!compactionResult.ok) {
     const aborted = isCompactionCancellationError(compactionResult.errorMessage);
     const benign = isRotationFallbackCompactionError(compactionResult.errorMessage);
-    if (!aborted && !benign) {
+    if (!compactionResult.joined && !aborted && !benign) {
       noteCompactionFailure(chatJid, compactionResult.errorMessage);
     }
     if (benign) {
@@ -718,10 +720,12 @@ async function runRecoveryCompaction(
     } as unknown as AgentSessionEvent);
     return { ok: false, errorMessage: compactionResult.errorMessage };
   }
-  noteCompactionSuccess(session, chatJid, "recovery", {
-    ...options,
-    countSuccess: false,
-  });
+  if (!compactionResult.joined) {
+    noteCompactionSuccess(session, chatJid, "recovery", {
+      ...options,
+      countSuccess: false,
+    });
+  }
   const contextReport = getCompactionContextReport(session, compactionResult.result as { tokensBefore?: unknown; estimatedTokensAfter?: unknown });
   emitAgentSessionEvent(runOptions.onEvent, {
     type: "compaction_end",
@@ -765,12 +769,14 @@ async function runPromptAttempt(
   let toolExecutionCount = 0;
   let midTurnToolResultAccumulatedBytes = 0;
   let toolUseBudgetExceeded = false;
+  let toolExecutionCeilingExceeded = false;
   let modelResponseSequence = 0;
   let activeModelResponse: { sequence: number; startedAt: number } | null = null;
   let lastMidTurnContextUpdateAt = 0;
   let lastContextUsageUpdateAt = 0;
   let midTurnContextAbortRequested = false;
   const sessionEntryBaseline = snapshotSessionEntryCount(session);
+  const baselineLeafId = getSessionLeafId(session);
   const toolUseMessageBudget = getToolUseMessageBudget();
   const toolUseSoftStopThreshold = resolveToolBudgetSoftStopThreshold(toolUseMessageBudget);
   const midTurnToolExecutionHardCeiling = getMidTurnToolExecutionHardCeiling();
@@ -926,43 +932,46 @@ async function runPromptAttempt(
     }
   };
 
+  const abortForToolExecutionCeiling = (toolName: unknown, contextDetails: Record<string, unknown> = {}): void => {
+    toolUseBudgetExceeded = true;
+    toolExecutionCeilingExceeded = true;
+    midTurnContextAbortRequested = true;
+    options.onWarn?.("Configured mid-turn tool execution hard ceiling reached without context pressure; aborting turn without requesting compaction", {
+      operation: "run_agent.mid_turn_tool_ceiling",
+      reason: "mid_turn_tool_execution_hard_ceiling",
+      chatJid,
+      toolExecutionCount,
+      ceiling: midTurnToolExecutionHardCeiling,
+      defaultCeiling: DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
+      midTurnToolResultAccumulatedBytes,
+      toolName: typeof toolName === "string" ? toolName : null,
+      ...contextDetails,
+      ...getRunObservabilityDetails(runOptions),
+    });
+    void session.abort().catch((err) => {
+      options.onWarn?.("Failed to abort session after mid-turn tool ceiling", {
+        operation: "run_agent.mid_turn_tool_ceiling_abort_failed",
+        chatJid,
+        err,
+        ...getRunObservabilityDetails(runOptions),
+      });
+    });
+  };
+
   const checkMidTurnContextAfterToolResult = (toolName: unknown, isError: unknown): void => {
     try {
       if (midTurnContextAbortRequested) return;
 
-      // Hard ceiling: if we've executed too many tool calls this turn, the token
-      // estimator is likely stale and we should abort for compaction regardless.
-      if (toolExecutionCount >= midTurnToolExecutionHardCeiling) {
-        sawCompactionIntent = true;
-        midTurnContextAbortRequested = true;
-        options.onWarn?.("Configured mid-turn tool execution hard ceiling reached; aborting for compaction", {
-          operation: "run_agent.mid_turn_tool_ceiling",
-          reason: "mid_turn_tool_execution_hard_ceiling",
-          chatJid,
-          toolExecutionCount,
-          ceiling: midTurnToolExecutionHardCeiling,
-          defaultCeiling: DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
-          midTurnToolResultAccumulatedBytes,
-          projectedAdditionalTokens: Math.ceil(midTurnToolResultAccumulatedBytes / TOOL_RESULT_BYTES_PER_TOKEN),
-          toolName: typeof toolName === "string" ? toolName : null,
-          ...getRunObservabilityDetails(runOptions),
-        });
-        void session.abort().catch((err) => {
-          options.onWarn?.("Failed to abort session after mid-turn tool ceiling", {
-            operation: "run_agent.mid_turn_tool_ceiling_abort_failed",
-            chatJid,
-            err,
-            ...getRunObservabilityDetails(runOptions),
-          });
-        });
-        return;
-      }
+      const toolExecutionCeilingReached = toolExecutionCount >= midTurnToolExecutionHardCeiling;
 
       const now = Date.now();
       const forceUsageUpdate = now - lastMidTurnContextUpdateAt >= MID_TURN_CONTEXT_CHECK_MIN_INTERVAL_MS;
       if (forceUsageUpdate) lastMidTurnContextUpdateAt = now;
       const snapshot = publishContextUsageUpdate("mid_turn_tool_result", forceUsageUpdate);
-      if (!snapshot) return;
+      if (!snapshot) {
+        if (toolExecutionCeilingReached) abortForToolExecutionCeiling(toolName);
+        return;
+      }
 
       // Project accumulated tool-result bytes as additional tokens beyond what
       // the estimator reports. The estimator anchors on the last assistant
@@ -970,10 +979,28 @@ async function runPromptAttempt(
       // that point. This projection closes the blind spot.
       const projectedAdditionalTokens = Math.ceil(midTurnToolResultAccumulatedBytes / TOOL_RESULT_BYTES_PER_TOKEN);
       const adjustedTokens = snapshot.tokens + projectedAdditionalTokens;
-      const overThreshold = adjustedTokens >= snapshot.thresholdTokens
+      const adjustedScopeTokens = snapshot.autoCompactionScopeTokens + projectedAdditionalTokens;
+      const overThreshold = adjustedScopeTokens >= snapshot.autoCompactionScopeLimit
         || (snapshot.hardCeilingTokens > 0 && adjustedTokens >= snapshot.hardCeilingTokens);
 
-      if (!overThreshold) return;
+      if (!overThreshold) {
+        if (toolExecutionCeilingReached) {
+          abortForToolExecutionCeiling(toolName, {
+            contextTokens: adjustedTokens,
+            estimatorReportedTokens: snapshot.tokens,
+            projectedAdditionalTokens,
+            contextWindow: snapshot.contextWindow,
+            thresholdTokens: snapshot.thresholdTokens,
+            thresholdPercent: snapshot.thresholdPercent,
+            hardCeilingTokens: snapshot.hardCeilingTokens,
+            autoCompactionScope: snapshot.autoCompactionScope,
+            autoCompactionScopeTokens: adjustedScopeTokens,
+            estimatorReportedAutoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+            autoCompactionScopeLimit: snapshot.autoCompactionScopeLimit,
+          });
+        }
+        return;
+      }
 
       sawCompactionIntent = true;
       midTurnContextAbortRequested = true;
@@ -992,7 +1019,8 @@ async function runPromptAttempt(
         hardCeilingTokens: snapshot.hardCeilingTokens,
         hardCeilingReached: snapshot.hardCeilingReached || (snapshot.hardCeilingTokens > 0 && adjustedTokens >= snapshot.hardCeilingTokens),
         autoCompactionScope: snapshot.autoCompactionScope,
-        autoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+        autoCompactionScopeTokens: adjustedScopeTokens,
+        estimatorReportedAutoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
         autoCompactionScopeLimit: snapshot.autoCompactionScopeLimit,
         autoCompactionWindowOrdinal: snapshot.autoCompactionWindowOrdinal,
         autoCompactionBaselineTokens: snapshot.autoCompactionBaselineTokens,
@@ -1349,14 +1377,17 @@ async function runPromptAttempt(
   } else if (timedOut) {
     output = { status: "error", result: null, error: `Timed out after ${formatTimeoutDuration(timeoutMs)}` };
   } else if (toolUseBudgetExceeded && !finalText && finalAttachments.length === 0) {
-    sawCompactionIntent = true;
+    const reportedToolSteps = toolExecutionCeilingExceeded
+      ? toolExecutionCount
+      : assistantToolUseMessageCount > 0 ? assistantToolUseMessageCount : toolExecutionCount;
+    const reportedToolBudget = toolExecutionCeilingExceeded ? midTurnToolExecutionHardCeiling : toolUseMessageBudget;
     output = {
       status: "error",
       result: null,
-      error: `Tool-use budget exceeded before finalization (${assistantToolUseMessageCount}/${toolUseMessageBudget} tool steps). Ask me to continue; I will resume from the latest known partial state instead of replaying the whole turn.`,
+      error: `Tool-use budget exceeded before finalization (${reportedToolSteps}/${reportedToolBudget} tool steps). Ask me to continue; I will resume from the latest known partial state instead of replaying the whole turn.`,
       toolBudgetExceeded: true,
-      toolStepsUsed: assistantToolUseMessageCount,
-      toolStepsBudget: toolUseMessageBudget,
+      toolStepsUsed: reportedToolSteps,
+      toolStepsBudget: reportedToolBudget,
       nextAction: "Ask me to continue; I will resume from the latest known partial state instead of replaying the whole turn.",
     };
   } else if (promptThrownError) {
@@ -1450,19 +1481,14 @@ async function runPromptAttempt(
             error: `Prompt completed without emitting an assistant reply before finalization (${detail}).`,
           };
 
-        // Flag context pressure on the snapshot so recovery compacts first
-        // instead of retrying into the same wall. Reuse the shared scoped
-        // token-status helper so body-after-prefix and hard-ceiling semantics
-        // match pre-prompt/idle compaction decisions.
+        // Flag context pressure only when the shared model-aware token policy
+        // says the configured threshold was reached. A blank/unknown failure
+        // below that threshold may retry, but must not use compaction as a
+        // generic recovery strategy.
         try {
           const status = getAutoCompactionTokenStatusForSession(session, chatJid);
-          if (status?.tokenStatus.tokenLimitReached) {
-            sawCompactionIntent = true;
-          } else if (status) {
-            const pressureThreshold = getContextThresholdTokens(status.contextWindow, 60, getSystemPromptOverheadTokens());
-            if (status.contextTokens > pressureThreshold) sawCompactionIntent = true;
-          }
-        } catch (err) { debugSuppressedError(log, "Failed to estimate context tokens for compaction heuristic; skipping pressure check.", err); }
+          if (status?.tokenStatus.tokenLimitReached) sawCompactionIntent = true;
+        } catch (err) { debugSuppressedError(log, "Failed to estimate context tokens for compaction policy; skipping pressure check.", err); }
       } else {
         output = {
           status: "success",
@@ -1476,6 +1502,7 @@ async function runPromptAttempt(
 
   return {
     output,
+    promptWasPersisted: didPromptAdvanceSession(session, baselineLeafId),
     snapshot: {
       hadToolActivity,
       hadPartialOutput,
@@ -1582,6 +1609,9 @@ export async function runAgentPrompt(
             errorMessage: prePromptCompactionFailure,
             reason: rotation.message,
           });
+          const error = `Pre-prompt compaction failed and emergency rotation could not detach the active session: ${rotation.message}. Refusing to prompt a session that may still be physically compacting; rotate or restart before retrying.`;
+          writeAgentLog(options.logsDir, chatJid, Date.now() - startTime, false, null, error);
+          return { status: "error", result: null, error };
         }
       }
     } else {
@@ -1667,6 +1697,7 @@ export async function runAgentPrompt(
     };
 
     const runResult: AgentOutput = await withChatContext(chatJid, channel, async () => {
+      let attemptPrompt = prompt;
       while (true) {
         // Yield to the event loop on every iteration. Prevents synchronous-
         // throw + catch + retry from starving the event loop when the error
@@ -1690,7 +1721,7 @@ export async function runAgentPrompt(
         }
 
         const attempt = await runPromptAttempt(
-          prompt,
+          attemptPrompt,
           chatJid,
           session,
           timeoutMs,
@@ -1897,6 +1928,13 @@ export async function runAgentPrompt(
           });
           await sleep(retryDelayMs);
         }
+
+        // AgentSession persists the user message before invoking the provider.
+        // Replaying the original text after a failed attempt duplicates the
+        // instruction and can repeat side-effecting tools. Resume persisted
+        // turns with a neutral continuation; only replay when no branch state
+        // was appended (for example, a synchronous pre-prompt throw).
+        if (attempt.promptWasPersisted) attemptPrompt = RECOVERY_CONTINUATION_PROMPT;
 
         if (effectiveDecision.strategy === "compact_then_retry") {
           const compactionResult = await runRecoveryCompaction(session, chatJid, runOptions, options);

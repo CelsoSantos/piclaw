@@ -636,13 +636,23 @@ export function ensureNamedSessionDir(chatJid: string, name: string): string {
  * Loads workspace resources (AGENTS.md, skills, extensions, prompt templates)
  * and resumes the most recent session tree.
  */
-function createCompactionStreamFn(modelRegistry: ModelRegistry, settingsManager: SettingsManager): CompactionStreamFn {
+export function createCompactionStreamFn(modelRegistry: ModelRegistry, settingsManager: SettingsManager): CompactionStreamFn {
   return async (model, context, options) => {
+    const providerRetrySettings = settingsManager.getProviderRetrySettings();
+    const hasResolvedAuth = options?.apiKey !== undefined || options?.headers !== undefined || options?.env !== undefined;
+    if (hasResolvedAuth) {
+      return streamSimple(model, normalizeLlmContext(context), {
+        ...options,
+        timeoutMs: options.timeoutMs ?? providerRetrySettings.timeoutMs,
+        maxRetries: options.maxRetries ?? providerRetrySettings.maxRetries,
+        maxRetryDelayMs: options.maxRetryDelayMs ?? providerRetrySettings.maxRetryDelayMs,
+      });
+    }
+
     const auth = await modelRegistry.getApiKeyAndHeaders(model);
     if (!auth.ok) {
       throw new Error(auth.error ?? `No credentials available for ${model.provider}/${model.id}.`);
     }
-    const providerRetrySettings = settingsManager.getProviderRetrySettings();
     return streamSimple(model, normalizeLlmContext(context), {
       ...options,
       apiKey: auth.apiKey,

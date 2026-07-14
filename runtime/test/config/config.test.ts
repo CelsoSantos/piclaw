@@ -59,15 +59,115 @@ function loadConfigInSubprocess(
   return runConfigSubprocess(workspace, exports, options).snapshot;
 }
 
-test("uses 300s as the default compaction timeout", () => {
+test("uses proportional compaction thresholds with the 300s progress watchdog disabled by default", () => {
   const ws = createTempWorkspace("piclaw-config-");
 
   try {
     const snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
-      env: { PICLAW_COMPACTION_TIMEOUT_MS: undefined },
+      env: {
+        PICLAW_COMPACTION_TIMEOUT_MS: undefined,
+        PICLAW_PROGRESS_WATCHDOG_ENABLED: undefined,
+        PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: undefined,
+      },
     });
 
+    expect(snapshot["call:getCompactionRuntimeConfig"].autoCompactionEnabled).toBe(true);
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("selective");
     expect(snapshot["call:getCompactionRuntimeConfig"].timeoutMs).toBe(300_000);
+    expect(snapshot["call:getCompactionRuntimeConfig"].progressWatchdogEnabled).toBe(false);
+    expect(snapshot["call:getCompactionRuntimeConfig"].progressWatchdogTimeoutMs).toBe(300_000);
+    expect(snapshot["call:getCompactionRuntimeConfig"].thresholdPercent).toBe(80);
+    expect(snapshot["call:getCompactionRuntimeConfig"].maxThresholdTokens).toBe(0);
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test("loads Piclaw-owned auto-compaction enable state without honoring poisoned upstream settings", () => {
+  const ws = createTempWorkspace("piclaw-config-");
+
+  try {
+    writeWorkspaceConfig(ws.workspace, {
+      compaction: { enabled: false },
+    });
+
+    let snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_AUTO_COMPACTION_ENABLED: undefined },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].autoCompactionEnabled).toBe(true);
+
+    writeWorkspaceConfig(ws.workspace, {
+      compaction: { enabled: false, autoCompactionEnabled: false },
+    });
+    snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_AUTO_COMPACTION_ENABLED: undefined },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].autoCompactionEnabled).toBe(false);
+
+    snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_AUTO_COMPACTION_ENABLED: "1" },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].autoCompactionEnabled).toBe(true);
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test("normalizes smart-compaction method aliases and honors environment precedence", () => {
+  const ws = createTempWorkspace("piclaw-config-");
+
+  try {
+    writeWorkspaceConfig(ws.workspace, {
+      compaction: { smartCompactionMethod: "traditional-pipelined" },
+    });
+
+    let snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_SMART_COMPACTION_METHOD: undefined },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+
+    snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_SMART_COMPACTION_METHOD: "selective" },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("selective");
+
+    for (const alias of ["traditional pipelined", "pipelined"]) {
+      snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+        env: { PICLAW_SMART_COMPACTION_METHOD: alias },
+      });
+      expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+    }
+
+    snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_SMART_COMPACTION_METHOD: "not-a-method" },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("selective");
+
+    writeWorkspaceConfig(ws.workspace, {
+      compaction: { smart_compaction_method: "pipelined" },
+    });
+    snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: { PICLAW_SMART_COMPACTION_METHOD: undefined },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test("normalizes direct compaction backoff overrides so max never falls below base", () => {
+  const ws = createTempWorkspace("piclaw-config-");
+
+  try {
+    const snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: {
+        PICLAW_COMPACTION_BACKOFF_BASE_MS: "900000",
+        PICLAW_COMPACTION_BACKOFF_MAX_MS: "60000",
+      },
+    });
+
+    expect(snapshot["call:getCompactionRuntimeConfig"].backoffBaseMs).toBe(900_000);
+    expect(snapshot["call:getCompactionRuntimeConfig"].backoffMaxMs).toBe(900_000);
   } finally {
     ws.cleanup();
   }

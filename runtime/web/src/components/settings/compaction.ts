@@ -5,12 +5,18 @@ import { html, useState, useEffect, useCallback, useMemo, useRef } from '../../v
 import { NumberStepper } from './number-stepper.js';
 import { useTranslation } from '../../utils/i18n.js';
 
+function normalizeSmartCompactionMethod(value) {
+    return value === 'traditional_pipelined' ? 'traditional_pipelined' : 'selective';
+}
+
 function normalizeCompactionSettings(data: Record<string, any> = {}) {
     return {
-        compactionTimeoutSec: data.compactionTimeoutSec ?? 180,
+        autoCompactionEnabled: Boolean(data.autoCompactionEnabled ?? true),
+        smartCompactionMethod: normalizeSmartCompactionMethod(data.smartCompactionMethod),
+        compactionTimeoutSec: data.compactionTimeoutSec ?? 300,
         compactionBackoffBaseMin: data.compactionBackoffBaseMin ?? 15,
         compactionBackoffMaxMin: data.compactionBackoffMaxMin ?? 360,
-        compactionThresholdPercent: data.compactionThresholdPercent ?? 75,
+        compactionThresholdPercent: data.compactionThresholdPercent ?? 80,
         compactionBackoffDecayFactor: data.compactionBackoffDecayFactor ?? 0.5,
         toolResultCompactionEnabled: Boolean(data.toolResultCompactionEnabled ?? true),
         toolResultSemanticSummaryEnabled: Boolean(data.toolResultSemanticSummaryEnabled ?? true),
@@ -18,7 +24,7 @@ function normalizeCompactionSettings(data: Record<string, any> = {}) {
         toolResultSemanticSummaryMaxTokens: data.toolResultSemanticSummaryMaxTokens ?? 320,
         toolResultSemanticSummaryTimeoutSec: data.toolResultSemanticSummaryTimeoutSec ?? 12,
         progressWatchdogEnabled: Boolean(data.progressWatchdogEnabled ?? false),
-        progressWatchdogTimeoutSec: data.progressWatchdogTimeoutSec ?? 120,
+        progressWatchdogTimeoutSec: data.progressWatchdogTimeoutSec ?? 300,
         compactionBackoffs: Array.isArray(data.compactionBackoffs) ? data.compactionBackoffs : [],
         progressWatchdogPhases: Array.isArray(data.progressWatchdogPhases) ? data.progressWatchdogPhases : [],
     };
@@ -34,10 +40,12 @@ function formatIso(value) {
 
 export function CompactionSection({ settingsData, setStatus, mergeSettingsData }) {
     const { t } = useTranslation();
-    const [compactionTimeoutSec, setCompactionTimeoutSec] = useState(180);
+    const [autoCompactionEnabled, setAutoCompactionEnabled] = useState(true);
+    const [smartCompactionMethod, setSmartCompactionMethod] = useState('selective');
+    const [compactionTimeoutSec, setCompactionTimeoutSec] = useState(300);
     const [compactionBackoffBaseMin, setCompactionBackoffBaseMin] = useState(15);
     const [compactionBackoffMaxMin, setCompactionBackoffMaxMin] = useState(360);
-    const [compactionThresholdPercent, setCompactionThresholdPercent] = useState(75);
+    const [compactionThresholdPercent, setCompactionThresholdPercent] = useState(80);
     const [compactionBackoffDecayFactor, setCompactionBackoffDecayFactor] = useState(0.5);
     const [toolResultCompactionEnabled, setToolResultCompactionEnabled] = useState(true);
     const [toolResultSemanticSummaryEnabled, setToolResultSemanticSummaryEnabled] = useState(true);
@@ -45,7 +53,7 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     const [toolResultSemanticSummaryMaxTokens, setToolResultSemanticSummaryMaxTokens] = useState(320);
     const [toolResultSemanticSummaryTimeoutSec, setToolResultSemanticSummaryTimeoutSec] = useState(12);
     const [progressWatchdogEnabled, setProgressWatchdogEnabled] = useState(false);
-    const [progressWatchdogTimeoutSec, setProgressWatchdogTimeoutSec] = useState(120);
+    const [progressWatchdogTimeoutSec, setProgressWatchdogTimeoutSec] = useState(300);
     const [compactionBackoffs, setCompactionBackoffs] = useState([]);
     const [progressWatchdogPhases, setProgressWatchdogPhases] = useState([]);
     const [appliedHint, setAppliedHint] = useState(false);
@@ -60,6 +68,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
 
     const applyIncoming = useCallback((data) => {
         const next = normalizeCompactionSettings(data);
+        setAutoCompactionEnabled(next.autoCompactionEnabled);
+        setSmartCompactionMethod(next.smartCompactionMethod);
         setCompactionTimeoutSec(next.compactionTimeoutSec);
         setCompactionBackoffBaseMin(next.compactionBackoffBaseMin);
         setCompactionBackoffMaxMin(next.compactionBackoffMaxMin);
@@ -75,6 +85,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
         setCompactionBackoffs(next.compactionBackoffs);
         setProgressWatchdogPhases(next.progressWatchdogPhases);
         savedSnapshotRef.current = JSON.stringify({
+            autoCompactionEnabled: next.autoCompactionEnabled,
+            smartCompactionMethod: next.smartCompactionMethod,
             compactionTimeoutSec: next.compactionTimeoutSec,
             compactionBackoffBaseMin: next.compactionBackoffBaseMin,
             compactionBackoffMaxMin: next.compactionBackoffMaxMin,
@@ -95,6 +107,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     }, [settingsData, applyIncoming]);
 
     const currentSnapshot = useMemo(() => JSON.stringify({
+        autoCompactionEnabled,
+        smartCompactionMethod,
         compactionTimeoutSec,
         compactionBackoffBaseMin,
         compactionBackoffMaxMin,
@@ -108,6 +122,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
         progressWatchdogEnabled,
         progressWatchdogTimeoutSec,
     }), [
+        autoCompactionEnabled,
+        smartCompactionMethod,
         compactionTimeoutSec,
         compactionBackoffBaseMin,
         compactionBackoffMaxMin,
@@ -191,6 +207,25 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
 
             <h3>${t('settings.compaction.autoHeading')}</h3>
             <div class="settings-row">
+                <label>${t('settings.compaction.enableAutomatic')}</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" checked=${autoCompactionEnabled} onChange=${e => setAutoCompactionEnabled(Boolean(e.target.checked))} />
+                    <span class="settings-hint" style="margin:0">${t('settings.compaction.enableAutomaticHint')}</span>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label>${t('settings.compaction.processingMethod')}</label>
+                <select id="smartCompactionMethod" value=${smartCompactionMethod} onChange=${e => setSmartCompactionMethod(normalizeSmartCompactionMethod(e.target.value))}>
+                    <option value="selective">${t('settings.compaction.methodSelective')}</option>
+                    <option value="traditional_pipelined">${t('settings.compaction.methodTraditionalPipelined')}</option>
+                </select>
+                <span class="settings-hint" style="margin:0">
+                    ${smartCompactionMethod === 'traditional_pipelined'
+                        ? t('settings.compaction.methodTraditionalPipelinedHint')
+                        : t('settings.compaction.methodSelectiveHint')}
+                </span>
+            </div>
+            <div class="settings-row">
                 <label>${t('settings.compaction.enableToolResult')}</label>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <input type="checkbox" checked=${toolResultCompactionEnabled} onChange=${e => setToolResultCompactionEnabled(Boolean(e.target.checked))} />
@@ -253,7 +288,7 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
                     value=${compactionThresholdPercent}
                     min=${10}
                     max=${95}
-                    fallback=${75}
+                    fallback=${80}
                     width="80px"
                     onChange=${setCompactionThresholdPercent}
                 />
@@ -266,7 +301,7 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
                     value=${compactionTimeoutSec}
                     min=${1}
                     max=${3600}
-                    fallback=${180}
+                    fallback=${300}
                     width="90px"
                     onChange=${setCompactionTimeoutSec}
                 />
@@ -328,7 +363,7 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
                     value=${progressWatchdogTimeoutSec}
                     min=${0}
                     max=${3600}
-                    fallback=${120}
+                    fallback=${300}
                     width="90px"
                     disabled=${!progressWatchdogEnabled}
                     onChange=${setProgressWatchdogTimeoutSec}

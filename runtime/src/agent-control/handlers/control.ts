@@ -11,6 +11,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import { getCompactionRuntimeConfig, setCompactionRuntimeConfig } from "../../core/config.js";
 import type { AgentControlCommand, AgentControlResult } from "../agent-control-types.js";
 import { formatCompactNumber } from "../agent-control-helpers.js";
 import { createMedia, getChatCompactionBackoff } from "../../db.js";
@@ -310,6 +311,7 @@ export async function handleCompact(session: AgentSession, command: CompactComma
     }
 
     const clearExternalFailsafe = startManualCompactionExternalFailsafe(chatJid);
+    let keepExternalFailsafeArmed = false;
     let compactionResult: Awaited<ReturnType<typeof runCompactionWithTimeout>>;
     try {
       const prunedToolResults = pruneOrphanToolResults(session, chatJid);
@@ -325,25 +327,27 @@ export async function handleCompact(session: AgentSession, command: CompactComma
         "manual",
         { trigger: "manual", willRetry: false, source: "compact_command" },
       );
-      clearExternalFailsafe?.();
       if (!compactionResult.ok) {
-        if (!isCompactionCancellationError(compactionResult.errorMessage)) {
+        if (!compactionResult.joined && !isCompactionCancellationError(compactionResult.errorMessage)) {
           noteCompactionFailure(chatJid, compactionResult.errorMessage);
         }
         const timedOut = /timed out/i.test(compactionResult.errorMessage);
+        keepExternalFailsafeArmed = timedOut;
         return {
           status: "error",
           message: timedOut
-            ? `${compactionResult.errorMessage}. Compaction was aborted and the session was not rewritten.`
+            ? `${compactionResult.errorMessage}. The physical compaction may still be settling; the external failsafe remains armed to prevent unsafe reuse.`
             : formatCompactFailureMessage(compactionResult.errorMessage),
         };
       }
 
-      noteCompactionSuccess(session, chatJid, "manual", {
-        onInfo: (message, details) => log.info(message, details),
-        onWarn: (message, details) => log.warn(message, details),
-        countSuccess: false,
-      });
+      if (!compactionResult.joined) {
+        noteCompactionSuccess(session, chatJid, "manual", {
+          onInfo: (message, details) => log.info(message, details),
+          onWarn: (message, details) => log.warn(message, details),
+          countSuccess: false,
+        });
+      }
       const compactResult = compactionResult.result as { summary: string; tokensBefore: number; firstKeptEntryId: string | number | null | undefined; estimatedTokensAfter?: number };
       const contextReport = getCompactionContextReport(session, compactResult);
       const freshContextUsage = contextUsageFromEvent(buildFreshContextUsageUpdateEvent(session, chatJid, "after_manual_compaction", {
@@ -373,7 +377,7 @@ export async function handleCompact(session: AgentSession, command: CompactComma
         ...(freshContextUsage ? { contextUsage: freshContextUsage } : {}),
       };
     } finally {
-      clearExternalFailsafe?.();
+      if (!keepExternalFailsafeArmed) clearExternalFailsafe?.();
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -390,10 +394,11 @@ export async function handleAutoCompact(session: AgentSession, command: AutoComp
     }
     return {
       status: "success",
-      message: `Auto-compaction is ${session.autoCompactionEnabled ? "on" : "off"}.`,
+      message: `Auto-compaction is ${getCompactionRuntimeConfig().autoCompactionEnabled ? "on" : "off"}.`,
     };
   }
-  session.setAutoCompactionEnabled(command.enabled);
+  setCompactionRuntimeConfig({ autoCompactionEnabled: command.enabled });
+  if (typeof session.setAutoCompactionEnabled === "function") session.setAutoCompactionEnabled(false);
   return {
     status: "success",
     message: `Auto-compaction turned ${command.enabled ? "on" : "off"}.`,

@@ -20,7 +20,12 @@ import { getConfigPath, WORKSPACE_DIR } from "../core/config.js";
 import { readJsonConfig, writeJsonConfig } from "../core/config-store.js";
 import { getChatJid } from "../core/chat-context.js";
 import { isContextPressureFailure } from "../agent-pool/automatic-recovery.js";
-import { runWithPiclawCompactionTrigger } from "../agent-pool/compaction-trigger-context.js";
+import { finalizeRecoveryCompactionOutcome, runCompactionWithTimeout } from "../agent-pool/compaction.js";
+import {
+  didPromptAdvanceSession,
+  getSessionLeafId,
+  RECOVERY_CONTINUATION_PROMPT,
+} from "../agent-pool/context-pressure-retry.js";
 
 /** Ordered list of supported thinking levels from off to max. */
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -352,6 +357,7 @@ export async function runPromptAndCapture(
   const customBuffers: string[] = [];
   let providerError: string | null;
   let compacted = false;
+  let attemptText = text;
 
   const resetCapturedOutput = () => {
     assistantBuffer = "";
@@ -385,18 +391,27 @@ export async function runPromptAndCapture(
   try {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       providerError = null;
+      const baselineLeafId = getSessionLeafId(session);
       try {
-        await session.prompt(text, options);
+        await session.prompt(attemptText, options);
       } catch (error) {
         providerError = error instanceof Error ? error.message : String(error);
       }
       if (providerError && isContextPressureFailure(providerError) && !compacted) {
+        const promptWasPersisted = didPromptAdvanceSession(session, baselineLeafId);
         const chatJid = getChatJid("control:prompt_capture");
-        await runWithPiclawCompactionTrigger(
-          { chatJid, trigger: "recovery", willRetry: true, source: "prompt_capture_context_pressure", attempt: attempt + 1 },
+        const compaction = await runCompactionWithTimeout(
+          session,
+          chatJid,
+          {},
           async () => await session.compact(),
+          "recovery",
+          { trigger: "recovery", willRetry: true, source: "prompt_capture_context_pressure", attempt: attempt + 1 },
         );
+        finalizeRecoveryCompactionOutcome(session, chatJid, compaction);
+        if (!compaction.ok) throw new Error(compaction.errorMessage);
         compacted = true;
+        attemptText = promptWasPersisted ? RECOVERY_CONTINUATION_PROMPT : attemptText;
         resetCapturedOutput();
         continue;
       }

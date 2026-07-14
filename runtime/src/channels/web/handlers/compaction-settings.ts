@@ -4,6 +4,7 @@ import {
 } from "../../../db.js";
 import {
   getCompactionRuntimeConfig,
+  normalizeSmartCompactionMethod,
   getToolResultCompactionEnabled,
   getToolResultCompactionTools,
   getToolResultSemanticSummaryConfig,
@@ -11,6 +12,7 @@ import {
   setToolResultCompactionEnabled,
   setToolResultCompactionTools,
   setToolResultSemanticSummaryConfig,
+  type SmartCompactionMethod,
 } from "../../../core/config.js";
 import { getTrackedPhasesSnapshot } from "../../../runtime/progress-watchdog.js";
 import {
@@ -19,6 +21,8 @@ import {
 } from "../../../runtime/progress-watchdog-supervisor.js";
 
 export interface CompactionSettingsData {
+  autoCompactionEnabled: boolean;
+  smartCompactionMethod: SmartCompactionMethod;
   compactionTimeoutSec: number;
   compactionBackoffBaseMin: number;
   compactionBackoffMaxMin: number;
@@ -49,6 +53,8 @@ export interface CompactionSettingsData {
 }
 
 export interface CompactionSettingsInput {
+  autoCompactionEnabled?: unknown;
+  smartCompactionMethod?: unknown;
   compactionTimeoutSec?: unknown;
   compactionBackoffBaseMin?: unknown;
   compactionBackoffMaxMin?: unknown;
@@ -62,6 +68,13 @@ export interface CompactionSettingsInput {
   toolResultSemanticSummaryMaxInputChars?: unknown;
   toolResultSemanticSummaryMaxTokens?: unknown;
   toolResultSemanticSummaryTimeoutSec?: unknown;
+}
+
+function normalizeOptionalSmartCompactionMethod(value: unknown): SmartCompactionMethod | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!["selective", "traditional_pipelined", "pipelined"].includes(normalized)) return undefined;
+  return normalizeSmartCompactionMethod(normalized);
 }
 
 function normalizeOptionalInt(value: unknown, min: number, max: number): number | undefined {
@@ -88,6 +101,8 @@ export function getCompactionSettingsData(): CompactionSettingsData {
   const summaryConfig = getToolResultSemanticSummaryConfig();
   const now = Date.now();
   return {
+    autoCompactionEnabled: config.autoCompactionEnabled,
+    smartCompactionMethod: config.smartCompactionMethod,
     compactionTimeoutSec: Math.max(1, Math.round(config.timeoutMs / 1000)),
     compactionBackoffBaseMin: Math.max(1, Math.round(config.backoffBaseMs / 60_000)),
     compactionBackoffMaxMin: Math.max(1, Math.round(config.backoffMaxMs / 60_000)),
@@ -128,6 +143,8 @@ export function getCompactionSettingsData(): CompactionSettingsData {
 
 export async function saveCompactionSettings(input: CompactionSettingsInput): Promise<CompactionSettingsData> {
   const patch: {
+    autoCompactionEnabled?: boolean;
+    smartCompactionMethod?: SmartCompactionMethod;
     timeoutMs?: number;
     backoffBaseMs?: number;
     backoffMaxMs?: number;
@@ -136,6 +153,16 @@ export async function saveCompactionSettings(input: CompactionSettingsInput): Pr
     thresholdPercent?: number;
     backoffDecayFactor?: number;
   } = {};
+
+  const nextAutoCompactionEnabled = normalizeOptionalBoolean(input.autoCompactionEnabled);
+  if (nextAutoCompactionEnabled !== undefined) {
+    patch.autoCompactionEnabled = nextAutoCompactionEnabled;
+  }
+
+  const nextSmartCompactionMethod = normalizeOptionalSmartCompactionMethod(input.smartCompactionMethod);
+  if (nextSmartCompactionMethod !== undefined) {
+    patch.smartCompactionMethod = nextSmartCompactionMethod;
+  }
 
   const nextTimeoutSec = normalizeOptionalInt(input.compactionTimeoutSec, 1, 3600);
   if (nextTimeoutSec !== undefined) {
@@ -183,7 +210,7 @@ export async function saveCompactionSettings(input: CompactionSettingsInput): Pr
 
   if (Object.keys(patch).length > 0) {
     const saved = setCompactionRuntimeConfig(patch);
-    if (saved.progressWatchdogEnabled) {
+    if (saved.progressWatchdogEnabled && saved.progressWatchdogTimeoutMs > 0) {
       startExternalProgressWatchdogMonitor();
     } else {
       await stopExternalProgressWatchdogMonitor();

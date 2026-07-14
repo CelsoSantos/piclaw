@@ -17,6 +17,8 @@ export interface PiclawCompactionTriggerMetadata {
   trigger: PiclawCompactionTrigger;
   willRetry: boolean;
   source: string;
+  /** Internal identity used to isolate concurrent/late compaction cleanup. */
+  generationId?: string;
   attempt?: number;
   targetContextWindow?: number;
   targetModelLabel?: string;
