@@ -7,6 +7,7 @@
 
 import { convertToLlm } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
+import { checkPiclawCompactionBudget } from "../../agent-pool/compaction-trigger-context.js";
 import { RECENT_CONTEXT_BUDGET_CHARS, TOOL_RESULT_MAX_CHARS, USER_PREVIEW_MAX_CHARS } from "./config.js";
 
 export function extractText(content: unknown): string {
@@ -71,6 +72,7 @@ export function convertMessagesWithMetadata(sourceMessages: SourceMessage[]): {
   const sourceIndexesByLlmIndex: number[] = [];
 
   for (let sourceIndex = 0; sourceIndex < sourceMessages.length; sourceIndex += 1) {
+    checkPiclawCompactionBudget("smart_compaction.messages.convert");
     const source = sourceMessages[sourceIndex];
     const converted = convertToLlm([source as any]);
     if (converted.length === 0) continue;
@@ -170,6 +172,7 @@ export function analyzeToolOutcomes(messages: Message[]): ToolOutcomeAnalysis {
   let hasAssistantNarrative = false;
 
   for (let assistantIndex = 0; assistantIndex < messages.length; assistantIndex++) {
+    checkPiclawCompactionBudget("smart_compaction.messages.analyze.assistant");
     const assistant = messages[assistantIndex];
     if (assistant.role !== "assistant" || !Array.isArray(assistant.content)) continue;
     const blocks = assistant.content as any[];
@@ -179,6 +182,7 @@ export function analyzeToolOutcomes(messages: Message[]): ToolOutcomeAnalysis {
 
     const consecutiveResults: Array<{ message: Message; index: number; toolCallId: string }> = [];
     for (let resultIndex = assistantIndex + 1; resultIndex < messages.length; resultIndex++) {
+      checkPiclawCompactionBudget("smart_compaction.messages.analyze.results");
       const result = messages[resultIndex] as any;
       if (result.role !== "toolResult") break;
       if (typeof result.toolCallId === "string") {
@@ -388,6 +392,7 @@ export function selectRecentContextBackwards(
 
   let i = messages.length - 1;
   while (i >= 0 && budget > 0) {
+    checkPiclawCompactionBudget("smart_compaction.messages.select_recent");
     const msg = messages[i];
 
     if (i === reservedUserIndex) {

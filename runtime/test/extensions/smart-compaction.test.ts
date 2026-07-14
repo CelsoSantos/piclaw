@@ -3189,6 +3189,20 @@ describe("smart-compaction", () => {
       expect(result.compaction.summary).toContain("report,final.ts");
     });
 
+    it("does not hang on mixed absolute and relative paths", () => {
+      const started = Date.now();
+      const compressed = compressFilePaths([
+        "/home/agent/.ssh/config",
+        "piclaw-addons/package.json",
+        "piclaw/runtime/src/channels/web/handlers/agent.ts",
+        "piclaw/runtime/src/agent-pool/automatic-recovery.ts",
+      ]);
+
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect(compressed).toContain("piclaw-addons/package.json");
+      expect(compressed).toContain("agent-pool/automatic-recovery.ts");
+    });
+
     it("retains an inherited outlier path after a compressed path cluster", async () => {
       const compressedPaths = compressFilePaths([
         "piclaw/runtime/src/a.ts",

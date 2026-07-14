@@ -13,6 +13,7 @@ import {
   TOPIC_SHIFT_CONTEXT_AFTER,
   TOPIC_SHIFT_CONTEXT_BEFORE,
 } from "./config.js";
+import { checkPiclawCompactionBudget } from "../../agent-pool/compaction-trigger-context.js";
 import { compressFilePaths, fileListsFromOps } from "./files.js";
 import { buildPreview, extractText, isRealUserMessage, selectRecentContextBackwards, serializeMessage } from "./messages.js";
 
@@ -27,6 +28,7 @@ function detectSessionType(
   let errorMentions = 0;
 
   for (let i = 0; i < messages.length; i++) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.detect_session_type");
     const msg = messages[i];
     if (msg.role === "assistant") {
       for (const block of msg.content as any[]) {
@@ -59,6 +61,7 @@ function detectSessionType(
 function findUserComplaints(messages: Message[], humanUserIndexes?: Set<number>): number[] {
   const out: number[] = [];
   for (let i = 0; i < messages.length; i++) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_complaints");
     if (!isRealUserMessage(messages[i], i, humanUserIndexes)) continue;
     const text = extractText(messages[i].content).toLowerCase();
     if (
@@ -78,6 +81,7 @@ function findFirstUserRequest(
   humanUserIndexes?: Set<number>,
 ): { index: number; text: string } | null {
   for (let i = 0; i < messages.length; i++) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_first_request");
     if (!isRealUserMessage(messages[i], i, humanUserIndexes)) continue;
     const text = extractText(messages[i].content).trim();
     return { index: i, text };
@@ -91,6 +95,7 @@ function findLatestUserRequest(
   humanUserIndexes?: Set<number>,
 ): { index: number; text: string } | null {
   for (let i = messages.length - 1; i >= 0; i--) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_latest_request");
     if (!isRealUserMessage(messages[i], i, humanUserIndexes)) continue;
     const text = extractText(messages[i].content).trim();
     return { index: i, text };
@@ -106,6 +111,7 @@ function findRecentUserTurns(
 ): { index: number; text: string }[] {
   const turns: { index: number; text: string }[] = [];
   for (let i = messages.length - 1; i >= 0 && turns.length < maxTurns; i--) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_recent_user_turns");
     if (!isRealUserMessage(messages[i], i, humanUserIndexes)) continue;
     const text = extractText(messages[i].content).trim();
     turns.push({ index: i, text });
@@ -176,6 +182,7 @@ function tokenizeTopicText(text: string): Set<string> {
 function findUserTurns(messages: Message[], humanUserIndexes?: Set<number>): UserTurn[] {
   const turns: UserTurn[] = [];
   for (let i = 0; i < messages.length; i++) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_user_turns");
     if (!isRealUserMessage(messages[i], i, humanUserIndexes)) continue;
     const text = extractText(messages[i].content).trim();
     if (!text || text.startsWith("/")) continue;
@@ -243,6 +250,7 @@ function findKeyDecisionMessages(
 ): number[] {
   const indices: number[] = [];
   for (let i = 0; i < messages.length; i++) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.find_decisions");
     if (exclude.has(i)) continue;
     if (messages[i].role !== "assistant") continue;
     const textBlocks = (messages[i].content as any[]).filter(
@@ -503,6 +511,7 @@ export function buildSelectivePrompt(
   let chars = sec.join("\n").length + instruction.length + 300;
 
   for (const idx of sorted) {
+    checkPiclawCompactionBudget("smart_compaction.prompt.render_excerpts");
     const gap = lastIdx >= 0 && idx > lastIdx + 1
       ? `\n--- [${idx - lastIdx - 1} messages omitted] ---\n`
       : "";

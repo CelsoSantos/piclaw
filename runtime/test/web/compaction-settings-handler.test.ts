@@ -187,6 +187,32 @@ test('saveCompactionSettings can disable watchdog without clearing its timeout',
   });
 });
 
+test('runtime config enforces progress watchdog when production config disables it', async () => {
+  await withTempWorkspaceEnv('piclaw-compaction-watchdog-enforce-', {
+    PICLAW_COMPACTION_TIMEOUT_MS: '300000',
+    PICLAW_PROGRESS_WATCHDOG_ENABLED: '0',
+    PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: '0',
+    PICLAW_ALLOW_DISABLE_PROGRESS_WATCHDOG: undefined,
+  }, async () => {
+    const previousDbInMemory = process.env.PICLAW_DB_IN_MEMORY;
+    const previousNodeEnv = process.env.NODE_ENV;
+    delete process.env.PICLAW_DB_IN_MEMORY;
+    process.env.NODE_ENV = 'production';
+    try {
+      const config = await importFresh<typeof import('../../src/core/config.js')>('../src/core/config.js');
+      const runtimeConfig = config.getCompactionRuntimeConfig();
+      expect(runtimeConfig.progressWatchdogEnabled).toBe(true);
+      expect(runtimeConfig.progressWatchdogTimeoutMs).toBe(120000);
+      expect(config.getProgressWatchdogSafetyWarning()).toContain('Progress watchdog was disabled');
+    } finally {
+      if (previousDbInMemory === undefined) delete process.env.PICLAW_DB_IN_MEMORY;
+      else process.env.PICLAW_DB_IN_MEMORY = previousDbInMemory;
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+});
+
 test('getCompactionSettingsData exposes active backoffs and tracked phases and reset clears them', async () => {
   await withTempWorkspaceEnv('piclaw-compaction-settings-state-', {
     PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: '30',

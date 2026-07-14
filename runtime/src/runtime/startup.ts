@@ -18,6 +18,7 @@ import {
   WORKSPACE_DIR,
   getPushoverConfig,
   getToolOutputConfig,
+  getProgressWatchdogSafetyWarning,
 } from "../core/config.js";
 import { getChatBranchByAgentName, getChatBranchByChatJid, getChatCursor, getDb, getFailedRun, initDatabase } from "../db.js";
 import type { AgentQueue } from "../queue.js";
@@ -158,6 +159,12 @@ export function initializeRuntimeEnvironment(state: RuntimeState): void {
 
   initDatabase();
   applyEnvironmentOverrides();
+  const watchdogWarning = getProgressWatchdogSafetyWarning();
+  if (watchdogWarning) {
+    log.warn(watchdogWarning, {
+      operation: "progress_watchdog.safety_enforced",
+    });
+  }
   startExternalProgressWatchdogMonitor();
   const cleanedOrphans = cleanupOrphanedActiveChatArtifacts();
   if (cleanedOrphans > 0) {

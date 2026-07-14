@@ -667,6 +667,11 @@ async function runRecoveryCompaction(
   };
   const retryEventFields = buildPiclawCompactionEventFields(retryMetadata, { reason: "overflow", willRetry: true });
   emitAgentSessionEvent(runOptions.onEvent, { type: "compaction_start", ...retryEventFields } as unknown as AgentSessionEvent);
+  heartbeatTrackedPhase(chatJid, "preprompt_compaction", {
+    eventType: "recovery_compaction_start",
+    source: "automatic_recovery",
+    ...getRunObservabilityDetails(runOptions),
+  });
   const compactionResult = await runCompactionWithTimeout(
     session,
     chatJid,
@@ -675,6 +680,11 @@ async function runRecoveryCompaction(
     "recovery",
     { trigger: "recovery", willRetry: true, source: "automatic_recovery" },
   );
+  heartbeatTrackedPhase(chatJid, "recovery", {
+    eventType: "recovery_compaction_end",
+    ok: compactionResult.ok,
+    ...getRunObservabilityDetails(runOptions),
+  });
   if (!compactionResult.ok) {
     const aborted = isCompactionCancellationError(compactionResult.errorMessage);
     const benign = isRotationFallbackCompactionError(compactionResult.errorMessage);

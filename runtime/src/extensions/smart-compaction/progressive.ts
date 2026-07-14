@@ -20,6 +20,7 @@ import {
   type CompactionReasoningEffort,
   parsePositiveEnvInt,
 } from "./config.js";
+import { checkPiclawCompactionBudget, maybeYieldPiclawCompaction } from "../../agent-pool/compaction-trigger-context.js";
 import { getCompactionRequestOverheadTokens, getEffectiveContextWindow } from "../../utils/context-window-budget.js";
 import { estimateCompactionPromptTokens, estimateSmartCompactionCompletionPercent, formatProgressCount, formatProgressRange, formatSmartCompactionStatus } from "./context.js";
 import { compressFilePaths, fileListsFromOps } from "./files.js";
@@ -155,10 +156,12 @@ export function buildProgressiveCompactionChunks(
   };
 
   for (const line of sourceLines) {
+    checkPiclawCompactionBudget("smart_compaction.progressive.build_chunks.line");
     const segments = line.text.length > budgetChars
       ? Array.from({ length: Math.ceil(line.text.length / budgetChars) }, (_, index) => line.text.slice(index * budgetChars, (index + 1) * budgetChars))
       : [line.text];
     for (const segment of segments) {
+      checkPiclawCompactionBudget("smart_compaction.progressive.build_chunks.segment");
       const nextChars = segment.length + (current.length > 0 ? 1 : 0);
       if (current.length > 0 && chars + nextChars > budgetChars) {
         flush();
@@ -493,6 +496,7 @@ function countMergeBatches(summaries: string[], mergeBudgetChars: number): numbe
   let batchSize = 0;
   let chars = 0;
   for (const summary of summaries) {
+    checkPiclawCompactionBudget("smart_compaction.progressive.count_merge_batches");
     const nextChars = summary.length + 2;
     if (batchSize > 0 && chars + nextChars > mergeBudgetChars) {
       count += 1;
@@ -546,6 +550,8 @@ async function mergeProgressiveSummaries(input: {
       || !hasSafeCompactionOutputRoom(input.model, buildFinalPrompt(), input.maxTokens)
     )
   ) {
+    checkPiclawCompactionBudget("smart_compaction.progressive.merge_pass");
+    await maybeYieldPiclawCompaction("smart_compaction.progressive.merge_pass");
     if (pass > MAX_PROGRESSIVE_MERGE_PASSES) {
       throw new Error(`Progressive compaction merge exceeded ${MAX_PROGRESSIVE_MERGE_PASSES} passes; refusing potential infinite merge loop`);
     }
@@ -564,6 +570,7 @@ async function mergeProgressiveSummaries(input: {
     let batch: string[] = [];
     let chars = 0;
     for (const summary of summaries) {
+      checkPiclawCompactionBudget("smart_compaction.progressive.merge_summary");
       const nextChars = summary.length + 2;
       if (batch.length > 0 && chars + nextChars > input.budget.mergeBudgetChars) {
         const batchPhase = `merge_pass_${pass}_batch_${next.length + 1}`;
@@ -762,6 +769,8 @@ export async function runProgressiveCompaction(input: {
   };
 
   for (let offset = 0; offset < chunks.length;) {
+    checkPiclawCompactionBudget("smart_compaction.progressive.chunk_batch");
+    await maybeYieldPiclawCompaction("smart_compaction.progressive.chunk_batch");
     const firstChunk = chunks[offset]!;
     if (input.timeoutMs && input.startedAt) {
       const elapsed = Date.now() - input.startedAt;

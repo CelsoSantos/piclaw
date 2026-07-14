@@ -7,6 +7,7 @@
 
 import path from "node:path";
 import type { FileOperations } from "@earendil-works/pi-coding-agent";
+import { checkPiclawCompactionBudget } from "../../agent-pool/compaction-trigger-context.js";
 import type { ToolOutcomeAnalysis } from "./messages.js";
 
 // Helpers
@@ -157,6 +158,7 @@ const JUNK_PATH_PATTERNS: RegExp[] = [
   /(?:^|\/)\.cache\//,                // cache dirs
   /(?:^|\/)node_modules\//,           // dependency trees
   /(?:^|\/)\.pi\/agent\/sessions\//,  // pi session files
+  /^\/home\/[^/]+\/\.ssh\//,           // local SSH config/keys
   /(?:^|\/)\.pi\/agent\/models\.json$/, // pi model config
   /(?:^|\/)\.pi\/agent\/settings\.json$/, // pi settings
   /(?:^|\/)bun\.lock$/,               // lockfiles
@@ -178,11 +180,20 @@ function findCommonDirectoryPrefix(paths: string[]): string {
   if (paths.length === 0) return "";
   let prefix = paths[0];
   for (let i = 1; i < paths.length; i++) {
-    while (!paths[i].startsWith(prefix)) {
+    checkPiclawCompactionBudget("smart_compaction.files.common_prefix.path");
+    while (prefix && !paths[i].startsWith(prefix)) {
+      checkPiclawCompactionBudget("smart_compaction.files.common_prefix.shrink");
       const slash = prefix.lastIndexOf("/", prefix.length - 2);
-      if (slash < 0) return "";
-      prefix = prefix.slice(0, slash + 1);
+      // If the candidate collapsed to the filesystem root, there is no useful
+      // common directory prefix between this path set. Returning avoids an
+      // infinite loop for mixed absolute/relative paths such as
+      // `/home/agent/.ssh/config` and `piclaw/runtime/src/index.ts`.
+      if (slash <= 0) return "";
+      const nextPrefix = prefix.slice(0, slash + 1);
+      if (nextPrefix === prefix) return "";
+      prefix = nextPrefix;
     }
+    if (!prefix) return "";
   }
   return prefix;
 }
@@ -217,6 +228,7 @@ function renderCompressedPathCluster(paths: string[]): string {
 
   const groups = new Map<string, string[]>();
   for (const p of sorted) {
+    checkPiclawCompactionBudget("smart_compaction.files.render_cluster.group");
     const rel = prefix ? p.slice(prefix.length) : p;
     const lastSlash = rel.lastIndexOf("/");
     const dir = lastSlash >= 0 ? rel.slice(0, lastSlash + 1) : "";
@@ -263,6 +275,7 @@ export function compressFilePaths(paths: string[]): string {
 
   const clusters = new Map<string, string[]>();
   for (const path of uniqueSorted) {
+    checkPiclawCompactionBudget("smart_compaction.files.compress.cluster");
     const key = topLevelPathKey(path);
     if (!clusters.has(key)) clusters.set(key, []);
     clusters.get(key)!.push(path);

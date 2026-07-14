@@ -13,7 +13,7 @@ import { resolveModelRequestAuth } from "../utils/model-auth.js";
 import { createLogger } from "../utils/logger.js";
 import { applyTokenEstimateSafetyMultiplier, getCompactionRequestOverheadTokens, getEffectiveContextWindow, getSystemPromptOverheadTokens, getTokenEstimateSafetyMultiplier } from "../utils/context-window-budget.js";
 import { recordCompactionCancellationReason } from "../agent-pool/compaction-cancel-reason.js";
-import { resolvePiclawCompactionTrigger, type PiclawCompactionTriggerMetadata } from "../agent-pool/compaction-trigger-context.js";
+import { checkPiclawCompactionBudget, maybeYieldPiclawCompaction, resolvePiclawCompactionTrigger, type PiclawCompactionTriggerMetadata } from "../agent-pool/compaction-trigger-context.js";
 
 import { getCompactionRuntimeConfig } from "../core/config.js";
 import { MAX_PROMPT_CHARS, MIN_COMPACTION_OUTPUT_TOKENS, PROGRESSIVE_FALLBACK_CONTEXT_WINDOW, SMART_COMPACTION_PROGRESS_INTERVAL_MS } from "./smart-compaction/config.js";
@@ -516,10 +516,12 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       // We preserve source-message provenance so synthetic upstream user-role
       // wrappers (branch/compaction summaries, custom messages, bashExecution)
       // don't get mistaken for real human user turns.
+      checkPiclawCompactionBudget("smart_compaction.handler.start");
       const sanitizedContextPrune = sanitizeContextPruneCompactionMessages(
         messagesToSummarize as SourceMessage[],
         branchEntries,
       );
+      await maybeYieldPiclawCompaction("smart_compaction.handler.after_sanitize");
       const messagesForCompaction = sanitizedContextPrune.messages as SourceMessage[];
       if (sanitizedContextPrune.prunedToolResults > 0 || sanitizedContextPrune.replacedToolCalls > 0) {
         log.debug("Sanitized context-pruned tool history before smart compaction", {
@@ -537,6 +539,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         (sourceIndex) => sanitizedContextPrune.sourceEntryIdsByMessageIndex[sourceIndex],
       );
       const toolAnalysis = analyzeToolOutcomes(llmMessages);
+      await maybeYieldPiclawCompaction("smart_compaction.handler.after_tool_analysis");
       const effectiveFileOps = reconcileFileOperations(preparation.fileOps, toolAnalysis, previousSummary);
       const effectivePreparation = { ...preparation, fileOps: effectiveFileOps };
 
@@ -544,6 +547,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       if (abortSignal.aborted) return { cancel: true };
 
       const topicShift = detectRecentTopicShift(llmMessages, humanUserIndexes);
+      await maybeYieldPiclawCompaction("smart_compaction.handler.after_topic_shift");
 
       log.debug("Pivot detection result", {
         detected: !!topicShift,
@@ -673,6 +677,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         humanUserIndexes,
       );
 
+      await maybeYieldPiclawCompaction("smart_compaction.handler.after_selective_prompt");
       const promptTokens = estimateCompactionPromptTokens(promptText);
       log.debug(
         `Prompt: ${Math.round(promptText.length / 1000)}k chars / ~${Math.round(promptTokens / 1000)}k tokens (vs ~${Math.round(tokensBefore / 1000)}k tokens full)`,

@@ -524,11 +524,17 @@ function defaultTriggerForReason(reason: string): PiclawCompactionTrigger {
   return reason;
 }
 
+function getCompactionMaxWorkUnits(): number {
+  const parsed = Number.parseInt(process.env.PICLAW_COMPACTION_MAX_WORK_UNITS || "1000000", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(1, Math.trunc(parsed)) : 1_000_000;
+}
+
 function buildCompactionTriggerMetadata(
   chatJid: string,
   reason: string,
   options: RunCompactionTriggerOptions = {},
 ): PiclawCompactionTriggerMetadata {
+  const timeoutMs = getCompactionTimeoutMs();
   return {
     chatJid,
     trigger: options.trigger ?? defaultTriggerForReason(reason),
@@ -537,6 +543,8 @@ function buildCompactionTriggerMetadata(
     attempt: options.attempt,
     targetContextWindow: options.targetContextWindow,
     targetModelLabel: options.targetModelLabel,
+    deadlineAtMs: timeoutMs > 0 ? Date.now() + timeoutMs : undefined,
+    maxWorkUnits: getCompactionMaxWorkUnits(),
   };
 }
 

@@ -1626,8 +1626,46 @@ function parsePercentWithBounds(value: unknown, fallback: number, minExclusive =
   return parsed;
 }
 
+function allowUnsafeProgressWatchdogDisable(): boolean {
+  if (process.env.PICLAW_ALLOW_DISABLE_PROGRESS_WATCHDOG === "1") return true;
+  if (process.env.PICLAW_DB_IN_MEMORY === "1") return true;
+  if (process.env.NODE_ENV === "test") return true;
+  return false;
+}
+
+export function enforceProgressWatchdogSafety(config: CompactionRuntimeConfig): CompactionRuntimeConfig {
+  if (config.timeoutMs <= 0 || allowUnsafeProgressWatchdogDisable()) return config;
+  if (config.progressWatchdogEnabled && config.progressWatchdogTimeoutMs > 0) return config;
+  return {
+    ...config,
+    progressWatchdogEnabled: true,
+    progressWatchdogTimeoutMs: config.progressWatchdogTimeoutMs > 0
+      ? config.progressWatchdogTimeoutMs
+      : DEFAULT_PROGRESS_WATCHDOG_TIMEOUT_MS,
+  };
+}
+
+export function getProgressWatchdogSafetyWarning(): string | null {
+  if (allowUnsafeProgressWatchdogDisable()) return null;
+  const raw = {
+    timeoutMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_TIMEOUT_MS, COMPACTION_RUNTIME_CONFIG.timeoutMs),
+    progressWatchdogEnabled: parseOptionalBooleanFlag(
+      process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED,
+      COMPACTION_RUNTIME_CONFIG.progressWatchdogEnabled,
+    ),
+    progressWatchdogTimeoutMs: parseOptionalNonNegativeDurationMs(
+      process.env.PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS,
+      COMPACTION_RUNTIME_CONFIG.progressWatchdogTimeoutMs,
+    ),
+  };
+  if (raw.timeoutMs > 0 && (!raw.progressWatchdogEnabled || raw.progressWatchdogTimeoutMs <= 0)) {
+    return "Progress watchdog was disabled while compaction timeout is enabled; Piclaw is enforcing the external watchdog because in-process timers cannot interrupt CPU-bound compaction loops.";
+  }
+  return null;
+}
+
 export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> {
-  return Object.freeze({
+  const resolved: CompactionRuntimeConfig = {
     timeoutMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_TIMEOUT_MS, COMPACTION_RUNTIME_CONFIG.timeoutMs),
     backoffBaseMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS, COMPACTION_RUNTIME_CONFIG.backoffBaseMs),
     backoffMaxMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS, COMPACTION_RUNTIME_CONFIG.backoffMaxMs),
@@ -1667,7 +1705,8 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
         ? parsed
         : COMPACTION_RUNTIME_CONFIG.backoffDecayFactor;
     })(),
-  });
+  };
+  return Object.freeze(enforceProgressWatchdogSafety(resolved));
 }
 
 export function setCompactionRuntimeConfig(patch: {
