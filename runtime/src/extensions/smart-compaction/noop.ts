@@ -56,7 +56,7 @@ function isHarmlessAcknowledgement(text: string): boolean {
  *    through to summarization by default.
  *
  * Returns a `{ compaction }` result to short-circuit the LLM path, or
- * `null` to fall through to selective/built-in compaction.
+ * `null` to fall through to the selected smart-compaction method.
  */
 export function tryNoOpCompaction(
   llmMessages: Message[],

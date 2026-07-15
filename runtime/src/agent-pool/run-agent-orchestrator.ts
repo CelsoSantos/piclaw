@@ -107,8 +107,8 @@ const MAX_RECOVERY_LOOP_GUARD_CHATS = 512;
  */
 const DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING = 48;
 
-/** Approximate bytes-per-token ratio for projecting tool-result size onto context tokens. */
-const TOOL_RESULT_BYTES_PER_TOKEN = 4;
+/** Approximate characters-per-token ratio for projecting tool-result size onto context tokens. */
+const TOOL_RESULT_CHARS_PER_TOKEN = 4;
 
 type RecoveryFailureSignatureRecord = {
   atMs: number;
@@ -767,7 +767,10 @@ async function runPromptAttempt(
   let failedToolName: string | null = null;
   let assistantToolUseMessageCount = 0;
   let toolExecutionCount = 0;
-  let midTurnToolResultAccumulatedBytes = 0;
+  let midTurnToolResultChars = 0;
+  let midTurnProjectionBaselineRawTokens: number | null = null;
+  let midTurnProjectionBaselineToolResultChars = 0;
+  let midTurnProjectionModelResponseSequence = -1;
   let toolUseBudgetExceeded = false;
   let toolExecutionCeilingExceeded = false;
   let modelResponseSequence = 0;
@@ -876,9 +879,10 @@ async function runPromptAttempt(
   ].includes(toolName);
   let sawTerminalSideEffectToolActivity = false;
 
-  const readContextUsageSnapshot = (): {
+  const readContextUsageSnapshot = (projectedAdditionalRawTokens = 0): {
     tokens: number;
     rawTokens: number;
+    projectedAdditionalRawTokens: number;
     contextWindow: number;
     effectiveContextWindow: number;
     overheadTokens: number;
@@ -894,11 +898,12 @@ async function runPromptAttempt(
     autoCompactionPrefillTokens: number | null;
     overThreshold: boolean;
   } | null => {
-    const status = getAutoCompactionTokenStatusForSession(session, chatJid);
+    const status = getAutoCompactionTokenStatusForSession(session, chatJid, { projectedAdditionalRawTokens });
     if (!status) return null;
     return {
       tokens: status.contextTokens,
       rawTokens: status.rawContextTokens,
+      projectedAdditionalRawTokens: status.projectedAdditionalRawTokens,
       contextWindow: status.contextWindow,
       effectiveContextWindow: status.effectiveContextWindow,
       overheadTokens: status.overheadTokens,
@@ -916,9 +921,13 @@ async function runPromptAttempt(
     };
   };
 
-  const publishContextUsageUpdate = (phase: string, force = false): ReturnType<typeof readContextUsageSnapshot> => {
+  const publishContextUsageUpdate = (
+    phase: string,
+    force = false,
+    projectedAdditionalRawTokens = 0,
+  ): ReturnType<typeof readContextUsageSnapshot> => {
     try {
-      const snapshot = readContextUsageSnapshot();
+      const snapshot = readContextUsageSnapshot(projectedAdditionalRawTokens);
       if (!snapshot) return null;
       const now = Date.now();
       if (force || now - lastContextUsageUpdateAt >= CONTEXT_USAGE_UPDATE_MIN_INTERVAL_MS) {
@@ -943,7 +952,7 @@ async function runPromptAttempt(
       toolExecutionCount,
       ceiling: midTurnToolExecutionHardCeiling,
       defaultCeiling: DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
-      midTurnToolResultAccumulatedBytes,
+      midTurnToolResultChars,
       toolName: typeof toolName === "string" ? toolName : null,
       ...contextDetails,
       ...getRunObservabilityDetails(runOptions),
@@ -967,35 +976,48 @@ async function runPromptAttempt(
       const now = Date.now();
       const forceUsageUpdate = now - lastMidTurnContextUpdateAt >= MID_TURN_CONTEXT_CHECK_MIN_INTERVAL_MS;
       if (forceUsageUpdate) lastMidTurnContextUpdateAt = now;
-      const snapshot = publishContextUsageUpdate("mid_turn_tool_result", forceUsageUpdate);
+      const estimatorSnapshot = readContextUsageSnapshot();
+      if (!estimatorSnapshot) {
+        if (toolExecutionCeilingReached) abortForToolExecutionCeiling(toolName);
+        return;
+      }
+
+      // Maintain a raw-token floor from the context observed before tool
+      // results plus every result emitted during this prompt. As the session
+      // estimator catches up, reduce the projection instead of adding the same
+      // historical results again. Feed the remaining raw projection through
+      // the shared policy so safety margins and scoped thresholds are applied
+      // exactly once.
+      if (midTurnProjectionBaselineRawTokens == null) {
+        midTurnProjectionBaselineRawTokens = estimatorSnapshot.rawTokens;
+      }
+      const toolResultCharsSinceBaseline = Math.max(0, midTurnToolResultChars - midTurnProjectionBaselineToolResultChars);
+      const toolResultRawTokensSinceBaseline = Math.ceil(toolResultCharsSinceBaseline / TOOL_RESULT_CHARS_PER_TOKEN);
+      const projectedRawFloor = midTurnProjectionBaselineRawTokens + toolResultRawTokensSinceBaseline;
+      const projectedAdditionalRawTokens = Math.max(0, projectedRawFloor - estimatorSnapshot.rawTokens);
+      const snapshot = publishContextUsageUpdate(
+        "mid_turn_tool_result",
+        forceUsageUpdate,
+        projectedAdditionalRawTokens,
+      );
       if (!snapshot) {
         if (toolExecutionCeilingReached) abortForToolExecutionCeiling(toolName);
         return;
       }
 
-      // Project accumulated tool-result bytes as additional tokens beyond what
-      // the estimator reports. The estimator anchors on the last assistant
-      // usage metadata, which doesn't account for tool results appended after
-      // that point. This projection closes the blind spot.
-      const projectedAdditionalTokens = Math.ceil(midTurnToolResultAccumulatedBytes / TOOL_RESULT_BYTES_PER_TOKEN);
-      const adjustedTokens = snapshot.tokens + projectedAdditionalTokens;
-      const adjustedScopeTokens = snapshot.autoCompactionScopeTokens + projectedAdditionalTokens;
-      const overThreshold = adjustedScopeTokens >= snapshot.autoCompactionScopeLimit
-        || (snapshot.hardCeilingTokens > 0 && adjustedTokens >= snapshot.hardCeilingTokens);
-
-      if (!overThreshold) {
+      if (!snapshot.overThreshold) {
         if (toolExecutionCeilingReached) {
           abortForToolExecutionCeiling(toolName, {
-            contextTokens: adjustedTokens,
-            estimatorReportedTokens: snapshot.tokens,
-            projectedAdditionalTokens,
+            contextTokens: snapshot.tokens,
+            estimatorReportedTokens: estimatorSnapshot.tokens,
+            projectedAdditionalRawTokens,
             contextWindow: snapshot.contextWindow,
             thresholdTokens: snapshot.thresholdTokens,
             thresholdPercent: snapshot.thresholdPercent,
             hardCeilingTokens: snapshot.hardCeilingTokens,
             autoCompactionScope: snapshot.autoCompactionScope,
-            autoCompactionScopeTokens: adjustedScopeTokens,
-            estimatorReportedAutoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+            autoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+            estimatorReportedAutoCompactionScopeTokens: estimatorSnapshot.autoCompactionScopeTokens,
             autoCompactionScopeLimit: snapshot.autoCompactionScopeLimit,
           });
         }
@@ -1004,23 +1026,23 @@ async function runPromptAttempt(
 
       sawCompactionIntent = true;
       midTurnContextAbortRequested = true;
-      runOptions.onEvent?.(buildContextUsageUpdateEvent(adjustedTokens, snapshot.contextWindow, "mid_turn_tool_result_over_threshold"));
+      runOptions.onEvent?.(buildContextUsageUpdateEvent(snapshot.tokens, snapshot.contextWindow, "mid_turn_tool_result_over_threshold"));
       options.onWarn?.("Mid-turn context pressure detected after tool result; aborting for compaction", {
         operation: "run_agent.mid_turn_context_pressure",
         chatJid,
-        contextTokens: adjustedTokens,
-        estimatorReportedTokens: snapshot.tokens,
-        projectedAdditionalTokens,
-        midTurnToolResultAccumulatedBytes,
+        contextTokens: snapshot.tokens,
+        estimatorReportedTokens: estimatorSnapshot.tokens,
+        projectedAdditionalRawTokens,
+        midTurnToolResultChars,
         toolExecutionCount,
         contextWindow: snapshot.contextWindow,
         thresholdTokens: snapshot.thresholdTokens,
         thresholdPercent: snapshot.thresholdPercent,
         hardCeilingTokens: snapshot.hardCeilingTokens,
-        hardCeilingReached: snapshot.hardCeilingReached || (snapshot.hardCeilingTokens > 0 && adjustedTokens >= snapshot.hardCeilingTokens),
+        hardCeilingReached: snapshot.hardCeilingReached,
         autoCompactionScope: snapshot.autoCompactionScope,
-        autoCompactionScopeTokens: adjustedScopeTokens,
-        estimatorReportedAutoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+        autoCompactionScopeTokens: snapshot.autoCompactionScopeTokens,
+        estimatorReportedAutoCompactionScopeTokens: estimatorSnapshot.autoCompactionScopeTokens,
         autoCompactionScopeLimit: snapshot.autoCompactionScopeLimit,
         autoCompactionWindowOrdinal: snapshot.autoCompactionWindowOrdinal,
         autoCompactionBaselineTokens: snapshot.autoCompactionBaselineTokens,
@@ -1065,7 +1087,19 @@ async function runPromptAttempt(
     }
 
     if (event.type === "tool_execution_start") {
-      publishContextUsageUpdate("tool_execution_start", true);
+      const snapshot = publishContextUsageUpdate("tool_execution_start", true);
+      // Each assistant response establishes a fresh projection baseline after
+      // its tool-call message has entered context. Results from that batch are
+      // then measured independently, so intervening assistant growth cannot
+      // mask a newly appended result.
+      if (
+        snapshot
+        && (midTurnProjectionBaselineRawTokens == null || midTurnProjectionModelResponseSequence !== modelResponseSequence)
+      ) {
+        midTurnProjectionBaselineRawTokens = snapshot.rawTokens;
+        midTurnProjectionBaselineToolResultChars = midTurnToolResultChars;
+        midTurnProjectionModelResponseSequence = modelResponseSequence;
+      }
     } else if (event.type === "tool_execution_update") {
       publishContextUsageUpdate("tool_execution_update");
     }
@@ -1161,7 +1195,7 @@ async function runPromptAttempt(
               if (block && typeof block === "object" && (block as { type?: unknown }).type === "text") {
                 const text = (block as { text?: unknown }).text;
                 if (typeof text === "string") {
-                  midTurnToolResultAccumulatedBytes += text.length;
+                  midTurnToolResultChars += text.length;
                 }
               }
             }
@@ -1457,7 +1491,7 @@ async function runPromptAttempt(
         const isTerminalSideEffectCompletion = hadToolActivity
           && !isBlankTurnSessionDelta(blankTurnDelta)
           && sawTerminalSideEffectToolActivity;
-        const isRecoverableToolOnlyStop = hadToolActivity
+        const isSideEffectingToolOnlyCompletion = hadToolActivity
           && !hadPartialOutput
           && !hadToolFailure
           && !isBlankTurnSessionDelta(blankTurnDelta)
@@ -1468,7 +1502,7 @@ async function runPromptAttempt(
           && (!hadToolFailure || (!hadToolFailureBeforeSoftStop && hadToolFailureAfterSoftStop && toolUseSoftStopApplied))
           && !isBlankTurnSessionDelta(blankTurnDelta)
           && detail.includes("provider stopped after tool use");
-        const isToolOnlyCompletion = isTerminalSideEffectCompletion || isRecoverableToolOnlyStop || isDraftBackedToolCompletion;
+        const isToolOnlyCompletion = isTerminalSideEffectCompletion || isSideEffectingToolOnlyCompletion || isDraftBackedToolCompletion;
         output = isToolOnlyCompletion
           ? {
             status: "tool_complete" as const,

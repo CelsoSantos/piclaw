@@ -603,6 +603,9 @@ export async function runProgressiveCompaction(input: {
         chunks,
         complete: false,
         reason,
+        // Preserve the previous summary verbatim in deterministic fallbacks.
+        // Chunk output is model-generated and schema-valid output can still
+        // omit a continuity fact, so this intentional redundancy is lossless.
         previousSummary: input.previousSummary,
         keptMessagesSummary: input.keptMessagesSummary,
         turnPrefixSummary: input.turnPrefixSummary,
@@ -717,6 +720,8 @@ export async function runProgressiveCompaction(input: {
         chunks,
         complete: true,
         reason: msg,
+        // Preserve the previous summary verbatim in deterministic fallbacks;
+        // validated chunk summaries are still lossy model output.
         previousSummary: input.previousSummary,
         keptMessagesSummary: input.keptMessagesSummary,
         turnPrefixSummary: input.turnPrefixSummary,

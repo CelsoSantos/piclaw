@@ -75,6 +75,7 @@ export function resolveSourceEntryIdsForMessages(
     return sessionEntryToContextMessages(entry).map((message) => ({
       entryId: entry.id as string,
       entryIndex,
+      entryType: entry.type as string,
       message: message as SourceMessage,
       identity: sourceMessageIdentity(message as SourceMessage),
     }));
@@ -92,7 +93,15 @@ export function resolveSourceEntryIdsForMessages(
     let matchIndex = candidates.findIndex((candidate, index) => index >= candidateCursor && candidate.message === message);
     if (matchIndex < 0) {
       const identity = sourceMessageIdentity(message);
-      matchIndex = candidates.findIndex((candidate, index) => index >= candidateCursor && candidate.identity === identity);
+      // Ordinary message entries preserve object identity through upstream
+      // compaction preparation. Structural matching is reserved for custom and
+      // summary entries, which Pi projects into fresh message objects. This
+      // prevents a discarded message from rebinding to an equal retained copy.
+      matchIndex = candidates.findIndex((candidate, index) =>
+        index >= candidateCursor
+        && candidate.entryType !== "message"
+        && candidate.identity === identity
+      );
     }
     if (matchIndex < 0) return undefined;
     candidateCursor = matchIndex + 1;
@@ -106,18 +115,12 @@ export function resolveFirstKeptEntryIdForSourceMessageIndex(
   sourceMessageIndex: number | undefined,
 ): string | null {
   if (!Array.isArray(branchEntries) || sourceMessageIndex == null) return null;
-  const source = messagesForCompaction[sourceMessageIndex];
-  if (!source) return null;
-  for (const entry of branchEntries) {
-    if (entry?.type === "message" && entry.message === source && typeof entry.id === "string") return entry.id;
-  }
-  const identity = sourceMessageIdentity(source);
-  if (!identity) return null;
-  for (const entry of branchEntries) {
-    if (entry?.type !== "message" || typeof entry.id !== "string") continue;
-    if (sourceMessageIdentity(entry.message as SourceMessage) === identity) return entry.id;
-  }
-  return null;
+  if (!Number.isInteger(sourceMessageIndex) || sourceMessageIndex < 0 || sourceMessageIndex >= messagesForCompaction.length) return null;
+  const alignedIds = resolveSourceEntryIdsForMessages(branchEntries, messagesForCompaction);
+  // Advancing a partial boundary is safe only if every source message through
+  // the first unprocessed message has exact, monotonic provenance.
+  if (alignedIds.slice(0, sourceMessageIndex + 1).some((id) => !id)) return null;
+  return alignedIds[sourceMessageIndex] ?? null;
 }
 
 export function findBranchEntryIndex(branchEntries: any[] | undefined, entryId: string): number {

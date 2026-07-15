@@ -36,6 +36,8 @@ export type {
   PreparedCompactionSource,
 } from "./smart-compaction/source.js";
 export { assemblePipelineEvents } from "./smart-compaction/pipeline-events.js";
+// The Traditional* names below are compatibility-only public aliases. New
+// code and all active execution paths use the canonical Pipelined* names.
 export {
   buildPipelinedPlan,
   buildPipelinedPlan as buildTraditionalPipelinePlan,

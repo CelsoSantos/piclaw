@@ -448,10 +448,96 @@ test("runAgentPrompt does not request compaction solely from the mid-turn tool e
     expect.objectContaining({
       operation: "run_agent.mid_turn_tool_ceiling",
       reason: "mid_turn_tool_execution_hard_ceiling",
-      contextTokens: 199_212,
+      contextTokens: 199_215,
       thresholdTokens: 836_800,
     }),
   ]));
+});
+
+test("runAgentPrompt projects only tool-result tokens not yet reflected by the estimator", async () => {
+  initDatabase();
+  const restoreEnv = setEnv({ PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "2" });
+
+  class CatchingUpEstimatorSession {
+    private listeners: Array<(event: any) => void> = [];
+    private usageTokens = 10_000;
+    private entryCount = 0;
+    sessionManager = {
+      getLeafId: () => "leaf-catching-up-estimator",
+      getEntries: () => Array.from({ length: this.entryCount }),
+      buildSessionContext: () => ({ messages: [{ role: "user", content: "small prompt" }] }),
+    };
+    model = { provider: "test", id: "large-context", contextWindow: 1_000_000 };
+    isStreaming = false;
+    isCompacting = false;
+    isRetrying = false;
+    getContextUsage = () => ({ tokens: this.usageTokens });
+    subscribe(listener: (event: any) => void) {
+      this.listeners.push(listener);
+      return () => { this.listeners = this.listeners.filter((entry) => entry !== listener); };
+    }
+    async prompt() {
+      for (let index = 0; index < 2; index += 1) {
+        if (index > 0) {
+          // The next assistant tool-call message grows context independently
+          // of tool results and must not mask the next result projection.
+          this.usageTokens += 500;
+          this.entryCount += 1;
+        }
+        for (const listener of this.listeners) {
+          listener({ type: "message_start", message: { role: "assistant" } });
+          listener({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "toolCall", id: `tool-${index}`, name: "read" }],
+              stopReason: "toolUse",
+              usage: { inputTokens: this.usageTokens },
+            },
+          });
+          listener({ type: "tool_execution_start", toolCallId: `tool-${index}`, toolName: "read" });
+          listener({
+            type: "tool_execution_end",
+            toolCallId: `tool-${index}`,
+            toolName: "read",
+            isError: false,
+            result: { content: [{ type: "text", text: "x".repeat(400) }] },
+          });
+        }
+        this.usageTokens += 100;
+        this.entryCount += 1;
+      }
+    }
+    async abort() {}
+  }
+
+  try {
+    const warnings: Array<Record<string, unknown>> = [];
+    const result = await runAgentPrompt("test", "web:catching-up-estimator", {
+      timeoutMs: 0,
+      skipPrePromptCompaction: true,
+    }, {
+      getOrCreateRuntime: async () => createRuntime(new CatchingUpEstimatorSession(), { maxRetries: 0 }) as any,
+      turnCoordinator: new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} }),
+      clearAttachments: () => {},
+      takeAttachments: () => [],
+      logsDir: createTestLogsDir(),
+      setActiveForkBaseLeaf: () => {},
+      clearActiveForkBaseLeaf: () => {},
+      onWarn: (_message, details) => warnings.push(details),
+    });
+
+    expect(result.status).toBe("error");
+    expect(warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        operation: "run_agent.mid_turn_tool_ceiling",
+        midTurnToolResultChars: 800,
+        projectedAdditionalRawTokens: 100,
+      }),
+    ]));
+  } finally {
+    restoreEnv();
+  }
 });
 
 test("runAgentPrompt applies mid-turn projections to body-after-prefix usage instead of total context", async () => {
@@ -1037,6 +1123,7 @@ test.skip("runAgentPrompt aborts a stuck pre-prompt compaction and continues", a
 });
 
 test("runAgentPrompt refuses to prompt a session when pre-prompt timeout emergency rotation fails", async () => {
+  initDatabase();
   const restoreEnv = setEnv({
     PICLAW_COMPACTION_TIMEOUT_MS: "1",
     PICLAW_COMPACTION_SETTLEMENT_GRACE_MS: "0",
@@ -1096,7 +1183,7 @@ test("runAgentPrompt refuses to prompt a session when pre-prompt timeout emergen
   } finally {
     restoreEnv();
   }
-});
+}, 10_000);
 
 test("runAgentPrompt suppresses auto-compaction under backoff and refuses unsafe prompt when emergency rotation fails", async () => {
   const restoreEnv = setEnv({

@@ -1,5 +1,5 @@
 /**
- * smart-compaction.test.ts – unit tests for selective-fragment compaction.
+ * smart-compaction.test.ts – unit tests for Selective and Pipelined compaction.
  */
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -183,6 +183,7 @@ import { prepareCompactionSource } from "../../src/extensions/smart-compaction/s
 import { buildTurnPrefixSummary } from "../../src/extensions/smart-compaction/retained-context.js";
 import {
   isValidCompactionRetainedBoundary,
+  resolveFirstKeptEntryIdForSourceMessageIndex,
   resolveSourceEntryIdsForMessages,
 } from "../../src/extensions/smart-compaction/boundary-policy.js";
 import { buildChunkSummaryPrompt, buildMergePrompt } from "../../src/extensions/smart-compaction/progressive-policy.js";
@@ -384,6 +385,18 @@ describe("smart-compaction", () => {
 
     expect(resolveSourceEntryIdsForMessages(branchEntries, [projectedCustom, nextMessage] as any[]))
       .toEqual(["custom-entry", "next-entry"]);
+  });
+
+  it("does not rebind an unproven source message to an equal retained duplicate", () => {
+    const discarded = userMsg("same content", 1);
+    const retained = userMsg("same content", 1);
+    const branchEntries = [
+      { type: "message", id: "retained-duplicate", message: retained },
+    ];
+
+    expect(resolveSourceEntryIdsForMessages(branchEntries, [discarded] as any[])).toEqual([undefined]);
+    expect(resolveFirstKeptEntryIdForSourceMessageIndex(branchEntries, [discarded] as any[], 0)).toBeNull();
+    expect(resolveFirstKeptEntryIdForSourceMessageIndex(branchEntries, [retained] as any[], 0)).toBe("retained-duplicate");
   });
 
   it("rejects a retained boundary missing from a populated authoritative branch", () => {
@@ -690,7 +703,7 @@ describe("smart-compaction", () => {
   it("dispatches Pipelined through the shared single-pass lifecycle", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
-    const summaryText = "## Goal\nTraditional pipeline goal\n\n## Current Active Topic\n- audited pipeline\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- do not deploy\n\n## Progress\n### Done\n- [x] source projected\n\n### In Progress\n- [ ] continue\n\n### Blocked\n- none\n\n## Key Decisions\n- **Coverage**: validate every source event.\n\n## Next Steps\n1. Continue.\n\n## Critical Context\n- pipeline context";
+    const summaryText = "## Goal\nPipelined goal\n\n## Current Active Topic\n- audited pipeline\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- do not deploy\n\n## Progress\n### Done\n- [x] source projected\n\n### In Progress\n- [ ] continue\n\n### Blocked\n- none\n\n## Key Decisions\n- **Coverage**: validate every source event.\n\n## Next Steps\n1. Continue.\n\n## Critical Context\n- pipeline context";
     (completeSimple as any).mockResolvedValueOnce({
       content: [{ type: "text", text: summaryText }],
       stopReason: "stop",
@@ -704,7 +717,7 @@ describe("smart-compaction", () => {
         signal: new AbortController().signal,
       }, ctx);
 
-      expect(result.compaction.summary).toContain("Traditional pipeline goal");
+      expect(result.compaction.summary).toContain("Pipelined goal");
       expect(completeSimple).toHaveBeenCalledTimes(1);
       const prompt = (completeSimple as any).mock.calls[0][1].messages[0].content[0].text as string;
       expect(prompt).toContain("<ordered_pipeline_groups_source_data>");
@@ -847,10 +860,10 @@ describe("smart-compaction", () => {
     const previousPromptChars = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
     process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
     process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "3000";
-    const messages = Array.from({ length: 20 }, (_, index) => userMsg(`TRAD_FACT_${index} ${"x".repeat(1_200)}`));
+    const messages = Array.from({ length: 20 }, (_, index) => userMsg(`PIPELINED_FACT_${index} ${"x".repeat(1_200)}`));
     const prompts: string[] = [];
-    const factsIn = (prompt: string) => [...new Set(prompt.match(/TRAD_FACT_\d+/g) ?? [])];
-    const chunkSummary = (facts: string[]) => `## Chunk Range\n- covered\n\n## Goals / User Intent\n- preserve traditional source\n\n## Constraints & Preferences\n- none\n\n## Decisions\n- complete progressive coverage\n\n## Files / Commands / Tool Outcomes\n- none\n\n## Progress\n- Done: source summarized\n- In progress: merge\n- Blocked: none\n\n## Open Questions / Next Steps\n- merge\n\n## Key Continuity Facts\n- ${facts.join(" ") || "source represented"}`;
+    const factsIn = (prompt: string) => [...new Set(prompt.match(/PIPELINED_FACT_\d+/g) ?? [])];
+    const chunkSummary = (facts: string[]) => `## Chunk Range\n- covered\n\n## Goals / User Intent\n- preserve pipelined source\n\n## Constraints & Preferences\n- none\n\n## Decisions\n- complete progressive coverage\n\n## Files / Commands / Tool Outcomes\n- none\n\n## Progress\n- Done: source summarized\n- In progress: merge\n- Blocked: none\n\n## Open Questions / Next Steps\n- merge\n\n## Key Continuity Facts\n- ${facts.join(" ") || "source represented"}`;
     (completeSimple as any).mockImplementation(async (_model: any, context: any) => {
       const prompt = context.messages[0].content[0].text as string;
       prompts.push(prompt);
@@ -859,7 +872,7 @@ describe("smart-compaction", () => {
         return { content: [{ type: "text", text: chunkSummary(facts) }], stopReason: "stop" };
       }
       return {
-        content: [{ type: "text", text: `## Goal\nTraditional progressive goal\n\n## Current Active Topic\n- complete source coverage\n\n## Historical / Background Context\n- ${facts.join(" ")}\n\n## Constraints & Preferences\n- preserve provenance\n\n## Progress\n### Done\n- [x] pipeline chunks merged\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Dispatch**: selected method remained Pipelined\n\n## Next Steps\n1. continue\n\n## Critical Context\n- all source groups classified` }],
+        content: [{ type: "text", text: `## Goal\nPipelined progressive goal\n\n## Current Active Topic\n- complete source coverage\n\n## Historical / Background Context\n- ${facts.join(" ")}\n\n## Constraints & Preferences\n- preserve provenance\n\n## Progress\n### Done\n- [x] pipeline chunks merged\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Dispatch**: selected method remained Pipelined\n\n## Next Steps\n1. continue\n\n## Critical Context\n- all source groups classified` }],
         stopReason: "stop",
       };
     });
@@ -867,12 +880,12 @@ describe("smart-compaction", () => {
     try {
       const authResolver = vi.fn().mockResolvedValue({
         ok: true,
-        apiKey: "traditional-key",
-        headers: { "X-Traditional": "1" },
-        env: { TRADITIONAL_ENDPOINT: "https://provider.test" },
+        apiKey: "pipelined-key",
+        headers: { "X-Pipelined": "1" },
+        env: { PIPELINED_ENDPOINT: "https://provider.test" },
       });
       const ctx = makeCtx({
-        model: { provider: "test", id: "traditional-progressive", contextWindow: 16_000, reasoning: false },
+        model: { provider: "test", id: "pipelined-progressive", contextWindow: 16_000, reasoning: false },
         modelRegistry: { getApiKeyAndHeaders: authResolver, getAll: vi.fn().mockReturnValue([]) },
       });
       const result = await handler!({
@@ -887,15 +900,15 @@ describe("smart-compaction", () => {
 
       const chunkPrompts = prompts.filter((prompt) => prompt.includes("deterministic chunk"));
       expect(chunkPrompts.length).toBeGreaterThan(1);
-      expect(chunkPrompts.join("\n")).toContain("TRAD_FACT_0");
-      expect(chunkPrompts.join("\n")).toContain("TRAD_FACT_19");
+      expect(chunkPrompts.join("\n")).toContain("PIPELINED_FACT_0");
+      expect(chunkPrompts.join("\n")).toContain("PIPELINED_FACT_19");
       expect(chunkPrompts.join("\n")).toContain("g0001");
-      expect(result.compaction.summary).toContain("Traditional progressive goal");
+      expect(result.compaction.summary).toContain("Pipelined progressive goal");
       expect(authResolver).toHaveBeenCalledTimes(1);
       expect((completeSimple as any).mock.calls.every((call: any[]) =>
-        call[2]?.apiKey === "traditional-key"
-        && call[2]?.headers?.["X-Traditional"] === "1"
-        && call[2]?.env?.TRADITIONAL_ENDPOINT === "https://provider.test"
+        call[2]?.apiKey === "pipelined-key"
+        && call[2]?.headers?.["X-Pipelined"] === "1"
+        && call[2]?.env?.PIPELINED_ENDPOINT === "https://provider.test"
       )).toBe(true);
     } finally {
       if (previousMethod === undefined) delete process.env.PICLAW_SMART_COMPACTION_METHOD;
