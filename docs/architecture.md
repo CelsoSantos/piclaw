@@ -161,7 +161,7 @@ These are compiled into the package and registered via `extensionFactories` on t
 | `workspaceMemoryBootstrap` | startup memory bootstrap hook (`before_agent_start`) |
 | `dreamMaintenance` | `/dream` memory-consolidation slash command |
 | `uiThemeExtension` | `/theme`, `/tint` web UI theme controls |
-| `smartCompaction` | Smart compaction via `session_before_compact` hook (DB-driven file lists, junk-path filtering, working-indicator UI) |
+| `smartCompaction` | Smart compaction via `session_before_compact` hook (DB-driven file lists, junk-path filtering, working-indicator UI); see [Pipelined smart compaction](pipelined-compaction.md) for the exact-once discarded-source ledger method and its auxiliary prompt sections |
 | `sendAdaptiveCard` | `send_adaptive_card` for agent-owned Adaptive Card posting |
 | `sendDashboardWidget` | `send_dashboard_widget` |
 | `openWorkspaceFile` | `open_workspace_file` |
