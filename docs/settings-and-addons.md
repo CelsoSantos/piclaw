@@ -28,6 +28,7 @@ The hamburger menu button uses `position: fixed` and appears:
 - **Web terminal** toggle
 
 ### Compaction (order 13)
+- **Processing method** selector: **Selective** (default) or **Traditional pipelined**. The method is captured once per compaction generation; both choices share lifecycle, provider/auth resolution, progressive execution, exact-boundary handling, and pruning. See [Smart-compaction processing method](configuration.md#smart-compaction-processing-method).
 - **Enable tool-result compaction** runtime gate
 - **Semantic summaries for compacted tool results** toggle
 - Semantic summary controls:
