@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -7,6 +7,7 @@ import { clearProviderUsageCache } from "../../src/agent-pool/provider-usage.js"
 import { AgentRuntimeFacade } from "../../src/agent-pool/runtime-facade.js";
 import { SESSIONS_DIR } from "../../src/core/config.js";
 import { sanitiseJid } from "../../src/agent-pool/session.js";
+import { initDatabase } from "../../src/db.js";
 
 function createRuntime(session: any): AgentSessionRuntime {
   return {
@@ -22,6 +23,10 @@ function createRuntime(session: any): AgentSessionRuntime {
     dispose: async () => {},
   } as any;
 }
+
+beforeEach(() => {
+  initDatabase();
+});
 
 afterEach(() => {
   clearProviderUsageCache();
