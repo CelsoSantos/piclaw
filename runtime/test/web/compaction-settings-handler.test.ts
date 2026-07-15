@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import '../helpers.js';
+import { getCompactionRuntimeConfig, setCompactionRuntimeConfig } from '../../src/core/config.js';
 import { importFresh, withTempWorkspaceEnv } from '../helpers.js';
 
 test('saveCompactionSettings persists and applies compaction settings immediately', async () => {
@@ -26,6 +27,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS: undefined,
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS: undefined,
   }, async (workspace) => {
+    const runtimeBefore = getCompactionRuntimeConfig();
     const db = await importFresh<typeof import('../../src/db.js')>('../src/db.js');
     db.initDatabase();
     const handler = await importFresh<typeof import('../../src/channels/web/handlers/compaction-settings.js')>(
@@ -101,6 +103,9 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
         toolResultSemanticSummaryTimeoutMs: 30000,
       },
     });
+
+    setCompactionRuntimeConfig({ ...runtimeBefore });
+    expect(getCompactionRuntimeConfig()).toEqual(runtimeBefore);
   });
 });
 
