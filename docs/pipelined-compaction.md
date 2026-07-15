@@ -6,7 +6,7 @@ Its central design rule is:
 
 > Classification, retention policy, lineage, and coverage are deterministic. The model rewrites the validated projection; it does not decide which source events may disappear.
 
-Pipelined is a processing method inside the existing smart-compaction lifecycle, not a separate trigger or provider. It shares model/auth resolution, output validation, progressive execution, retained-boundary checks, and post-compaction pruning with Selective.
+Pipelined is a local processing method inside the existing smart-compaction lifecycle, not a separate trigger or provider. When the local path runs, it shares model/auth resolution, output validation, progressive execution, retained-boundary checks, and post-compaction pruning with Selective. The optional provider-native remote-compaction pre-pass is orthogonal: a successful remote attempt returns an opaque provider state before the Pipelined ledger is built; a safe remote failure continues into the already selected local method.
 
 ## At a glance
 
@@ -15,6 +15,7 @@ Pipelined is a processing method inside the existing smart-compaction lifecycle,
 | Canonical method name | `pipelined` |
 | Default method | No; `selective` remains the default |
 | Selection lifetime | Captured once at the start of each compaction generation |
+| Provider-native pre-pass | If enabled, a successful remote attempt completes before Pipelined; safe remote failure falls through to Pipelined |
 | Classification model calls | None |
 | Source accounting | Every discarded source event is classified exactly once |
 | Required evidence | Lossless |
@@ -57,12 +58,21 @@ Pipelined does not promise:
 
 ## End-to-end flow
 
+The full generation sanitizes context-pruned history and validates inherited remote state before shared source preparation and the optional provider-native pre-pass. Only a skipped or safely failed pre-pass enters the captured local Pipelined ledger path, where retained context and trusted instructions are attached.
+
 ```mermaid
 %%{init: {"flowchart": {"curve": "stepAfter"}}}%%
 flowchart TB
-    A([Compaction triggered]) --> B[Prepare discarded source<br/>messages, entry IDs, source indexes]
-    B --> C[Analyze tool calls and outcomes]
-    C --> D[Assemble chronological groups<br/>human, assistant, tool batch, orphan result, context]
+    A([Compaction triggered]) --> H[Sanitize context-pruned history<br/>validate inherited remote state]
+    H --> HS{Inherited state safe?}
+    HS -->|No| CANCEL
+    HS -->|Yes| B[Prepare discarded source, provenance,<br/>and deterministic file facts]
+    B --> C[Analyze tool calls and outcomes<br/>reconcile file operations]
+    C --> RP{Provider-native pre-pass result}
+    RP -->|Success| REMOTE([Persist opaque provider state<br/>no local ledger or pipeline telemetry])
+    RP -->|Disabled or safe failure| L[Attach retained context<br/>and trusted local instructions]
+    RP -->|Abort| CANCEL
+    L --> D[Assemble chronological groups<br/>human, assistant, tool batch, orphan result, context]
 
     subgraph LEDGER["Deterministic classification ledger — no model calls"]
         D --> E[Classify every group exactly once<br/>disposition and reason code]
@@ -127,7 +137,7 @@ flowchart TB
 
 The `session_before_compact` handler in `runtime/src/extensions/smart-compaction/orchestrator.ts` begins the lifecycle.
 
-At the start it captures the runtime configuration once. An in-flight compaction therefore cannot switch from Pipelined to Selective, adopt a new timeout, or otherwise change policy midway through the generation. A settings change affects the next compaction.
+At the start it captures the runtime configuration once. An in-flight compaction therefore cannot switch from Pipelined to Selective, adopt a new timeout, or otherwise change policy midway through the generation. Changes made through the web settings/runtime API affect the next compaction without a restart; manual configuration-file or environment changes require a restart unless the running process is updated separately.
 
 Compaction planning combines:
 
@@ -135,7 +145,11 @@ Compaction planning combines:
 - auxiliary inputs outside the exact-once source-event ledger: the previous summary, retained-context summary, trusted operator compaction instructions, and deterministic file facts
 - provenance metadata: source entry IDs resolved from the branch for retained-boundary and provenance checks
 
-Context-pruned history is sanitized first. If context pruning already retained a canonical summary for a tool call, Pipelined records a provenance-bearing reference instead of reintroducing the omitted raw result.
+Context-pruned history is sanitized first, and malformed or model-incompatible inherited remote state is rejected before any new remote attempt. Source preparation, tool-outcome analysis, and file-operation reconciliation then occur before the optional remote attempt. If that attempt is skipped or fails safely, the local path attaches retained-context guidance and trusted compaction instructions before building the Pipelined ledger. If context pruning already retained a canonical summary for a tool call, Pipelined records a provenance-bearing reference instead of reintroducing the omitted raw result.
+
+### Provider-native pre-pass
+
+If provider-native compaction is enabled, the orchestrator attempts that capability after the shared preparation steps and before `smart_compaction.source_prepared`, local Pipelined classification, or local compaction model calls. A successful attempt persists the provider's opaque canonical state and completes the generation without building a Pipelined ledger or emitting `smart_compaction.pipeline_planned`. Disabled, unsupported, unauthenticated, timed-out, malformed-response, provider-failure, and backoff outcomes continue into the captured local Pipelined method without partially mutating the session. An abort cancels instead of falling through. Malformed or model-incompatible previously persisted remote state also fails closed rather than being rewritten locally.
 
 ## 2. Prepare provenance-bearing source events
 
@@ -358,6 +372,8 @@ Only operator compaction instructions occupy the trusted-instruction section. Hi
 
 Source-data delimiter characters (`&`, `<`, and `>`) are escaped before insertion. This prevents history or tool output from closing a section and injecting structural prompt instructions.
 
+When a compatible provider-native state already exists and a new remote attempt falls back locally, its opaque canonical window is prepended at the provider-payload boundary rather than decoded into the text prompt or classified by the ledger. The ledger accounts for the new discarded source-message events; inherited remote file facts are merged into the separate deterministic file-facts input.
+
 ## 9. Slot model calls after the ledger
 
 Ledger construction, classification, canonicalization, duplicate handling, integrity validation, and prompt construction make no model calls.
@@ -466,7 +482,7 @@ There is no automatic Pipelined-to-Selective fallback and no automatic fallback 
 
 Open **Settings → Compaction → Processing method** and select **Pipelined**.
 
-The setting is applied at runtime without a restart. An active compaction keeps the method it captured at startup; the next generation sees the new setting.
+The web setting is applied to the running process without a restart. An active compaction keeps the method captured at the start of its generation; the next generation sees the new setting.
 
 ### Environment
 
@@ -486,13 +502,17 @@ PICLAW_SMART_COMPACTION_METHOD=pipelined
 
 The canonical values are `selective` and `pipelined`. The legacy values `traditional_pipelined`, `traditional-pipelined`, and `traditional pipelined` are accepted and normalized to `pipelined`. Unknown values fall back to the current/default method.
 
-The default remains `selective`.
+The default remains `selective`. Environment values and manual `.piclaw/config.json` edits are startup inputs; restart the process for those external changes unless the runtime settings API is also used.
+
+### Interaction with provider-native compaction
+
+The separate `remoteCompactionEnabled` setting controls an opt-in provider-native pre-pass. It does not select or replace `smartCompactionMethod`: `pipelined` remains the captured local method and is used when the remote path is disabled or cannot complete safely. A successful remote attempt returns before local ledger construction, so it does not emit Pipelined planning telemetry. On local fallback from a compatible inherited remote state, the opaque canonical window remains provider-level input outside the ledger; Pipelined classifies the new discarded source and carries inherited file facts separately. See [Provider-native remote compaction](configuration.md#provider-native-remote-compaction) for its capability matrix, persistence, replay, and configuration contract.
 
 ## 14. Observe and audit execution
 
 ### Planning telemetry
 
-After the ledger validates, the structured debug operation `smart_compaction.pipeline_planned` includes:
+After the local Pipelined ledger validates, the structured debug operation `smart_compaction.pipeline_planned` includes:
 
 - `method`
 - `sourceEventCount`
@@ -545,20 +565,21 @@ The model-visible projection still contains the evidence required by the selecte
 | `smart_compaction.context_prune_sanitize` | Context-pruned history normalized before planning |
 | `smart_compaction.boundary_selection` | Retained-boundary decision evidence |
 
-The web UI also publishes `smart_compaction` status and `context_usage` updates during the lifecycle.
+The web UI also publishes `smart_compaction` status and `context_usage` updates during the lifecycle. If provider-native compaction succeeds first, expect `remote_compaction.attempt` and `remote_compaction.completed` instead of `smart_compaction.pipeline_planned` and local Pipelined completion metrics.
 
 ## 15. Troubleshoot Pipelined compaction
 
-### Pipelined is not selected
+### Pipelined is not selected or no ledger telemetry appears
 
 Check, in order:
 
 1. the web **Compaction → Processing method** value
 2. `PICLAW_SMART_COMPACTION_METHOD`
 3. `compaction.smartCompactionMethod` in `.piclaw/config.json`
-4. `method` in `smart_compaction.source_prepared` or `smart_compaction.completed`
+4. whether provider-native compaction completed first (`remote_compaction.completed`)
+5. `method` in `smart_compaction.source_prepared` or `smart_compaction.completed` when the local path ran
 
-Remember that a settings change cannot alter an already-running generation.
+Remember that a settings change cannot alter an already-running generation. A successful provider-native pre-pass intentionally bypasses Pipelined ledger construction for that generation; disable the pre-pass when diagnosing the local ledger itself.
 
 ### A tool call says `MISSING`
 
@@ -589,8 +610,8 @@ Inspect compaction backoff state in the Compaction settings panel and reset the 
 Treat these as behavioral contracts:
 
 - canonical method names and compatibility aliases
-- generation-scoped selection
-- exact-once source accounting
+- generation-scoped local-method selection and provider-native pre-pass ordering
+- exact-once source accounting when the local Pipelined path runs
 - required/canonical/summarize/drop-safe semantics
 - lossless required records
 - delayed-result chronology and lineage
@@ -617,6 +638,7 @@ Treat these as implementation details:
 - `runtime/src/extensions/smart-compaction/orchestrator.ts` — lifecycle and execution selection
 - `runtime/src/extensions/smart-compaction/model-request.ts` — model/auth resolution
 - `runtime/src/extensions/smart-compaction/model-execution.ts` — single-pass call and repair
+- `runtime/src/extensions/smart-compaction/remote-compaction.ts` — optional provider-native pre-pass, opaque persistence, compatibility checks, and replay
 - `runtime/src/extensions/smart-compaction/progressive.ts` — progressive calls, merges, and partial completion
 - `runtime/src/extensions/smart-compaction/summary-validation.ts` — final/chunk output validation
 - `runtime/src/extensions/smart-compaction/boundary-policy.ts` — retained-boundary safety
