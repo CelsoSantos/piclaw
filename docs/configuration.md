@@ -267,7 +267,9 @@ For the packaged Azure managed-identity/static-key path and its additional token
 | `PICLAW_SESSION_AUTO_ROTATE` | `1` | Automatically rotate oversized session files before the next prompt |
 | `PICLAW_TURN_MAX_TOOL_USE_MESSAGES` | `64` | Per-turn assistant tool-use message budget before soft-stop/recovery handling |
 | `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` | `48` | Last-resort executed-tool safety ceiling inside one prompt attempt; values above `512` are clamped. Reaching it does not itself imply context pressure or trigger compaction. |
-| `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction processing method: `selective` or `pipelined` |
+| `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction local processing method: `selective` or `pipelined` |
+| `PICLAW_REMOTE_COMPACTION_ENABLED` | `0` | Opt in to provider-native compaction before the selected local method |
+| `PICLAW_REMOTE_COMPACTION_TIMEOUT_MS` | `60000` | Provider-native compaction request deadline before deterministic local fallback |
 | `PICLAW_WHATSAPP_PHONE` | _(empty)_ | Alias for `WHATSAPP_PHONE` |
 | `PICLAW_TOOL_OUTPUT_RETENTION_MS` | `14400000` (4 h) | Milliseconds to retain stored tool outputs (preferred; overrides `_DAYS`) |
 | `PICLAW_TOOL_OUTPUT_RETENTION_DAYS` | _(legacy)_ | Days to retain stored tool outputs (deprecated; use `_MS`) |
@@ -336,6 +338,36 @@ PICLAW_SMART_COMPACTION_METHOD=pipelined
 ```
 
 The legacy aliases `traditional_pipelined`, `traditional-pipelined`, and `traditional pipelined` are accepted and normalized to `pipelined`. Unknown values fall back to the current/default method.
+
+### Provider-native remote compaction
+
+Provider-native compaction is an **opt-in pre-pass**. When enabled, Piclaw attempts it before the configured Selective or Pipelined method. The local method remains the atomic fallback for disabled or unsupported providers, unverified endpoints, missing authentication, timeouts, malformed responses, and provider errors. A remote failure does not partially mutate the session or skip local compaction.
+
+Support is capability-gated by exact provider, API, and endpoint metadata. Piclaw does not infer support from a model name or from generic `openai-responses` compatibility. The initial supported matrix is:
+
+| Provider | API | Endpoint | Status |
+|----------|-----|----------|--------|
+| OpenAI | `openai-responses` | `https://api.openai.com/v1/responses/compact` | Supported |
+| GitHub Copilot | any | any | Unsupported (verified compaction routes returned HTTP 404) |
+| OpenAI-compatible proxies and other providers | any | any | Unsupported until explicitly verified and registered |
+
+Enable the feature in either web settings frontend under **Compaction → Provider-native compaction**, by environment variable, or in `.piclaw/config.json`:
+
+```bash
+PICLAW_REMOTE_COMPACTION_ENABLED=1
+PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=60000
+```
+
+```json
+{
+  "compaction": {
+    "remoteCompactionEnabled": true,
+    "remoteCompactionTimeoutMs": 60000
+  }
+}
+```
+
+On success, Piclaw persists the provider's opaque canonical compaction window in the normal Pi `CompactionEntry.details` field, alongside compatibility metadata and deterministic file-operation facts. On resume, a provider-request hook restores that window verbatim in place of Piclaw's marker summary. Provider, model ID, API, and base URL compatibility metadata is checked against the explicit capability registry before replay. If a later remote attempt fails, the same opaque window is prepended to the local fallback request; inherited file facts remain canonicalized separately. Incompatible, malformed, or unverified state is blocked rather than reduced to local summary text or sent to another model. The opaque payload and credentials are never written to bounded diagnostic logs; logs contain only outcome codes, provider/model identifiers, counts, usage totals, and durations.
 
 Deprecated env names (still supported): `ASSISTANT_NAME`, `ASSISTANT_AVATAR`, `AGENT_TIMEOUT`, `AGENT_TIMEOUT_BACKGROUND`.
 

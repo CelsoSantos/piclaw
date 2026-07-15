@@ -14,17 +14,22 @@ test("classic compaction settings expose and persist both canonical processing m
   const bundle = source("web/static/classic/dist/app.bundle.js");
 
   expect(component).toContain("smartCompactionMethod: normalizeSmartCompactionMethod(data.smartCompactionMethod)");
-  expect(component).toContain("smartCompactionMethod,\n        compactionTimeoutSec");
+  expect(component).toContain("smartCompactionMethod,\n        remoteCompactionEnabled,\n        remoteCompactionTimeoutSec,\n        compactionTimeoutSec");
   expect(component).toContain("body: currentSnapshot");
   expect(component).toContain("replace(/[\\s-]+/g, '_')");
   expect(component).toContain("normalized === 'pipelined' || normalized === 'traditional_pipelined' ? 'pipelined' : 'selective'");
   expect(component).toContain('<option value="selective">');
   expect(component).toContain('<option value="pipelined">');
+  expect(component).toContain("remoteCompactionEnabled: Boolean(data.remoteCompactionEnabled ?? false)");
+  expect(component).toContain("remoteCompactionTimeoutSec: data.remoteCompactionTimeoutSec ?? 60");
+  expect(component).toContain("t('settings.compaction.remoteNative'");
   expect(component).toContain("mergeSettingsData?.(payload.settings)");
   expect(component).toContain("applyIncoming({ ...(settingsData || {}), ...(payload.settings || {}) })");
   expect(i18n).toContain("'settings.compaction.methodSelective': 'Selective'");
   expect(i18n).toContain("'settings.compaction.methodPipelined': 'Pipelined'");
+  expect(i18n).toContain("'settings.compaction.remoteNative': 'Provider-native compaction'");
   expect(bundle).toContain('value="pipelined"');
+  expect(bundle).toContain('remoteCompactionEnabled');
 });
 
 test("visual compaction settings use the same canonical processing-method contract", () => {
@@ -33,12 +38,17 @@ test("visual compaction settings use the same canonical processing-method contra
   const bundle = source("web/static/visual/dist/app.bundle.js");
 
   expect(types).toContain('smartCompactionMethod?: "selective" | "pipelined"');
+  expect(types).toContain('remoteCompactionEnabled?: boolean');
+  expect(types).toContain('remoteCompactionTimeoutSec?: number');
   expect(component).toContain('replace(/[\\s-]+/g, "_")');
   expect(component).toContain('normalized === "pipelined" || normalized === "traditional_pipelined" ? "pipelined" : "selective"');
   expect(component).toContain('<option value="selective">Selective</option>');
   expect(component).toContain('<option value="pipelined">Pipelined</option>');
   expect(component).toContain('onSaveCompaction("smartCompactionMethod", value)');
+  expect(component).toContain('onSaveCompaction("remoteCompactionEnabled", value)');
+  expect(component).toContain('onSaveCompaction("remoteCompactionTimeoutSec", v)');
   expect(component).toContain('saveSetting("compaction", field, value)');
   expect(bundle).toContain("pipelined");
   expect(bundle).toContain("Pipelined");
+  expect(bundle).toContain("remoteCompactionEnabled");
 });

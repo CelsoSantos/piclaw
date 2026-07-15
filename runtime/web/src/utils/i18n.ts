@@ -600,6 +600,11 @@ type MessageKey =
   | 'settings.compaction.methodSelectiveHint'
   | 'settings.compaction.methodPipelined'
   | 'settings.compaction.methodPipelinedHint'
+  | 'settings.compaction.remoteNative'
+  | 'settings.compaction.remoteNativeHint'
+  | 'settings.compaction.remoteTimeout'
+  | 'settings.compaction.remoteTimeoutAria'
+  | 'settings.compaction.remoteTimeoutHint'
   | 'settings.compaction.enableToolResult'
   | 'settings.compaction.enableToolResultHint'
   | 'settings.compaction.semanticSummaries'
@@ -1217,6 +1222,11 @@ const EN: Record<MessageKey, string> = {
   'settings.compaction.methodSelectiveHint': 'Extract high-value continuity excerpts, using complete progressive coverage whenever a bounded prompt cannot represent every discarded source event.',
   'settings.compaction.methodPipelined': 'Pipelined',
   'settings.compaction.methodPipelinedHint': 'Canonicalize and classify every discarded source event with an auditable coverage ledger before summarizing.',
+  'settings.compaction.remoteNative': 'Provider-native compaction',
+  'settings.compaction.remoteNativeHint': 'Opt-in for explicitly supported providers only ({providers}). Any failure falls back atomically to the selected local method.',
+  'settings.compaction.remoteTimeout': 'Provider-native timeout (sec)',
+  'settings.compaction.remoteTimeoutAria': 'provider-native compaction timeout',
+  'settings.compaction.remoteTimeoutHint': 'Deadline for the remote pre-pass before local fallback.',
   'settings.compaction.enableToolResult': 'Enable tool-result compaction',
   'settings.compaction.enableToolResultHint': 'When disabled, large tool results stay inline and are not externalized into searchable tool-output handles.',
   'settings.compaction.semanticSummaries': 'Semantic summaries for compacted tool results',
@@ -1834,6 +1844,11 @@ const ZH_CN: Partial<Record<MessageKey, string>> = {
   'settings.compaction.methodSelectiveHint': '提取高价值的连续性片段；当有界提示无法表示所有被丢弃的源事件时，使用完整的渐进式覆盖。',
   'settings.compaction.methodPipelined': '流水线',
   'settings.compaction.methodPipelinedHint': '在摘要前，对每个被丢弃的源事件进行规范化和分类，并生成可审计的覆盖账本。',
+  'settings.compaction.remoteNative': '提供商原生压缩',
+  'settings.compaction.remoteNativeHint': '仅对明确支持的提供商启用（{providers}）。任何失败都会自动回退到所选的本地方法。',
+  'settings.compaction.remoteTimeout': '提供商原生超时（秒）',
+  'settings.compaction.remoteTimeoutAria': '提供商原生压缩超时',
+  'settings.compaction.remoteTimeoutHint': '远程预处理在回退到本地方法之前的截止时间。',
   'settings.compaction.enableToolResult': '启用工具结果压缩',
   'settings.compaction.enableToolResultHint': '禁用时，大型工具结果保持内联，不会外部化为可搜索的工具输出句柄。',
   'settings.compaction.semanticSummaries': '压缩工具结果的语义摘要',
@@ -2451,6 +2466,11 @@ const JA: Partial<Record<MessageKey, string>> = {
   'settings.compaction.methodSelectiveHint': '重要な継続情報を抽出し、制限付きプロンプトですべての破棄対象イベントを表現できない場合は完全な段階的カバレッジを使用します。',
   'settings.compaction.methodPipelined': 'パイプライン',
   'settings.compaction.methodPipelinedHint': '要約前に、破棄対象の各ソースイベントを正規化・分類し、監査可能なカバレッジ台帳を作成します。',
+  'settings.compaction.remoteNative': 'プロバイダー・ネイティブ圧縮',
+  'settings.compaction.remoteNativeHint': '明示的に対応しているプロバイダー（{providers}）のみオプトインできます。失敗時は選択したローカル方式へアトミックにフォールバックします。',
+  'settings.compaction.remoteTimeout': 'プロバイダー・ネイティブのタイムアウト（秒）',
+  'settings.compaction.remoteTimeoutAria': 'プロバイダー・ネイティブ圧縮のタイムアウト',
+  'settings.compaction.remoteTimeoutHint': 'ローカル方式へフォールバックする前のリモート処理期限です。',
   'settings.compaction.enableToolResult': 'ツール結果の圧縮を有効化',
   'settings.compaction.enableToolResultHint': '無効にすると、大きなツール結果はインラインのまま残り、検索可能なツール出力ハンドルに外部化されません。',
   'settings.compaction.semanticSummaries': '圧縮されたツール結果のセマンティック要約',

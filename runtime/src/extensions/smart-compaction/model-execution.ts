@@ -22,6 +22,7 @@ export async function runCompactionModelExecution(input: {
   requestedMaxTokens: number;
   abortSignal: AbortSignal;
   streamFn?: CompactionStreamFn;
+  onPayload?: (payload: unknown, model: any) => unknown | undefined | Promise<unknown | undefined>;
   onStage?: (stage: CompactionModelStage, promptTokens: number) => void;
   onProgress?: () => void;
 }): Promise<CompactionModelExecutionResult> {
@@ -41,6 +42,7 @@ export async function runCompactionModelExecution(input: {
       headers: input.auth.headers,
       env: input.auth.env,
       reasoning: input.model?.reasoning ? getCompactionReasoningEffort(input.model, "selective") : undefined,
+      onPayload: input.onPayload,
       streamFn: input.streamFn,
       onProgress: input.onProgress,
     });

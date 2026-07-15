@@ -19,6 +19,8 @@ export function CompactionSection({
   const processingMethod = useSignal<"selective" | "pipelined">(
     normalizeSmartCompactionMethod(data.smartCompactionMethod)
   );
+  const remoteCompactionEnabled = useSignal(data.remoteCompactionEnabled ?? false);
+  const remoteCompactionTimeoutSec = useSignal(data.remoteCompactionTimeoutSec ?? 60);
   const timeoutSec = useSignal(data.compactionTimeoutSec ?? 300);
   const backoffBase = useSignal(data.compactionBackoffBaseMin ?? 0);
   const backoffMax = useSignal(data.compactionBackoffMaxMin ?? 0);
@@ -101,6 +103,35 @@ export function CompactionSection({
           </span>
         </div>
       </div>
+
+      <h3 className="settings-panel__subsection-title">Provider-native compaction</h3>
+
+      <div className="settings-panel__field settings-panel__checkbox-row">
+        <input
+          id="remoteCompactionEnabled"
+          type="checkbox"
+          checked={remoteCompactionEnabled.value}
+          onChange={(e) => {
+            const value = (e.target as HTMLInputElement).checked;
+            remoteCompactionEnabled.value = value;
+            onSaveCompaction("remoteCompactionEnabled", value);
+          }}
+        />
+        <label htmlFor="remoteCompactionEnabled" className="settings-panel__label">
+          Attempt provider-native compaction first
+        </label>
+        <span className="settings-panel__description">
+          Opt-in for explicitly supported providers only ({(data.remoteCompactionSupportedProviders ?? ["openai"]).join(", ")}). Any unsupported endpoint, timeout, malformed response, authentication limitation, or provider failure falls back atomically to {processingMethod.value}.
+        </span>
+      </div>
+
+      <div className="settings-panel__field">
+        <label className="settings-panel__label">Provider-native timeout (sec)</label>
+        <NumberStepper value={remoteCompactionTimeoutSec} min={1} max={300} step={5} onSave={(v) => onSaveCompaction("remoteCompactionTimeoutSec", v)} />
+        <span className="settings-panel__description">Deadline for the remote pre-pass before the selected local fallback runs.</span>
+      </div>
+
+      <h3 className="settings-panel__subsection-title">Execution limits</h3>
 
       <div className="settings-panel__field">
         <label className="settings-panel__label">Compaction timeout (sec)</label>

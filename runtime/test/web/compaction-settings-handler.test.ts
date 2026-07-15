@@ -3,12 +3,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import '../helpers.js';
+import { getCompactionRuntimeConfig, setCompactionRuntimeConfig } from '../../src/core/config.js';
 import { importFresh, withTempWorkspaceEnv } from '../helpers.js';
 
 test('saveCompactionSettings persists and applies compaction settings immediately', async () => {
   await withTempWorkspaceEnv('piclaw-compaction-settings-', {
     PICLAW_AUTO_COMPACTION_ENABLED: undefined,
     PICLAW_SMART_COMPACTION_METHOD: undefined,
+    PICLAW_REMOTE_COMPACTION_ENABLED: undefined,
+    PICLAW_REMOTE_COMPACTION_TIMEOUT_MS: undefined,
     PICLAW_COMPACTION_TIMEOUT_MS: undefined,
     PICLAW_COMPACTION_BACKOFF_BASE_MS: undefined,
     PICLAW_COMPACTION_BACKOFF_MAX_MS: undefined,
@@ -24,6 +27,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS: undefined,
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS: undefined,
   }, async (workspace) => {
+    const runtimeBefore = getCompactionRuntimeConfig();
     const db = await importFresh<typeof import('../../src/db.js')>('../src/db.js');
     db.initDatabase();
     const handler = await importFresh<typeof import('../../src/channels/web/handlers/compaction-settings.js')>(
@@ -33,6 +37,8 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     const saved = await handler.saveCompactionSettings({
       autoCompactionEnabled: false,
       smartCompactionMethod: 'traditional-pipelined',
+      remoteCompactionEnabled: true,
+      remoteCompactionTimeoutSec: 45,
       compactionTimeoutSec: 240,
       compactionBackoffBaseMin: 12,
       compactionBackoffMaxMin: 180,
@@ -51,6 +57,9 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     expect(saved).toMatchObject({
       autoCompactionEnabled: false,
       smartCompactionMethod: 'pipelined',
+      remoteCompactionEnabled: true,
+      remoteCompactionTimeoutSec: 45,
+      remoteCompactionSupportedProviders: ['openai'],
       compactionTimeoutSec: 240,
       compactionBackoffBaseMin: 12,
       compactionBackoffMaxMin: 180,
@@ -66,6 +75,8 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       toolResultSemanticSummaryTimeoutSec: 30,
     });
     expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('pipelined');
+    expect(process.env.PICLAW_REMOTE_COMPACTION_ENABLED).toBe('1');
+    expect(process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS).toBe('45000');
     expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('240000');
     expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('720000');
     expect(process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED).toBe('1');
@@ -75,6 +86,8 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       compaction: {
         autoCompactionEnabled: false,
         smartCompactionMethod: 'pipelined',
+        remoteCompactionEnabled: true,
+        remoteCompactionTimeoutMs: 45000,
         timeoutMs: 240000,
         backoffBaseMs: 720000,
         backoffMaxMs: 10800000,
@@ -90,6 +103,9 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
         toolResultSemanticSummaryTimeoutMs: 30000,
       },
     });
+
+    setCompactionRuntimeConfig({ ...runtimeBefore });
+    expect(getCompactionRuntimeConfig()).toEqual(runtimeBefore);
   });
 });
 

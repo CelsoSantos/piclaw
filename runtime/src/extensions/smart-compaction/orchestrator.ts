@@ -1,4 +1,5 @@
 /** Smart-compaction lifecycle orchestrator. Policy and provider execution live in focused modules. */
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ExtensionAPI, ExtensionFactory, CompactionResult } from "@earendil-works/pi-coding-agent";
 import { createLogger } from "../../utils/logger.js";
 import { applyTokenEstimateSafetyMultiplier } from "../../utils/context-window-budget.js";
@@ -24,6 +25,16 @@ import type { CompactionStreamFn } from "./stream-complete.js";
 import { validateCompactionSummaryResponse } from "./summary-validation.js";
 import { resolveSmartCompactionModelRequest } from "./model-request.js";
 import { runCompactionModelExecution } from "./model-execution.js";
+import {
+  attemptRemoteCompaction,
+  blockRemoteCompactionPayload,
+  getLatestRemoteCompactionState,
+  injectRemoteCompactionPayload,
+  isRemoteCompactionCompatible,
+  mergeRemoteCompactionFileOperations,
+  prependRemoteCompactionPayload,
+  REMOTE_COMPACTION_SUMMARY_SENTINEL,
+} from "./remote-compaction.js";
 import { buildPipelinedAuditTelemetry, buildPipelinedPrompt } from "./pipelined.js";
 import { assemblePipelineEvents, buildCanonicalPipelineSourceUnits } from "./pipeline-events.js";
 import { sanitizeContextPruneCompactionMessages } from "../context-prune/pruner.js";
@@ -55,6 +66,42 @@ const log = createLogger("ext.smart-compaction.orchestrator");
 
 export function createSmartCompactionExtension(options: { streamFn?: CompactionStreamFn } = {}): ExtensionFactory {
   return (pi: ExtensionAPI) => {
+
+  // Provider-native compacted windows are persisted in CompactionEntry.details.
+  // Rehydrate the opaque window at the provider-payload boundary so Pi's
+  // human-readable compaction summary projection never reduces or rewrites it.
+  pi.on("before_provider_request", (event, ctx) => {
+    const state = getLatestRemoteCompactionState(ctx.sessionManager.getBranch());
+    if (!state) return;
+    if (state.kind === "invalid") {
+      log.warn("Blocked malformed provider-native compaction replay", {
+        operation: "remote_compaction.replay",
+        outcome: "malformed",
+        reason: state.message,
+      });
+      return blockRemoteCompactionPayload(event.payload);
+    }
+    const details = state.details;
+    const replay = injectRemoteCompactionPayload(event.payload, ctx.model as any, details);
+    if (replay.ok) {
+      log.debug("Injected persisted provider-native compaction window", {
+        operation: "remote_compaction.replay",
+        outcome: "success",
+        provider: details.provider,
+        modelId: details.modelId,
+        itemCount: replay.injectedItems,
+      });
+      return replay.payload;
+    }
+    log.warn("Blocked incompatible or malformed provider-native compaction replay", {
+      operation: "remote_compaction.replay",
+      outcome: replay.code,
+      provider: details.provider,
+      modelId: details.modelId,
+      reason: replay.message,
+    });
+    return replay.blockedPayload;
+  });
 
   pi.on("session_before_compact", async (event, rawCtx) => {
     const ctx = makeResilientCtx(rawCtx as any) as typeof rawCtx;
@@ -145,6 +192,37 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         });
       }
 
+      const previousRemoteState = getLatestRemoteCompactionState(branchEntries);
+      if (previousRemoteState?.kind === "invalid") {
+        log.warn("Provider-native compaction state is malformed; cancelling instead of discarding canonical context", {
+          operation: "remote_compaction.blocked",
+          outcome: "malformed",
+          reason: previousRemoteState.message,
+        });
+        return cancelCompactionWithReason(ctx, previousRemoteState.message);
+      }
+      if (previousRemoteState?.kind === "valid" && !isRemoteCompactionCompatible(ctx.model as any, previousRemoteState.details)) {
+        log.warn("Provider-native compaction state is incompatible with the active model; cancelling compaction", {
+          operation: "remote_compaction.blocked",
+          outcome: "incompatible",
+          provider: previousRemoteState.details.provider,
+          modelId: previousRemoteState.details.modelId,
+        });
+        return cancelCompactionWithReason(
+          ctx,
+          "Persisted provider-native compaction state is incompatible with the active model",
+        );
+      }
+      const localPreviousSummary = previousRemoteState?.kind === "valid"
+        ? "Provider-native canonical context is supplied as opaque input before this compaction prompt. Preserve its continuity together with the new source events."
+        : previousSummary;
+
+      const sourceFileOps = previousRemoteState?.kind === "valid"
+        ? mergeRemoteCompactionFileOperations(preparation.fileOps, previousRemoteState.details)
+        : preparation.fileOps;
+      const inheritedRemoteModifiedPaths = previousRemoteState?.kind === "valid"
+        ? [...previousRemoteState.details.fileOperations.written, ...previousRemoteState.details.fileOperations.edited]
+        : [];
       const rawSourceEntryIds = resolveSourceEntryIdsForMessages(
         branchEntries,
         discardedSourceMessages,
@@ -154,8 +232,8 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         rawSourceEntryIds,
         modelSafeSourceMessages: messagesForCompaction,
         modelSafeSourceIndexes: sanitizedContextPrune.sourceMessageIndexesByMessageIndex,
-        previousSummary,
-        fileOps: preparation.fileOps,
+        previousSummary: localPreviousSummary,
+        fileOps: sourceFileOps,
       });
       const {
         llmMessages,
@@ -165,9 +243,103 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       } = preparedSource;
       const toolAnalysis = analyzeToolOutcomes(llmMessages);
       await maybeYieldPiclawCompaction("smart_compaction.handler.after_tool_analysis");
-      const effectiveFileOps = reconcileFileOperations(preparation.fileOps, toolAnalysis, previousSummary);
+      const effectiveFileOps = reconcileFileOperations(
+        sourceFileOps,
+        toolAnalysis,
+        previousSummary,
+        inheritedRemoteModifiedPaths,
+      );
       preparedSource.fileOps = effectiveFileOps;
       const effectivePreparation = { ...preparation, fileOps: effectiveFileOps };
+
+      if (compactionRuntimeConfig.remoteCompactionEnabled) {
+        const modelRequest = await resolveSmartCompactionModelRequest(ctx);
+        if (!modelRequest.ok) {
+          log.debug("Provider-native compaction unavailable; using configured local fallback", {
+            operation: "remote_compaction.fallback",
+            outcome: "auth",
+            fallbackMethod: smartCompactionMethod,
+            reason: modelRequest.error,
+          });
+        } else {
+          publishCompactionStage(
+            statusMessage(compactionMetadata, "attempting provider-native compaction…"),
+            "remote_compaction",
+            tokensBefore,
+          );
+          log.debug("Attempting provider-native compaction", {
+            operation: "remote_compaction.attempt",
+            provider: modelRequest.model.provider,
+            modelId: modelRequest.model.id,
+            fallbackMethod: smartCompactionMethod,
+          });
+          const remoteResult = await attemptRemoteCompaction({
+            model: modelRequest.model,
+            auth: modelRequest.auth,
+            messages: messagesForCompaction as unknown as AgentMessage[],
+            previousDetails: previousRemoteState?.kind === "valid" ? previousRemoteState.details : null,
+            previousSummary: previousRemoteState?.kind === "valid" ? null : previousSummary,
+            fileOps: effectiveFileOps,
+            systemPrompt: ctx.getSystemPrompt(),
+            tools: pi.getAllTools(),
+            signal: abortSignal,
+            timeoutMs: compactionRuntimeConfig.remoteCompactionTimeoutMs,
+            backoffBaseMs: compactionRuntimeConfig.backoffBaseMs,
+            backoffMaxMs: compactionRuntimeConfig.backoffMaxMs,
+          });
+          if (remoteResult.ok) {
+            const outputChars = JSON.stringify(remoteResult.details.output).length;
+            finalContextTokens = Math.max(1, Math.ceil(outputChars / 4)) + Math.max(0, Number(settings.keepRecentTokens) || 0);
+            publishCompactionStage(
+              statusMessage(compactionMetadata, "completed provider-native compaction…"),
+              "completed_remote",
+              finalContextTokens,
+              100,
+            );
+            log.debug("Provider-native compaction completed", {
+              operation: "remote_compaction.completed",
+              outcome: "success",
+              provider: remoteResult.details.provider,
+              modelId: remoteResult.details.modelId,
+              canonicalItemCount: remoteResult.details.output.length,
+              inputTokens: remoteResult.details.usage?.inputTokens ?? null,
+              outputTokens: remoteResult.details.usage?.outputTokens ?? null,
+              totalTokens: remoteResult.details.usage?.totalTokens ?? null,
+              durationMs: Date.now() - compactionStartedAt,
+            });
+            return {
+              compaction: {
+                summary: REMOTE_COMPACTION_SUMMARY_SENTINEL,
+                firstKeptEntryId,
+                tokensBefore,
+                details: remoteResult.details,
+              } satisfies CompactionResult,
+            };
+          }
+          if (remoteResult.code === "cancelled") return { cancel: true };
+          log.debug("Provider-native compaction failed; using configured local fallback", {
+            operation: "remote_compaction.fallback",
+            outcome: remoteResult.code,
+            provider: modelRequest.model.provider,
+            modelId: modelRequest.model.id,
+            status: remoteResult.status ?? null,
+            retryAfterMs: remoteResult.retryAfterMs ?? null,
+            fallbackMethod: smartCompactionMethod,
+            reason: remoteResult.message,
+          });
+          publishCompactionStage(
+            statusMessage(compactionMetadata, `provider-native unavailable; falling back to ${smartCompactionMethod}…`),
+            "remote_fallback",
+            tokensBefore,
+          );
+        }
+      } else {
+        log.debug("Provider-native compaction disabled; using configured local method", {
+          operation: "remote_compaction.skipped",
+          outcome: "disabled",
+          fallbackMethod: smartCompactionMethod,
+        });
+      }
 
       // Check abort early — a concurrent compact() may have already cancelled us.
       if (abortSignal.aborted) return { cancel: true };
@@ -395,6 +567,12 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         return cancelCompactionWithReason(ctx, modelRequest.error);
       }
       const { model: compactionModel, auth } = modelRequest;
+      if (previousRemoteState?.kind === "valid" && !isRemoteCompactionCompatible(compactionModel, previousRemoteState.details)) {
+        return cancelCompactionWithReason(
+          ctx,
+          "Persisted provider-native compaction state is incompatible with the resolved compaction model",
+        );
+      }
 
       const baseBudget = getProgressiveCompactionBudget(compactionModel);
       const recoveryCompaction = isRecoveryCompaction(compactionMetadata);
@@ -459,7 +637,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             model: compactionModel,
             auth,
             settings,
-            previousSummary,
+            previousSummary: localPreviousSummary,
             keptMessagesSummary,
             turnPrefixSummary: "",
             customInstructions: effectiveCustomInstructions,
@@ -477,6 +655,9 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             startedAt: compactionStartedAt,
             publishEstimate: undefined,
             streamFn: options.streamFn,
+            onPayload: previousRemoteState?.kind === "valid"
+              ? (payload) => prependRemoteCompactionPayload(payload, previousRemoteState.details)
+              : undefined,
             onProgress: (_generatedChars, progress) => {
               setThrottledProgressMessage(
                 statusMessage(compactionMetadata, formatProgressiveProgressMessage(progress).replace(/^Smart compaction:\s*/, "")),
@@ -623,6 +804,9 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         requestedMaxTokens: requestedOutputTokens,
         abortSignal,
         streamFn: options.streamFn,
+        onPayload: previousRemoteState?.kind === "valid"
+          ? (payload) => prependRemoteCompactionPayload(payload, previousRemoteState.details)
+          : undefined,
         onProgress: () => {
           setThrottledProgressMessage(statusMessage(compactionMetadata, "generating summary still running…"), "generating_summary_streaming");
         },

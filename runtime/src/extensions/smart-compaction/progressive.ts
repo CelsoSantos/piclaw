@@ -5,7 +5,7 @@
  * ../smart-compaction.ts.
  */
 
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message, SimpleStreamOptions } from "@earendil-works/pi-ai";
 import type { FileOperations } from "@earendil-works/pi-coding-agent";
 import { streamComplete, type CompactionStreamFn } from "./stream-complete.js";
 import {
@@ -75,6 +75,7 @@ async function completeCompactionPrompt(
   onProgress?: (generatedChars: number) => void,
   reasoning?: CompactionReasoningEffort,
   onModelRequest?: () => void,
+  onPayload?: SimpleStreamOptions["onPayload"],
 ): Promise<string> {
   const runOnce = async (activePromptText: string, retryCount: number): Promise<string> => {
     if (abortSignal.aborted) throw new Error("Compaction cancelled");
@@ -90,6 +91,7 @@ async function completeCompactionPrompt(
       headers: auth.headers,
       env: auth.env,
       reasoning: (model as any).reasoning ? reasoning ?? getCompactionReasoningEffort(model, "selective") : undefined,
+      onPayload,
       streamFn,
       onProgress,
     });
@@ -445,6 +447,8 @@ export async function runProgressiveCompaction(input: {
   streamFn?: CompactionStreamFn;
   /** Progress callback (chars generated so far). */
   onProgress?: (generatedChars: number, progress?: ProgressiveCompactionProgress) => void;
+  /** Rehydrate provider-native state only for its dedicated continuity chunk. */
+  onPayload?: SimpleStreamOptions["onPayload"];
 }): Promise<ProgressiveCompactionResult> {
   let modelCallCount = 0;
   const onModelRequest = () => { modelCallCount += 1; };
@@ -529,6 +533,7 @@ export async function runProgressiveCompaction(input: {
         input.onProgress ? (generatedChars) => input.onProgress?.(generatedChars, { phase: "progressive_chunk", chunkIndex: chunk.index, totalChunks: chunks.length }) : undefined,
         getCompactionReasoningEffort(input.model, "progressive_chunk"),
         onModelRequest,
+        chunk.groupIds?.includes("continuity:previous-summary") ? input.onPayload : undefined,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -603,10 +608,10 @@ export async function runProgressiveCompaction(input: {
         chunks,
         complete: false,
         reason,
-        // Preserve the previous summary verbatim in deterministic fallbacks.
-        // Chunk output is model-generated and schema-valid output can still
-        // omit a continuity fact, so this intentional redundancy is lossless.
-        previousSummary: input.previousSummary,
+        // Native continuity has already passed through its dedicated chunk;
+        // never persist the synthetic request-time placeholder as context.
+        // Text summaries remain duplicated here for lossless local fallback.
+        previousSummary: input.onPayload ? undefined : input.previousSummary,
         keptMessagesSummary: input.keptMessagesSummary,
         turnPrefixSummary: input.turnPrefixSummary,
         customInstructions: input.customInstructions,
@@ -720,9 +725,10 @@ export async function runProgressiveCompaction(input: {
         chunks,
         complete: true,
         reason: msg,
-        // Preserve the previous summary verbatim in deterministic fallbacks;
-        // validated chunk summaries are still lossy model output.
-        previousSummary: input.previousSummary,
+        // Native continuity has already passed through its dedicated chunk;
+        // never persist the synthetic request-time placeholder as context.
+        // Text summaries remain duplicated because chunk output can be lossy.
+        previousSummary: input.onPayload ? undefined : input.previousSummary,
         keptMessagesSummary: input.keptMessagesSummary,
         turnPrefixSummary: input.turnPrefixSummary,
         customInstructions: input.customInstructions,
