@@ -282,12 +282,14 @@ describe("smart-compaction", () => {
     // Method selection is mutable process state. Keep default-method tests
     // isolated from earlier parametrized or cross-file cases.
     delete process.env.PICLAW_SMART_COMPACTION_METHOD;
-    setCompactionRuntimeConfig({ smartCompactionMethod: "selective" });
+    delete process.env.PICLAW_REMOTE_COMPACTION_ENABLED;
+    setCompactionRuntimeConfig({ smartCompactionMethod: "selective", remoteCompactionEnabled: false, remoteCompactionTimeoutMs: 60_000 });
     // Capture the registered handler
     const mockPi = {
       on: (eventName: string, fn: any) => {
         if (eventName === "session_before_compact") handler = fn;
       },
+      getAllTools: () => [],
     };
     createSmartCompactionExtension({ streamFn: compactionStreamFn })(mockPi as any);
     vi.clearAllMocks();
@@ -301,7 +303,8 @@ describe("smart-compaction", () => {
         getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: "test-key" }),
         getAll: vi.fn().mockReturnValue([]),
       },
-      sessionManager: { getSessionId: () => "test-session-1" },
+      sessionManager: { getSessionId: () => "test-session-1", getBranch: () => [] },
+      getSystemPrompt: () => "test system prompt",
       ...overrides,
     };
   }
@@ -326,6 +329,189 @@ describe("smart-compaction", () => {
 
   it("registers the session_before_compact handler", () => {
     expect(handler).toBeTypeOf("function");
+  });
+
+  it("rehydrates persisted opaque state at the provider request boundary", () => {
+    const handlers = new Map<string, any>();
+    createSmartCompactionExtension({ streamFn: compactionStreamFn })({
+      on: (eventName: string, fn: any) => handlers.set(eventName, fn),
+      getAllTools: () => [],
+    } as any);
+    const persisted = {
+      kind: "piclaw.remote_compaction",
+      version: 1,
+      adapter: "openai-responses-compact",
+      provider: "openai",
+      modelId: "gpt-5.1",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      output: [{ type: "compaction", encrypted_content: "persisted-opaque" }],
+      fileOperations: { read: [], written: [], edited: [] },
+      createdAt: "2026-07-15T00:00:00.000Z",
+    };
+    const result = handlers.get("before_provider_request")({
+      payload: {
+        model: "gpt-5.1",
+        input: [
+          { role: "user", content: [{ type: "input_text", text: "[Piclaw provider-native compaction state. The opaque canonical context is injected at request time.]" }] },
+          { role: "user", content: [{ type: "input_text", text: "retained suffix" }] },
+        ],
+      },
+    }, {
+      model: { provider: "openai", id: "gpt-5.1", api: "openai-responses", baseUrl: "https://api.openai.com/v1" },
+      sessionManager: { getBranch: () => [{ type: "compaction", summary: "[Piclaw provider-native compaction state. The opaque canonical context is injected at request time.]", details: persisted }] },
+    });
+
+    expect(result.input).toEqual([
+      { type: "compaction", encrypted_content: "persisted-opaque" },
+      { role: "user", content: [{ type: "input_text", text: "retained suffix" }] },
+    ]);
+  });
+
+  it("returns persisted opaque state when provider-native compaction succeeds before local execution", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [
+        { type: "message", role: "user", content: [{ type: "input_text", text: "canonical" }] },
+        { type: "compaction", encrypted_content: "opaque-ciphertext" },
+      ],
+      usage: { input_tokens: 120, output_tokens: 20, total_tokens: 140 },
+    }), { status: 200 }));
+    globalThis.fetch = fetchMock as any;
+    const openaiModel = {
+      provider: "openai",
+      id: "gpt-5.1",
+      name: "OpenAI fixture",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      reasoning: true,
+      input: ["text", "image"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128_000,
+      maxTokens: 16_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18, { previousSummary: "LEGACY_LOCAL_SUMMARY" }),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({ model: openaiModel }));
+
+      const requestBody = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body));
+      expect(JSON.stringify(requestBody.input)).toContain("LEGACY_LOCAL_SUMMARY");
+      expect(result.compaction.summary).toContain("opaque canonical context is injected");
+      expect(result.compaction.details).toMatchObject({
+        kind: "piclaw.remote_compaction",
+        version: 1,
+        provider: "openai",
+        modelId: "gpt-5.1",
+      });
+      expect(result.compaction.details.output[1].encrypted_content).toBe("opaque-ciphertext");
+      expect(result.compaction.details.fileOperations.edited).toContain("/workspace/file-4.ts");
+      expect(completeSimple).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls back atomically to the selected local method after a provider-native failure", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })) as any;
+    completeSimple.mockResolvedValue({
+      content: [{ type: "text", text: "## Goal\nPreserve continuity\n\n## Current Active Topic\n- fallback\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- safe\n\n## Progress\n### Done\n- [x] remote attempt failed\n### In Progress\n- [ ] local fallback\n### Blocked\n- none\n\n## Key Decisions\n- **Fallback**: local compaction remains authoritative\n\n## Next Steps\n1. continue\n\n## Critical Context\n- provider returned 503" }],
+      stopReason: "stop",
+    });
+    const openaiModel = {
+      provider: "openai",
+      id: "gpt-5.1",
+      name: "OpenAI fixture",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      reasoning: false,
+      input: ["text", "image"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128_000,
+      maxTokens: 16_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({ model: openaiModel }));
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(completeSimple).toHaveBeenCalled();
+      expect(result.compaction.details).toBeUndefined();
+      expect(result.compaction.summary).toContain("## Goal");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("rehydrates prior opaque context when the remote retry falls back to local compaction", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("unavailable", { status: 503 }));
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    completeSimple.mockResolvedValue({
+      content: [{ type: "text", text: "## Goal\nPreserve native continuity\n\n## Current Active Topic\n- local fallback\n\n## Historical / Background Context\n- opaque context supplied\n\n## Constraints & Preferences\n- preserve all state\n\n## Progress\n### Done\n- [x] restored prior state\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Native input**: rehydrated before prompt\n\n## Next Steps\n1. continue\n\n## Critical Context\n- canonical state was available" }],
+      stopReason: "stop",
+    });
+    const openaiModel = {
+      provider: "openai",
+      id: "gpt-5.1",
+      name: "OpenAI fixture",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      reasoning: false,
+      input: ["text", "image"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128_000,
+      maxTokens: 16_000,
+    };
+    const persisted = {
+      kind: "piclaw.remote_compaction",
+      version: 1,
+      adapter: "openai-responses-compact",
+      provider: "openai",
+      modelId: "gpt-5.1",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      output: [{ type: "compaction", encrypted_content: "prior-opaque-state" }],
+      fileOperations: { read: ["/workspace/prior-read.ts"], written: [], edited: ["/workspace/inherited.ts"] },
+      createdAt: "2026-07-15T00:00:00.000Z",
+    };
+    const branchEntries = [{
+      type: "compaction",
+      summary: "[Piclaw provider-native compaction state. The opaque canonical context is injected at request time.]",
+      details: persisted,
+    }];
+    const result = await handler!({
+      preparation: makePreparation(18, {
+        previousSummary: branchEntries[0].summary,
+        messagesToSummarize: [
+          ...buildLargeConversation(16),
+          assistantToolCallMsg([{ id: "tc-inherited-remote", name: "edit", args: { path: "/workspace/inherited.ts" } }]),
+          { ...toolResultMsg("tc-inherited-remote", "edit", "No changes applied"), isError: true },
+        ],
+        fileOps: { read: new Set<string>(), written: new Set<string>(), edited: new Set(["/workspace/inherited.ts"]) },
+      }),
+      branchEntries,
+      signal: new AbortController().signal,
+    }, makeCtx({ model: openaiModel, sessionManager: { getSessionId: () => "test-session-1", getBranch: () => branchEntries } }));
+
+    expect(result.compaction.summary).toContain("## Goal");
+    expect(result.compaction.summary).toContain("inherited.ts");
+    const onPayload = completeSimple.mock.calls.at(-1)?.[2]?.onPayload;
+    expect(onPayload).toBeTypeOf("function");
+    expect(onPayload({ input: [{ role: "user", content: [] }] }, openaiModel)).toEqual({
+      input: [
+        { type: "compaction", encrypted_content: "prior-opaque-state" },
+        { role: "user", content: [] },
+      ],
+    });
+    fetchSpy.mockRestore();
   });
 
   it("marks truncated previous summaries as incomplete selective coverage", () => {

@@ -948,6 +948,16 @@ const configSmartCompactionMethod = pickString(compactionConfig, [
   "smart_compaction_method",
   "PICLAW_SMART_COMPACTION_METHOD",
 ]);
+const configRemoteCompactionEnabled = pickBoolean(compactionConfig, [
+  "remoteCompactionEnabled",
+  "remote_compaction_enabled",
+  "PICLAW_REMOTE_COMPACTION_ENABLED",
+]);
+const configRemoteCompactionTimeoutMs = pickNumber(compactionConfig, [
+  "remoteCompactionTimeoutMs",
+  "remote_compaction_timeout_ms",
+  "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+]);
 const configAutoCompactionEnabled = pickBoolean(compactionConfig, [
   "autoCompactionEnabled",
   "auto_compaction_enabled",
@@ -1057,6 +1067,10 @@ export interface CompactionRuntimeConfig {
   autoCompactionEnabled: boolean;
   /** Processing method captured once at the start of each smart compaction. */
   smartCompactionMethod: SmartCompactionMethod;
+  /** Attempt explicitly supported provider-native compaction before the selected local method. */
+  remoteCompactionEnabled: boolean;
+  /** Provider-native compaction request deadline. */
+  remoteCompactionTimeoutMs: number;
   timeoutMs: number;
   backoffBaseMs: number;
   backoffMaxMs: number;
@@ -1538,6 +1552,7 @@ export function setToolUseMessageBudget(budget: number): number {
 }
 
 const DEFAULT_COMPACTION_TIMEOUT_MS = 300_000;
+const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 60_000;
 const DEFAULT_COMPACTION_BACKOFF_BASE_MS = 15 * 60_000;
 const DEFAULT_COMPACTION_BACKOFF_MAX_MS = 6 * 60 * 60_000;
 const DEFAULT_PROGRESS_WATCHDOG_TIMEOUT_MS = 300_000;
@@ -1572,6 +1587,14 @@ let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
       ?? configSmartCompactionMethod,
     "selective",
   ),
+  remoteCompactionEnabled: parseOptionalBooleanFlag(
+    process.env.PICLAW_REMOTE_COMPACTION_ENABLED
+      ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
+    configRemoteCompactionEnabled ?? false,
+  ),
+  remoteCompactionTimeoutMs: Number.isFinite(configRemoteCompactionTimeoutMs) && (configRemoteCompactionTimeoutMs ?? 0) > 0
+    ? Math.round(Number(configRemoteCompactionTimeoutMs))
+    : DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS,
   timeoutMs: Number.isFinite(configCompactionTimeoutMs) && (configCompactionTimeoutMs ?? 0) > 0
     ? Math.round(Number(configCompactionTimeoutMs))
     : DEFAULT_COMPACTION_TIMEOUT_MS,
@@ -1668,6 +1691,14 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       process.env.PICLAW_SMART_COMPACTION_METHOD ?? envConfig.PICLAW_SMART_COMPACTION_METHOD,
       COMPACTION_RUNTIME_CONFIG.smartCompactionMethod,
     ),
+    remoteCompactionEnabled: parseOptionalBooleanFlag(
+      process.env.PICLAW_REMOTE_COMPACTION_ENABLED ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
+      COMPACTION_RUNTIME_CONFIG.remoteCompactionEnabled,
+    ),
+    remoteCompactionTimeoutMs: parsePositiveDurationMs(
+      process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
+      COMPACTION_RUNTIME_CONFIG.remoteCompactionTimeoutMs,
+    ),
     timeoutMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_TIMEOUT_MS, COMPACTION_RUNTIME_CONFIG.timeoutMs),
     backoffBaseMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS, COMPACTION_RUNTIME_CONFIG.backoffBaseMs),
     backoffMaxMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS, COMPACTION_RUNTIME_CONFIG.backoffMaxMs),
@@ -1720,6 +1751,8 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
 export function setCompactionRuntimeConfig(patch: {
   autoCompactionEnabled?: boolean;
   smartCompactionMethod?: SmartCompactionMethod;
+  remoteCompactionEnabled?: boolean;
+  remoteCompactionTimeoutMs?: number;
   timeoutMs?: number;
   backoffBaseMs?: number;
   backoffMaxMs?: number;
@@ -1740,6 +1773,12 @@ export function setCompactionRuntimeConfig(patch: {
     smartCompactionMethod: patch.smartCompactionMethod === undefined
       ? current.smartCompactionMethod
       : normalizeSmartCompactionMethod(patch.smartCompactionMethod, current.smartCompactionMethod),
+    remoteCompactionEnabled: typeof patch.remoteCompactionEnabled === "boolean"
+      ? patch.remoteCompactionEnabled
+      : current.remoteCompactionEnabled,
+    remoteCompactionTimeoutMs: patch.remoteCompactionTimeoutMs === undefined
+      ? current.remoteCompactionTimeoutMs
+      : parsePositiveDurationMs(patch.remoteCompactionTimeoutMs, current.remoteCompactionTimeoutMs),
     timeoutMs: patch.timeoutMs === undefined ? current.timeoutMs : parsePositiveDurationMs(patch.timeoutMs, current.timeoutMs),
     backoffBaseMs: patch.backoffBaseMs === undefined ? current.backoffBaseMs : parsePositiveDurationMs(patch.backoffBaseMs, current.backoffBaseMs),
     backoffMaxMs: patch.backoffMaxMs === undefined ? current.backoffMaxMs : parsePositiveDurationMs(patch.backoffMaxMs, current.backoffMaxMs),
@@ -1785,6 +1824,12 @@ export function setCompactionRuntimeConfig(patch: {
     "smartCompactionMethod",
     "smart_compaction_method",
     "PICLAW_SMART_COMPACTION_METHOD",
+    "remoteCompactionEnabled",
+    "remote_compaction_enabled",
+    "PICLAW_REMOTE_COMPACTION_ENABLED",
+    "remoteCompactionTimeoutMs",
+    "remote_compaction_timeout_ms",
+    "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
     "timeoutMs",
     "timeout_ms",
     "compactionTimeoutMs",
@@ -1834,6 +1879,8 @@ export function setCompactionRuntimeConfig(patch: {
   }
   compaction.autoCompactionEnabled = next.autoCompactionEnabled;
   compaction.smartCompactionMethod = next.smartCompactionMethod;
+  compaction.remoteCompactionEnabled = next.remoteCompactionEnabled;
+  compaction.remoteCompactionTimeoutMs = next.remoteCompactionTimeoutMs;
   compaction.timeoutMs = next.timeoutMs;
   compaction.backoffBaseMs = next.backoffBaseMs;
   compaction.backoffMaxMs = next.backoffMaxMs;
@@ -1850,6 +1897,8 @@ export function setCompactionRuntimeConfig(patch: {
 
   process.env.PICLAW_AUTO_COMPACTION_ENABLED = next.autoCompactionEnabled ? "1" : "0";
   process.env.PICLAW_SMART_COMPACTION_METHOD = next.smartCompactionMethod;
+  process.env.PICLAW_REMOTE_COMPACTION_ENABLED = next.remoteCompactionEnabled ? "1" : "0";
+  process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS = String(next.remoteCompactionTimeoutMs);
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = String(next.timeoutMs);
   process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS = String(next.backoffBaseMs);
   process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS = String(next.backoffMaxMs);

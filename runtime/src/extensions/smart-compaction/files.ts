@@ -108,8 +108,10 @@ export function reconcileFileOperations(
   fileOps: FileOperations,
   toolAnalysis: ToolOutcomeAnalysis,
   previousSummary?: string,
+  inheritedModifiedPaths: Iterable<string> = [],
 ): FileOperations {
   const priorModified = parseCompressedFileBlock(previousSummary, "modified-files");
+  for (const path of inheritedModifiedPaths) priorModified.add(normalizePath(path));
   const attemptedMutationPaths = new Set<string>();
   const successfulMutationPaths = new Set<string>();
 

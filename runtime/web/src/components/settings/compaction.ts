@@ -14,6 +14,9 @@ function normalizeCompactionSettings(data: Record<string, any> = {}) {
     return {
         autoCompactionEnabled: Boolean(data.autoCompactionEnabled ?? true),
         smartCompactionMethod: normalizeSmartCompactionMethod(data.smartCompactionMethod),
+        remoteCompactionEnabled: Boolean(data.remoteCompactionEnabled ?? false),
+        remoteCompactionTimeoutSec: data.remoteCompactionTimeoutSec ?? 60,
+        remoteCompactionSupportedProviders: Array.isArray(data.remoteCompactionSupportedProviders) ? data.remoteCompactionSupportedProviders : ['openai'],
         compactionTimeoutSec: data.compactionTimeoutSec ?? 300,
         compactionBackoffBaseMin: data.compactionBackoffBaseMin ?? 15,
         compactionBackoffMaxMin: data.compactionBackoffMaxMin ?? 360,
@@ -43,6 +46,9 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     const { t } = useTranslation();
     const [autoCompactionEnabled, setAutoCompactionEnabled] = useState(true);
     const [smartCompactionMethod, setSmartCompactionMethod] = useState('selective');
+    const [remoteCompactionEnabled, setRemoteCompactionEnabled] = useState(false);
+    const [remoteCompactionTimeoutSec, setRemoteCompactionTimeoutSec] = useState(60);
+    const [remoteCompactionSupportedProviders, setRemoteCompactionSupportedProviders] = useState(['openai']);
     const [compactionTimeoutSec, setCompactionTimeoutSec] = useState(300);
     const [compactionBackoffBaseMin, setCompactionBackoffBaseMin] = useState(15);
     const [compactionBackoffMaxMin, setCompactionBackoffMaxMin] = useState(360);
@@ -71,6 +77,9 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
         const next = normalizeCompactionSettings(data);
         setAutoCompactionEnabled(next.autoCompactionEnabled);
         setSmartCompactionMethod(next.smartCompactionMethod);
+        setRemoteCompactionEnabled(next.remoteCompactionEnabled);
+        setRemoteCompactionTimeoutSec(next.remoteCompactionTimeoutSec);
+        setRemoteCompactionSupportedProviders(next.remoteCompactionSupportedProviders);
         setCompactionTimeoutSec(next.compactionTimeoutSec);
         setCompactionBackoffBaseMin(next.compactionBackoffBaseMin);
         setCompactionBackoffMaxMin(next.compactionBackoffMaxMin);
@@ -88,6 +97,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
         savedSnapshotRef.current = JSON.stringify({
             autoCompactionEnabled: next.autoCompactionEnabled,
             smartCompactionMethod: next.smartCompactionMethod,
+            remoteCompactionEnabled: next.remoteCompactionEnabled,
+            remoteCompactionTimeoutSec: next.remoteCompactionTimeoutSec,
             compactionTimeoutSec: next.compactionTimeoutSec,
             compactionBackoffBaseMin: next.compactionBackoffBaseMin,
             compactionBackoffMaxMin: next.compactionBackoffMaxMin,
@@ -110,6 +121,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     const currentSnapshot = useMemo(() => JSON.stringify({
         autoCompactionEnabled,
         smartCompactionMethod,
+        remoteCompactionEnabled,
+        remoteCompactionTimeoutSec,
         compactionTimeoutSec,
         compactionBackoffBaseMin,
         compactionBackoffMaxMin,
@@ -125,6 +138,8 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     }), [
         autoCompactionEnabled,
         smartCompactionMethod,
+        remoteCompactionEnabled,
+        remoteCompactionTimeoutSec,
         compactionTimeoutSec,
         compactionBackoffBaseMin,
         compactionBackoffMaxMin,
@@ -225,6 +240,29 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
                         ? t('settings.compaction.methodPipelinedHint')
                         : t('settings.compaction.methodSelectiveHint')}
                 </span>
+            </div>
+            <div class="settings-row">
+                <label>${t('settings.compaction.remoteNative')}</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input id="remoteCompactionEnabled" type="checkbox" checked=${remoteCompactionEnabled} onChange=${e => setRemoteCompactionEnabled(Boolean(e.target.checked))} />
+                    <span class="settings-hint" style="margin:0">
+                        ${t('settings.compaction.remoteNativeHint', { providers: remoteCompactionSupportedProviders.join(', ') })}
+                    </span>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label>${t('settings.compaction.remoteTimeout')}</label>
+                <${NumberStepper}
+                    label=${t('settings.compaction.remoteTimeoutAria')}
+                    value=${remoteCompactionTimeoutSec}
+                    min=${1}
+                    max=${300}
+                    fallback=${60}
+                    width="90px"
+                    disabled=${!remoteCompactionEnabled}
+                    onChange=${setRemoteCompactionTimeoutSec}
+                />
+                <span class="settings-hint" style="margin:0">${t('settings.compaction.remoteTimeoutHint')}</span>
             </div>
             <div class="settings-row">
                 <label>${t('settings.compaction.enableToolResult')}</label>
