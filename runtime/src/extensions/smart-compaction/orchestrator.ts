@@ -24,7 +24,7 @@ import type { CompactionStreamFn } from "./stream-complete.js";
 import { validateCompactionSummaryResponse } from "./summary-validation.js";
 import { resolveSmartCompactionModelRequest } from "./model-request.js";
 import { runCompactionModelExecution } from "./model-execution.js";
-import { buildPipelinedPrompt } from "./pipelined.js";
+import { buildPipelinedAuditTelemetry, buildPipelinedPrompt } from "./pipelined.js";
 import { assemblePipelineEvents, buildCanonicalPipelineSourceUnits } from "./pipeline-events.js";
 import { sanitizeContextPruneCompactionMessages } from "../context-prune/pruner.js";
 import {
@@ -207,7 +207,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         contextPrunedEventCount: preparedSource.sourceEvents.filter((sourceEvent) => sourceEvent.contextPruned).length,
       });
       const pipelinedPrompt = smartCompactionMethod === "pipelined"
-        ? buildPipelinedPrompt(preparedSource)
+        ? buildPipelinedPrompt(preparedSource, toolAnalysis)
         : null;
       if (pipelinedPrompt) {
         log.debug("Pipelined source ledger validated", {
@@ -217,8 +217,9 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           groupCount: pipelinedPrompt.groupCount,
           sourceUnitCount: pipelinedPrompt.plan.units.length,
           dispositionCounts: pipelinedPrompt.plan.dispositionCounts,
+          pipelineCompression: pipelinedPrompt.plan.compression,
           coverageComplete: pipelinedPrompt.plan.coverageComplete,
-          auditLedger: pipelinedPrompt.plan.records,
+          auditLedger: buildPipelinedAuditTelemetry(pipelinedPrompt.plan),
         });
       }
       const discardedRawSourceChars = preparedSource.sourceEvents.reduce((total, sourceEvent) => {
@@ -243,6 +244,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           sourceEventCount: preparedSource.sourceEvents.length,
           sourceGroupCount: pipelinedPrompt?.groupCount ?? preparedSource.sourceEvents.length,
           dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
+          pipelineCompression: pipelinedPrompt?.plan.compression ?? null,
           sourceTokenEstimate: discardedSourceTokenEstimate,
           canonicalTokenEstimate,
           semanticInputTokenEstimate: 0,
@@ -580,6 +582,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             sourceEventCount: preparedSource.sourceEvents.length,
             sourceGroupCount: pipelinedPrompt?.groupCount ?? null,
             dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
+            pipelineCompression: pipelinedPrompt?.plan.compression ?? null,
             sourceTokenEstimate: discardedSourceTokenEstimate,
             canonicalTokenEstimate,
             semanticInputTokenEstimate: promptTokens,
@@ -662,6 +665,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         sourceEventCount: preparedSource.sourceEvents.length,
         sourceGroupCount: pipelinedPrompt?.groupCount ?? null,
         dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
+        pipelineCompression: pipelinedPrompt?.plan.compression ?? null,
         sourceTokenEstimate: discardedSourceTokenEstimate,
         canonicalTokenEstimate,
         semanticInputTokenEstimate: promptTokens,

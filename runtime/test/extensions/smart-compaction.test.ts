@@ -4,6 +4,7 @@
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as actualCodingAgent from "../../../node_modules/@earendil-works/pi-coding-agent/dist/index.js";
+import { setCompactionRuntimeConfig } from "../../src/core/config.js";
 
 // We test the module by importing its factory and invoking it with a
 // mock ExtensionAPI, then firing the session_before_compact handler.
@@ -277,6 +278,10 @@ describe("smart-compaction", () => {
 
   beforeEach(() => {
     handler = null;
+    // Method selection is mutable process state. Keep default-method tests
+    // isolated from earlier parametrized or cross-file cases.
+    delete process.env.PICLAW_SMART_COMPACTION_METHOD;
+    setCompactionRuntimeConfig({ smartCompactionMethod: "selective" });
     // Capture the registered handler
     const mockPi = {
       on: (eventName: string, fn: any) => {
@@ -703,9 +708,9 @@ describe("smart-compaction", () => {
       expect(completeSimple).toHaveBeenCalledTimes(1);
       const prompt = (completeSimple as any).mock.calls[0][1].messages[0].content[0].text as string;
       expect(prompt).toContain("<ordered_pipeline_groups_source_data>");
-      expect(prompt).toContain("group-0001");
-      expect(prompt).toContain("source=0");
-      expect(prompt).toContain("source=16,17");
+      expect(prompt).toContain("g0001");
+      expect(prompt).toContain("s=0");
+      expect(prompt).toContain("s=16-17");
       expect(ctx.ui.setStatus).toHaveBeenCalledWith(
         "smart_compaction",
         expect.stringMatching(/^Smart compaction: 100% — .*completed pipelined summary/),
@@ -884,7 +889,7 @@ describe("smart-compaction", () => {
       expect(chunkPrompts.length).toBeGreaterThan(1);
       expect(chunkPrompts.join("\n")).toContain("TRAD_FACT_0");
       expect(chunkPrompts.join("\n")).toContain("TRAD_FACT_19");
-      expect(chunkPrompts.join("\n")).toContain("group-0001");
+      expect(chunkPrompts.join("\n")).toContain("g0001");
       expect(result.compaction.summary).toContain("Traditional progressive goal");
       expect(authResolver).toHaveBeenCalledTimes(1);
       expect((completeSimple as any).mock.calls.every((call: any[]) =>
@@ -924,7 +929,7 @@ describe("smart-compaction", () => {
         : "## Session Metadata";
       expect(prompts.every((prompt: string) => prompt.includes(methodMarker))).toBe(true);
       if (method === "pipelined") {
-        expect(prompts.every((prompt: string) => prompt.includes("source=0"))).toBe(true);
+        expect(prompts.every((prompt: string) => prompt.includes("s=0"))).toBe(true);
       }
       expect(prompts[1]).toContain("Output Repair Requirement");
       expect(consumeCompactionCancellationReason(ctx)).toContain("Smart compaction output invalid");

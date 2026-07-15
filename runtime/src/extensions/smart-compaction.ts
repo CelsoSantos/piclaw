@@ -44,6 +44,7 @@ export {
   type PipelinedPlan as TraditionalPipelinePlan,
 } from "./smart-compaction/pipeline-policy.js";
 export {
+  buildPipelinedAuditTelemetry,
   buildPipelinedPrompt,
   buildPipelinedPrompt as buildTraditionalPipelinedPrompt,
   type PipelinedPrompt,

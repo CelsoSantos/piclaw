@@ -61,7 +61,6 @@ function canonicalEventText(
   }
   const rendered: string[] = [];
   for (const llmIndex of event.modelSafeMessageIndexes) {
-    if (toolAnalysis.matchedResultIndexes.has(llmIndex)) continue;
     const message = source.llmMessages[llmIndex];
     if (!message) continue;
     if (hasToolCall(message)) {
@@ -95,11 +94,14 @@ function sortedUnique(values: number[]): number[] {
  * source event exactly once. Tool IDs are used only to join local calls to
  * observed results; they are never emitted as semantic context.
  */
-export function assemblePipelineEvents(source: PreparedCompactionSource): {
+export function assemblePipelineEvents(
+  source: PreparedCompactionSource,
+  preparedToolAnalysis?: ToolOutcomeAnalysis,
+): {
   groups: PipelineEventGroup[];
   toolAnalysis: ToolOutcomeAnalysis;
 } {
-  const toolAnalysis = analyzeToolOutcomes(source.llmMessages);
+  const toolAnalysis = preparedToolAnalysis ?? analyzeToolOutcomes(source.llmMessages);
   const eventBySourceIndex = new Map(source.sourceEvents.map((event) => [event.sourceIndex, event]));
   const sourceIndexByLlmIndex = source.sourceIndexesByLlmIndex;
   const consumed = new Set<number>();

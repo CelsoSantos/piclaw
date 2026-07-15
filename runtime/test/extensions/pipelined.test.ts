@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   assemblePipelineEvents,
   buildProgressiveCompactionChunksFromSourceUnits,
+  buildPipelinedAuditTelemetry,
   buildPipelinedPrompt,
   buildPipelinedPlan,
   buildTraditionalPipelinedPrompt,
@@ -60,8 +61,11 @@ describe("Pipelined source planning", () => {
     ];
     const source = prepare(raw);
     const assembled = assemblePipelineEvents(source);
+    const reused = assemblePipelineEvents(source, assembled.toolAnalysis);
     const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
 
+    expect(reused.toolAnalysis).toBe(assembled.toolAnalysis);
+    expect(reused.groups.map((group) => group.sourceIndexes)).toEqual(assembled.groups.map((group) => group.sourceIndexes));
     expect(assembled.groups.find((group) => group.kind === "tool_batch")?.sourceIndexes).toEqual([1, 2, 3]);
     expect(assembled.groups.find((group) => group.kind === "tool_batch")?.rendered).toContain("FINAL_FAILURE");
     expect(assembled.groups.find((group) => group.kind === "tool_batch")?.rendered).toContain("export const value = 1");
@@ -69,6 +73,7 @@ describe("Pipelined source planning", () => {
     expect(plan.records.find((record) => record.sourceIndexes.includes(2))).toMatchObject({
       disposition: "required",
       reason: "unresolved_tool_state",
+      representationMode: "lossless",
     });
     expect(plan.coverageComplete).toBe(true);
   });
@@ -87,7 +92,65 @@ describe("Pipelined source planning", () => {
     expect(assembled.groups[1]?.rendered).toContain("Cancel deployment");
     expect(assembled.groups[2]?.rendered).toContain("deployment completed");
     expect(plan.records.flatMap((record) => record.sourceIndexes).sort((a, b) => a - b)).toEqual([0, 1, 2]);
+    expect(plan.records[0]).toMatchObject({
+      disposition: "canonical",
+      reason: "observed_later_tool_state",
+      representationMode: "compact_facts",
+      relationships: { laterResultGroupIds: ["group-0003"], originToolGroupIds: [] },
+      toolFacts: [expect.objectContaining({
+        observation: "later",
+        status: "success",
+        assistantSourceIndex: 0,
+        resultSourceIndex: 2,
+      })],
+    });
+    expect(plan.records[2]).toMatchObject({
+      disposition: "canonical",
+      reason: "delayed_tool_result",
+      relationships: { laterResultGroupIds: [], originToolGroupIds: ["group-0001"] },
+    });
     expect(plan.coverageComplete).toBe(true);
+  });
+
+  it("keeps delayed required results lossless and explicitly linked to their origin", () => {
+    const source = prepare([
+      toolBatch([{ id: "late-error", name: "bash", args: { command: "deploy" } }]),
+      user("Do not lose the delayed failure lineage."),
+      toolResult("late-error", "bash", "permission denied", true),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const origin = plan.units.find((unit) => unit.sourceIndexes.includes(0))?.renderedText ?? "";
+    const delayed = plan.units.find((unit) => unit.sourceIndexes.includes(2))?.renderedText ?? "";
+
+    expect(origin).toContain("call@s0 → result later@s2");
+    expect(delayed).toContain("result@s2 ← call@s0");
+    expect(delayed).toContain("[2|ToolResult:ERROR:bash]: permission denied");
+    expect(plan.records.find((record) => record.sourceIndexes.includes(2))).toMatchObject({
+      disposition: "required",
+      representationMode: "lossless",
+      relationships: { laterResultGroupIds: [], originToolGroupIds: ["group-0001"] },
+    });
+  });
+
+  it("keeps repeated delayed-result lineage visible instead of deduplicating tool state", () => {
+    const source = prepare([
+      toolBatch([{ id: "later-a", name: "bash", args: { command: "deploy --check" } }]),
+      user("Wait for the first observed result."),
+      toolResult("later-a", "bash", "deployment check complete"),
+      toolBatch([{ id: "later-b", name: "bash", args: { command: "deploy --check" } }]),
+      user("Wait for the second observed result."),
+      toolResult("later-b", "bash", "deployment check complete"),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const delayed = plan.records.filter((record) => record.reason === "delayed_tool_result");
+
+    expect(delayed).toHaveLength(2);
+    expect(delayed.every((record) => record.representationMode === "compact_facts")).toBe(true);
+    expect(plan.compression.duplicateReferenceCount).toBe(0);
+    expect(plan.units.find((unit) => unit.sourceIndexes.includes(2))?.renderedText).toContain("← call@s0");
+    expect(plan.units.find((unit) => unit.sourceIndexes.includes(5))?.renderedText).toContain("← call@s3");
   });
 
   it("keeps missing, no-change, and orphan tool outcomes required without replay IDs", () => {
@@ -120,6 +183,7 @@ describe("Pipelined source planning", () => {
     expect(plan.records.find((record) => record.groupId === batch?.id)).toMatchObject({
       disposition: "required",
       reason: "unresolved_tool_state",
+      representationMode: "lossless",
       sourceIndexes: [0, 1],
       sourceEntryIds: ["entry-0", "entry-1"],
     });
@@ -161,7 +225,7 @@ describe("Pipelined source planning", () => {
     expect(plan.records.flatMap((record) => record.sourceIndexes)).toEqual([0, 1]);
   });
 
-  it("keeps exact duplicate synthetic events independently classified when deduplication is not proven", () => {
+  it("represents exact duplicate synthetic events by reference without merging provenance", () => {
     const duplicate = "## Goal\nContinue the existing task.";
     const source = prepare([
       { role: "compactionSummary", summary: duplicate },
@@ -173,8 +237,195 @@ describe("Pipelined source planning", () => {
     expect(plan.records).toHaveLength(2);
     expect(plan.records.flatMap((record) => record.sourceIndexes)).toEqual([0, 1]);
     expect(plan.records.every((record) => record.disposition !== "drop_safe")).toBe(true);
+    expect(plan.records[0]?.representationMode).toBe("compact_facts");
+    expect(plan.records[1]).toMatchObject({
+      representationMode: "reference",
+      relationships: { duplicateOfGroupId: "group-0001" },
+    });
+    expect(plan.records[0]?.metrics.semanticDigest).toBe(plan.records[1]?.metrics.semanticDigest);
     expect(plan.units).toHaveLength(2);
+    expect(plan.units[1]?.renderedText).toContain("= g0001 (duplicate evidence; chronology retained)");
     expect(plan.units.map((unit) => unit.sourceEntryIds)).toEqual([["entry-0"], ["entry-1"]]);
+  });
+
+  it("restricts drop-safe handling to empty content while preserving exact accounting", () => {
+    const source = prepare([
+      { role: "assistant", content: [] },
+      user("Keep this non-empty constraint."),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(plan.records[0]).toMatchObject({
+      disposition: "drop_safe",
+      reason: "empty_content",
+      representationMode: "none",
+      representationIds: [],
+    });
+    expect(plan.records[1]).toMatchObject({ disposition: "required", representationMode: "lossless" });
+    expect(plan.units).toHaveLength(1);
+    expect(plan.records.flatMap((record) => record.sourceIndexes).sort((a, b) => a - b)).toEqual([0, 1]);
+    expect(plan.coverageComplete).toBe(true);
+  });
+
+  it("never converts duplicate required human intent into a reference", () => {
+    const source = prepare([
+      user("Do not deploy without explicit approval."),
+      user("Do not deploy without explicit approval."),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(plan.records.every((record) =>
+      record.disposition === "required" && record.representationMode === "lossless"
+    )).toBe(true);
+    expect(plan.compression.duplicateReferenceCount).toBe(0);
+    expect(plan.units).toHaveLength(2);
+  });
+
+  it("uses deterministic human and assistant reason codes without changing required intent handling", () => {
+    const source = prepare([
+      user("Implement the new ledger."),
+      user("Actually, that is wrong; keep the old boundary."),
+      user("Do not deploy without explicit approval."),
+      user("Can we retain exact provenance?"),
+      assistant("Decision: use deterministic classification."),
+      assistant("Continuing the implementation details."),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(plan.records.map((record) => record.reason)).toEqual([
+      "human_goal",
+      "human_correction",
+      "human_constraint",
+      "human_question",
+      "assistant_decision",
+      "assistant_narrative",
+    ]);
+    expect(plan.records.slice(0, 4).every((record) =>
+      record.disposition === "required" && record.representationMode === "lossless"
+    )).toBe(true);
+    expect(plan.records.slice(4).every((record) =>
+      record.disposition === "summarize" && record.representationMode === "bounded_evidence"
+    )).toBe(true);
+  });
+
+  it("retains middle-only decisions, paths, constraints, and errors inside bounded evidence", () => {
+    const narrative = [
+      "a".repeat(2_000),
+      "Decision: preserve src/server/exact.ts.",
+      "Constraint: never restart the service.",
+      "Error: E42 remains unresolved.",
+      "b".repeat(2_000),
+    ].join("\n");
+    const source = prepare([assistant(narrative)]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const rendered = plan.units[0]?.renderedText ?? "";
+
+    expect(plan.records[0]).toMatchObject({
+      disposition: "summarize",
+      representationMode: "bounded_evidence",
+    });
+    expect(rendered).toContain("Decision: preserve src/server/exact.ts");
+    expect(rendered).toContain("never restart");
+    expect(rendered).toContain("Error: E42");
+    expect(plan.records[0]?.metrics.representedChars).toBeLessThanOrEqual(930);
+  });
+
+  it("emits deterministic integrity and per-disposition compression metrics", () => {
+    const source = prepare([
+      user("Preserve this exact constraint without deploying."),
+      toolBatch([{ id: "read-ok", name: "read", args: { path: "/workspace/a.ts" } }]),
+      toolResult("read-ok", "read", `${"head ".repeat(500)}${"tail ".repeat(500)}`),
+      assistant(`${"Repeated narrative. ".repeat(200)} Final decision: keep provenance.`),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const first = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const second = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(first.records.map((record) => record.metrics)).toEqual(second.records.map((record) => record.metrics));
+    expect(first.records.every((record) => record.metrics.sourceDigest.length === 64)).toBe(true);
+    expect(first.records.every((record) => record.metrics.representationDigest?.length === 64)).toBe(true);
+    expect(first.records.every((record) => record.metrics.sourceTokenEstimate > 0)).toBe(true);
+    expect(first.records.every((record) => record.metrics.representedTokenEstimate > 0)).toBe(true);
+    expect(first.compression).toEqual(second.compression);
+    expect(first.compression.recordCount).toBe(3);
+    expect(first.compression.byDisposition.required.recordCount).toBe(1);
+    expect(first.compression.byDisposition.canonical.recordCount).toBe(1);
+    expect(first.compression.byDisposition.summarize.recordCount).toBe(1);
+    expect(first.compression.reductionPercent).toBeGreaterThan(40);
+    expect(first.compression.tokenReductionPercent).toBeGreaterThan(40);
+  });
+
+  it("keeps raw tool arguments and outcomes out of structured audit telemetry", () => {
+    const secretPath = "/workspace/SECRET_PATH_TOKEN/file.ts";
+    const secretOutcome = "SECRET_OUTCOME_TOKEN completed successfully";
+    const source = prepare([
+      toolBatch([{ id: "sensitive", name: "read", args: { path: secretPath } }]),
+      toolResult("sensitive", "read", secretOutcome),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const serialized = JSON.stringify(buildPipelinedAuditTelemetry(plan));
+
+    expect(serialized).not.toContain(secretPath);
+    expect(serialized).not.toContain(secretOutcome);
+    expect(serialized).toContain(plan.records[0]?.toolFacts[0]?.argumentDigest ?? "missing-digest");
+    expect(serialized).toContain("outcomeChars");
+  });
+
+  it("does not reference representations that contain a meaningful delta", () => {
+    const source = prepare([
+      assistant("Decision: retain exact path /workspace/a.ts."),
+      assistant("Decision: retain exact path /workspace/b.ts."),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(plan.records.every((record) => record.representationMode === "bounded_evidence")).toBe(true);
+    expect(plan.compression.duplicateReferenceCount).toBe(0);
+    expect(plan.units[0]?.renderedText).toContain("/workspace/a.ts");
+    expect(plan.units[1]?.renderedText).toContain("/workspace/b.ts");
+  });
+
+  it("does not reference long bounded representations whose omitted source differs", () => {
+    const commonHead = "h".repeat(2_000);
+    const commonTail = "t".repeat(2_000);
+    const source = prepare([
+      assistant(`${commonHead}\nNEUTRAL_MIDDLE_ALPHA\n${commonTail}`),
+      assistant(`${commonHead}\nNEUTRAL_MIDDLE_BETA\n${commonTail}`),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+
+    expect(plan.records.every((record) => record.representationMode === "bounded_evidence")).toBe(true);
+    expect(plan.records[0]?.metrics.semanticDigest).not.toBe(plan.records[1]?.metrics.semanticDigest);
+    expect(plan.compression.duplicateReferenceCount).toBe(0);
+  });
+
+  it("preserves exact long paths and a digest-backed long command identity in canonical facts", () => {
+    const longPath = `/workspace/${"nested/".repeat(60)}file.ts`;
+    const longCommand = `bun test ${"--filter exact-boundary ".repeat(25)}--reporter=junit`;
+    const source = prepare([
+      toolBatch([
+        { id: "long-path", name: "read", args: { path: longPath } },
+        { id: "long-command", name: "bash", args: { command: longCommand } },
+      ]),
+      toolResult("long-path", "read", "export const value = 1;"),
+      toolResult("long-command", "bash", "all tests passed"),
+    ]);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
+    const rendered = plan.units[0]?.renderedText ?? "";
+    const commandFact = plan.records[0]?.toolFacts.find((fact) => fact.toolName === "bash");
+
+    expect(rendered).toContain(longPath);
+    expect(rendered).toContain(longCommand.slice(0, 30));
+    expect(rendered).toContain(longCommand.slice(-30));
+    expect(rendered).toContain(`#${commandFact?.argumentDigest.slice(0, 12)}`);
+    expect(commandFact?.exactKeyArgument).toBe(longCommand.replace(/\s+/g, " ").trim());
   });
 
   it("canonicalizes create, edit, move, delete, no-change, and failure outcomes without omitting a batch member", () => {
@@ -225,8 +476,8 @@ describe("Pipelined source planning", () => {
     expect(plan.records[0]).toMatchObject({ sourceIndexes: [0], disposition: "canonical" });
   });
 
-  it("preserves the middle of long tool outcomes for lossless progressive splitting", () => {
-    const middleMarker = "MIDDLE_ONLY_CONSTRAINT_DO_NOT_DROP";
+  it("compacts successful canonical tool outcomes while preserving boundaries and provenance", () => {
+    const middleMarker = "MIDDLE_SUCCESS_DETAIL_CAN_BE_COMPACTED";
     const raw = [
       toolBatch(),
       toolResult("call-a", "read", `${"a".repeat(3_000)}${middleMarker}${"b".repeat(3_000)}`),
@@ -236,11 +487,36 @@ describe("Pipelined source planning", () => {
     const assembled = assemblePipelineEvents(source);
     const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
     const rendered = plan.units.map((unit) => unit.renderedText).join("\n");
+
+    expect(plan.records[0]).toMatchObject({
+      disposition: "canonical",
+      reason: "observed_tool_batch",
+      representationMode: "compact_facts",
+      sourceIndexes: [0, 1, 2],
+    });
+    expect(rendered).toContain("aaaaaaaa");
+    expect(rendered).toContain("bbbbbbbb");
+    expect(rendered).not.toContain(middleMarker);
+    expect(plan.records[0]?.metrics.reductionPercent).toBeGreaterThan(80);
+    expect(plan.records[0]?.metrics.tokenReductionPercent).toBeGreaterThan(80);
+    expect(plan.records.flatMap((record) => record.sourceIndexes).sort((a, b) => a - b)).toEqual([0, 1, 2]);
+  });
+
+  it("keeps unresolved tool outcomes lossless through progressive splitting", () => {
+    const middleMarker = "MIDDLE_UNRESOLVED_CONSTRAINT_DO_NOT_DROP";
+    const raw = [
+      toolBatch(),
+      toolResult("call-a", "read", `${"a".repeat(3_000)}${middleMarker}${"b".repeat(3_000)}`, true),
+      toolResult("call-b", "bash", "tests passed"),
+    ];
+    const source = prepare(raw);
+    const assembled = assemblePipelineEvents(source);
+    const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
     const chunks = buildProgressiveCompactionChunksFromSourceUnits(plan.units, 700);
 
-    expect(rendered).toContain(middleMarker);
+    expect(plan.records[0]).toMatchObject({ disposition: "required", representationMode: "lossless" });
+    expect(plan.units[0]?.renderedText).toContain(middleMarker);
     expect(chunks.map((chunk) => chunk.text).join("\n")).toContain(middleMarker);
-    expect(plan.records.flatMap((record) => record.sourceIndexes).sort((a, b) => a - b)).toEqual([0, 1, 2]);
   });
 
   it("represents an already-context-pruned raw result without replaying its giant payload", () => {
@@ -270,8 +546,8 @@ describe("Pipelined source planning", () => {
     expect(prompt.text).toContain("<retained_context_source_data>");
     expect(prompt.text).toContain("<trusted_operator_compaction_instructions>");
     expect(prompt.text).toContain("Keep /workspace/exact.ts and do not restart.");
-    expect(prompt.text).toContain("source=0");
-    expect(prompt.text).toContain("source=1");
+    expect(prompt.text).toContain("s=0");
+    expect(prompt.text).toContain("s=1");
   });
 
   it("keeps source data structurally separated even when history contains prompt delimiters", () => {
