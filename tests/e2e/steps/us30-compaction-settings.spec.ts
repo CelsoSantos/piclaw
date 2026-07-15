@@ -48,7 +48,7 @@ test.describe('US-30: Compaction Settings Pane', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('processing method selector persists the canonical Traditional pipelined value', async ({ authedPage: page }) => {
+  test('processing method selector persists the canonical Pipelined value', async ({ authedPage: page }) => {
     await page.waitForSelector(sel.timeline);
     const postedMethods: string[] = [];
     page.on('request', (request) => {
@@ -69,9 +69,9 @@ test.describe('US-30: Compaction Settings Pane', () => {
 
     const methodSelect = dialog.locator('#smartCompactionMethod');
     await expect(methodSelect).toBeVisible();
-    await expect(methodSelect.locator('option')).toHaveText(['Selective', 'Traditional pipelined']);
-    await methodSelect.selectOption('traditional_pipelined');
-    await expect.poll(() => postedMethods.includes('traditional_pipelined'), { timeout: 5000 }).toBe(true);
+    await expect(methodSelect.locator('option')).toHaveText(['Selective', 'Pipelined']);
+    await methodSelect.selectOption('pipelined');
+    await expect.poll(() => postedMethods.includes('pipelined'), { timeout: 5000 }).toBe(true);
 
     // Restore the default so this test does not leak a persistent method into
     // later E2E scenarios.

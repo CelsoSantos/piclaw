@@ -124,18 +124,18 @@ test("normalizes smart-compaction method aliases and honors environment preceden
     let snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
       env: { PICLAW_SMART_COMPACTION_METHOD: undefined },
     });
-    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("pipelined");
 
     snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
       env: { PICLAW_SMART_COMPACTION_METHOD: "selective" },
     });
     expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("selective");
 
-    for (const alias of ["traditional pipelined", "pipelined"]) {
+    for (const alias of ["traditional_pipelined", "traditional pipelined", "pipelined"]) {
       snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
         env: { PICLAW_SMART_COMPACTION_METHOD: alias },
       });
-      expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+      expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("pipelined");
     }
 
     snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
@@ -149,7 +149,7 @@ test("normalizes smart-compaction method aliases and honors environment preceden
     snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
       env: { PICLAW_SMART_COMPACTION_METHOD: undefined },
     });
-    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("traditional_pipelined");
+    expect(snapshot["call:getCompactionRuntimeConfig"].smartCompactionMethod).toBe("pipelined");
   } finally {
     ws.cleanup();
   }

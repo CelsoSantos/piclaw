@@ -1,4 +1,4 @@
-/** Deterministic event grouping and canonical rendering for Traditional pipelined compaction. */
+/** Deterministic event grouping and canonical rendering for pipelined compaction. */
 import type { Message } from "@earendil-works/pi-ai";
 import {
   analyzeToolOutcomes,
@@ -152,7 +152,7 @@ export function assemblePipelineEvents(source: PreparedCompactionSource): {
 
 /**
  * Project canonical groups into the shared progressive source-unit contract.
- * Selective progressive mode uses these complete units directly; Traditional
+ * Selective progressive mode uses these complete units directly; Pipelined
  * adds categorical disposition metadata in its policy layer. Opaque entry IDs
  * remain machine-only provenance and are never embedded in model-visible text.
  */

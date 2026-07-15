@@ -1050,7 +1050,7 @@ export interface SessionStorageConfig {
 }
 
 export type AutoCompactionScope = "total" | "body_after_prefix";
-export type SmartCompactionMethod = "selective" | "traditional_pipelined";
+export type SmartCompactionMethod = "selective" | "pipelined";
 
 export interface CompactionRuntimeConfig {
   /** Piclaw-managed auto-compaction toggle. Independent from upstream AgentSession suppression. */
@@ -1628,7 +1628,7 @@ export function normalizeSmartCompactionMethod(
   fallback: SmartCompactionMethod = "selective",
 ): SmartCompactionMethod {
   const normalized = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (normalized === "traditional_pipelined" || normalized === "pipelined") return "traditional_pipelined";
+  if (normalized === "traditional_pipelined" || normalized === "pipelined") return "pipelined";
   if (normalized === "selective") return "selective";
   return fallback;
 }

@@ -6,7 +6,8 @@ import { NumberStepper } from './number-stepper.js';
 import { useTranslation } from '../../utils/i18n.js';
 
 function normalizeSmartCompactionMethod(value) {
-    return value === 'traditional_pipelined' ? 'traditional_pipelined' : 'selective';
+    const normalized = String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    return normalized === 'pipelined' || normalized === 'traditional_pipelined' ? 'pipelined' : 'selective';
 }
 
 function normalizeCompactionSettings(data: Record<string, any> = {}) {
@@ -217,11 +218,11 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
                 <label>${t('settings.compaction.processingMethod')}</label>
                 <select id="smartCompactionMethod" value=${smartCompactionMethod} onChange=${e => setSmartCompactionMethod(normalizeSmartCompactionMethod(e.target.value))}>
                     <option value="selective">${t('settings.compaction.methodSelective')}</option>
-                    <option value="traditional_pipelined">${t('settings.compaction.methodTraditionalPipelined')}</option>
+                    <option value="pipelined">${t('settings.compaction.methodPipelined')}</option>
                 </select>
                 <span class="settings-hint" style="margin:0">
-                    ${smartCompactionMethod === 'traditional_pipelined'
-                        ? t('settings.compaction.methodTraditionalPipelinedHint')
+                    ${smartCompactionMethod === 'pipelined'
+                        ? t('settings.compaction.methodPipelinedHint')
                         : t('settings.compaction.methodSelectiveHint')}
                 </span>
             </div>

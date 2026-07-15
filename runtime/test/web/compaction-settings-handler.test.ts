@@ -50,7 +50,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
 
     expect(saved).toMatchObject({
       autoCompactionEnabled: false,
-      smartCompactionMethod: 'traditional_pipelined',
+      smartCompactionMethod: 'pipelined',
       compactionTimeoutSec: 240,
       compactionBackoffBaseMin: 12,
       compactionBackoffMaxMin: 180,
@@ -65,7 +65,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       toolResultSemanticSummaryMaxTokens: 640,
       toolResultSemanticSummaryTimeoutSec: 30,
     });
-    expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('traditional_pipelined');
+    expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('pipelined');
     expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('240000');
     expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('720000');
     expect(process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED).toBe('1');
@@ -74,7 +74,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     expect(persisted).toMatchObject({
       compaction: {
         autoCompactionEnabled: false,
-        smartCompactionMethod: 'traditional_pipelined',
+        smartCompactionMethod: 'pipelined',
         timeoutMs: 240000,
         backoffBaseMs: 720000,
         backoffMaxMs: 10800000,
@@ -111,7 +111,7 @@ test('saveCompactionSettings preserves the current processing method for invalid
     });
     const saved = await handler.saveCompactionSettings({ smartCompactionMethod: 'unsafe-unknown-method' });
 
-    expect(saved.smartCompactionMethod).toBe('traditional_pipelined');
+    expect(saved.smartCompactionMethod).toBe('pipelined');
     expect(saved.compactionTimeoutSec).toBe(before.compactionTimeoutSec);
     expect(saved.compactionBackoffBaseMin).toBe(before.compactionBackoffBaseMin);
     expect(saved.progressWatchdogEnabled).toBe(before.progressWatchdogEnabled);

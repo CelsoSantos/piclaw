@@ -81,7 +81,7 @@ export interface SettingsData {
   themes?: Theme[];
   /* compaction */
   autoCompactionEnabled?: boolean;
-  smartCompactionMethod?: "selective" | "traditional_pipelined";
+  smartCompactionMethod?: "selective" | "pipelined";
   compactionTimeoutSec?: number;
   compactionBackoffBaseMin?: number;
   compactionBackoffMaxMin?: number;

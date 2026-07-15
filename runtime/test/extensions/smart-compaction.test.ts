@@ -427,7 +427,7 @@ describe("smart-compaction", () => {
     expect(getCompactionReasoningEffort({ provider: "github-copilot", id: "claude-opus-4.8", reasoning: true, contextWindow: 200_000, thinkingLevelMap: { xhigh: "xhigh" } }, "selective")).toBeUndefined();
   });
 
-  it.each(["selective", "traditional_pipelined"])("cancels %s compaction on provider input overflow rather than retrying with omitted source", async (method) => {
+  it.each(["selective", "pipelined"])("cancels %s compaction on provider input overflow rather than retrying with omitted source", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     const previousProgressiveBudget = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
     process.env.PICLAW_SMART_COMPACTION_METHOD = method;
@@ -682,9 +682,9 @@ describe("smart-compaction", () => {
     expect(finalSmartStatusCall).toEqual(["smart_compaction", undefined]);
   });
 
-  it("dispatches Traditional pipelined through the shared single-pass lifecycle", async () => {
+  it("dispatches Pipelined through the shared single-pass lifecycle", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = "traditional_pipelined";
+    process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
     const summaryText = "## Goal\nTraditional pipeline goal\n\n## Current Active Topic\n- audited pipeline\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- do not deploy\n\n## Progress\n### Done\n- [x] source projected\n\n### In Progress\n- [ ] continue\n\n### Blocked\n- none\n\n## Key Decisions\n- **Coverage**: validate every source event.\n\n## Next Steps\n1. Continue.\n\n## Critical Context\n- pipeline context";
     (completeSimple as any).mockResolvedValueOnce({
       content: [{ type: "text", text: summaryText }],
@@ -708,7 +708,7 @@ describe("smart-compaction", () => {
       expect(prompt).toContain("source=16,17");
       expect(ctx.ui.setStatus).toHaveBeenCalledWith(
         "smart_compaction",
-        expect.stringMatching(/^Smart compaction: 100% — .*completed traditional pipelined summary/),
+        expect.stringMatching(/^Smart compaction: 100% — .*completed pipelined summary/),
       );
     } finally {
       if (previousMethod === undefined) delete process.env.PICLAW_SMART_COMPACTION_METHOD;
@@ -716,7 +716,7 @@ describe("smart-compaction", () => {
     }
   });
 
-  it.each(["selective", "traditional_pipelined"])("preserves previous summary, split-turn source, retained context, tool failure, and terminal shape with %s", async (method) => {
+  it.each(["selective", "pipelined"])("preserves previous summary, split-turn source, retained context, tool failure, and terminal shape with %s", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     process.env.PICLAW_SMART_COMPACTION_METHOD = method;
     const summaryText = "## Goal\nCross-method continuity\n\n## Current Active Topic\n- preserve current split-turn work\n\n## Historical / Background Context\n- previous summary retained\n\n## Constraints & Preferences\n- never deploy\n\n## Progress\n### Done\n- [x] source projected\n### In Progress\n- [ ] resolve failed command\n### Blocked\n- command failed\n\n## Key Decisions\n- **Coverage**: retain every source class\n\n## Next Steps\n1. resolve failure\n\n## Critical Context\n- retained context survives";
@@ -783,7 +783,7 @@ describe("smart-compaction", () => {
     }
   });
 
-  it.each(["selective", "traditional_pipelined"])("cancels %s before dispatch without making a model call", async (method) => {
+  it.each(["selective", "pipelined"])("cancels %s before dispatch without making a model call", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     process.env.PICLAW_SMART_COMPACTION_METHOD = method;
     const controller = new AbortController();
@@ -817,7 +817,7 @@ describe("smart-compaction", () => {
         branchEntries: [],
         signal: new AbortController().signal,
       }, makeCtx());
-      process.env.PICLAW_SMART_COMPACTION_METHOD = "traditional_pipelined";
+      process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
       await firstPromise;
       await handler!({
         preparation: makePreparation(18),
@@ -837,10 +837,10 @@ describe("smart-compaction", () => {
     }
   });
 
-  it("routes Traditional pipelined oversized source through shared complete progressive coverage", async () => {
+  it("routes Pipelined oversized source through shared complete progressive coverage", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     const previousPromptChars = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = "traditional_pipelined";
+    process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
     process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "3000";
     const messages = Array.from({ length: 20 }, (_, index) => userMsg(`TRAD_FACT_${index} ${"x".repeat(1_200)}`));
     const prompts: string[] = [];
@@ -854,7 +854,7 @@ describe("smart-compaction", () => {
         return { content: [{ type: "text", text: chunkSummary(facts) }], stopReason: "stop" };
       }
       return {
-        content: [{ type: "text", text: `## Goal\nTraditional progressive goal\n\n## Current Active Topic\n- complete source coverage\n\n## Historical / Background Context\n- ${facts.join(" ")}\n\n## Constraints & Preferences\n- preserve provenance\n\n## Progress\n### Done\n- [x] pipeline chunks merged\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Dispatch**: selected method remained Traditional pipelined\n\n## Next Steps\n1. continue\n\n## Critical Context\n- all source groups classified` }],
+        content: [{ type: "text", text: `## Goal\nTraditional progressive goal\n\n## Current Active Topic\n- complete source coverage\n\n## Historical / Background Context\n- ${facts.join(" ")}\n\n## Constraints & Preferences\n- preserve provenance\n\n## Progress\n### Done\n- [x] pipeline chunks merged\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Dispatch**: selected method remained Pipelined\n\n## Next Steps\n1. continue\n\n## Critical Context\n- all source groups classified` }],
         stopReason: "stop",
       };
     });
@@ -900,7 +900,7 @@ describe("smart-compaction", () => {
     }
   });
 
-  it.each(["selective", "traditional_pipelined"])("keeps a malformed %s request on the selected method for its one repair retry", async (method) => {
+  it.each(["selective", "pipelined"])("keeps a malformed %s request on the selected method for its one repair retry", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     process.env.PICLAW_SMART_COMPACTION_METHOD = method;
     (completeSimple as any).mockResolvedValue({
@@ -919,11 +919,11 @@ describe("smart-compaction", () => {
 
       expect(result).toEqual({ cancel: true });
       expect(prompts).toHaveLength(2);
-      const methodMarker = method === "traditional_pipelined"
+      const methodMarker = method === "pipelined"
         ? "<ordered_pipeline_groups_source_data>"
         : "## Session Metadata";
       expect(prompts.every((prompt: string) => prompt.includes(methodMarker))).toBe(true);
-      if (method === "traditional_pipelined") {
+      if (method === "pipelined") {
         expect(prompts.every((prompt: string) => prompt.includes("source=0"))).toBe(true);
       }
       expect(prompts[1]).toContain("Output Repair Requirement");
@@ -4756,7 +4756,7 @@ describe("smart-compaction", () => {
       expect(capturedPrompt).toContain("## Conversation Excerpts");
     });
 
-    it.each(["selective", "traditional_pipelined"])("compacts the complete split-turn prefix when ordinary history is empty with %s", async (method) => {
+    it.each(["selective", "pipelined"])("compacts the complete split-turn prefix when ordinary history is empty with %s", async (method) => {
       const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
       process.env.PICLAW_SMART_COMPACTION_METHOD = method;
       let capturedPrompt = "";

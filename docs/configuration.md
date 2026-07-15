@@ -267,7 +267,7 @@ For the packaged Azure managed-identity/static-key path and its additional token
 | `PICLAW_SESSION_AUTO_ROTATE` | `1` | Automatically rotate oversized session files before the next prompt |
 | `PICLAW_TURN_MAX_TOOL_USE_MESSAGES` | `64` | Per-turn assistant tool-use message budget before soft-stop/recovery handling |
 | `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` | `48` | Last-resort executed-tool safety ceiling inside one prompt attempt; values above `512` are clamped. Reaching it does not itself imply context pressure or trigger compaction. |
-| `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction processing method: `selective` or `traditional_pipelined` |
+| `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction processing method: `selective` or `pipelined` |
 | `PICLAW_WHATSAPP_PHONE` | _(empty)_ | Alias for `WHATSAPP_PHONE` |
 | `PICLAW_TOOL_OUTPUT_RETENTION_MS` | `14400000` (4 h) | Milliseconds to retain stored tool outputs (preferred; overrides `_DAYS`) |
 | `PICLAW_TOOL_OUTPUT_RETENTION_DAYS` | _(legacy)_ | Days to retain stored tool outputs (deprecated; use `_MS`) |
@@ -313,25 +313,25 @@ Notes:
 Smart compaction has two processing methods:
 
 - **Selective** (`selective`, the default) prioritizes high-value continuity and uses provenance-bearing progressive chunks when the source is too large for one request.
-- **Traditional pipelined** (`traditional_pipelined`) processes the complete discarded event stream through chronological grouping, normalization, classification, deterministic reduction, and semantic reduction.
+- **Pipelined** (`pipelined`) processes the complete discarded event stream through chronological grouping, normalization, classification, deterministic reduction, and semantic reduction.
 
 Both methods share the same compaction lifecycle, provider/auth resolution, output validation, progressive source-unit executor, exact partial-boundary handling, and post-compaction pruning. Changing the setting affects the **next** compaction without requiring a restart; an active compaction keeps the method it captured when it started.
 
 Set the method with the web **Compaction → Processing method** control, the environment variable, or `.piclaw/config.json`:
 
 ```bash
-PICLAW_SMART_COMPACTION_METHOD=traditional_pipelined
+PICLAW_SMART_COMPACTION_METHOD=pipelined
 ```
 
 ```json
 {
   "compaction": {
-    "smartCompactionMethod": "traditional_pipelined"
+    "smartCompactionMethod": "pipelined"
   }
 }
 ```
 
-The aliases `traditional-pipelined`, `traditional pipelined`, and `pipelined` are accepted and normalized to `traditional_pipelined`. Unknown values fall back to the current/default method.
+The legacy aliases `traditional_pipelined`, `traditional-pipelined`, and `traditional pipelined` are accepted and normalized to `pipelined`. Unknown values fall back to the current/default method.
 
 Deprecated env names (still supported): `ASSISTANT_NAME`, `ASSISTANT_AVATAR`, `AGENT_TIMEOUT`, `AGENT_TIMEOUT_BACKGROUND`.
 

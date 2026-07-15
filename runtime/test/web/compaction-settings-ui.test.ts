@@ -16,13 +16,15 @@ test("classic compaction settings expose and persist both canonical processing m
   expect(component).toContain("smartCompactionMethod: normalizeSmartCompactionMethod(data.smartCompactionMethod)");
   expect(component).toContain("smartCompactionMethod,\n        compactionTimeoutSec");
   expect(component).toContain("body: currentSnapshot");
+  expect(component).toContain("replace(/[\\s-]+/g, '_')");
+  expect(component).toContain("normalized === 'pipelined' || normalized === 'traditional_pipelined' ? 'pipelined' : 'selective'");
   expect(component).toContain('<option value="selective">');
-  expect(component).toContain('<option value="traditional_pipelined">');
+  expect(component).toContain('<option value="pipelined">');
   expect(component).toContain("mergeSettingsData?.(payload.settings)");
   expect(component).toContain("applyIncoming({ ...(settingsData || {}), ...(payload.settings || {}) })");
   expect(i18n).toContain("'settings.compaction.methodSelective': 'Selective'");
-  expect(i18n).toContain("'settings.compaction.methodTraditionalPipelined': 'Traditional pipelined'");
-  expect(bundle).toContain('value="traditional_pipelined"');
+  expect(i18n).toContain("'settings.compaction.methodPipelined': 'Pipelined'");
+  expect(bundle).toContain('value="pipelined"');
 });
 
 test("visual compaction settings use the same canonical processing-method contract", () => {
@@ -30,12 +32,13 @@ test("visual compaction settings use the same canonical processing-method contra
   const types = source("web/static/visual/frontend/src/panels/settings/types.ts");
   const bundle = source("web/static/visual/dist/app.bundle.js");
 
-  expect(types).toContain('smartCompactionMethod?: "selective" | "traditional_pipelined"');
-  expect(component).toContain('data.smartCompactionMethod === "traditional_pipelined" ? "traditional_pipelined" : "selective"');
+  expect(types).toContain('smartCompactionMethod?: "selective" | "pipelined"');
+  expect(component).toContain('replace(/[\\s-]+/g, "_")');
+  expect(component).toContain('normalized === "pipelined" || normalized === "traditional_pipelined" ? "pipelined" : "selective"');
   expect(component).toContain('<option value="selective">Selective</option>');
-  expect(component).toContain('<option value="traditional_pipelined">Traditional pipelined</option>');
+  expect(component).toContain('<option value="pipelined">Pipelined</option>');
   expect(component).toContain('onSaveCompaction("smartCompactionMethod", value)');
   expect(component).toContain('saveSetting("compaction", field, value)');
-  expect(bundle).toContain("traditional_pipelined");
-  expect(bundle).toContain("Traditional pipelined");
+  expect(bundle).toContain("pipelined");
+  expect(bundle).toContain("Pipelined");
 });

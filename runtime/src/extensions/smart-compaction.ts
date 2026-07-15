@@ -11,7 +11,7 @@
  * - model-execution.ts: shared single-pass execution and lossless repair retry
  * - selective-method.ts: Selective policy adapter
  * - source.ts / pipeline-events.ts / pipeline-policy.ts: auditable source projection
- * - traditional-pipelined.ts: Traditional pipelined prompt planning
+ * - pipelined.ts: pipelined prompt planning
  * - model-request.ts: one model/auth resolution seam
  * - compat.ts: legacy public helpers, isolated from execution
  * - status.ts: lifecycle status and cancellation recording
@@ -36,8 +36,19 @@ export type {
   PreparedCompactionSource,
 } from "./smart-compaction/source.js";
 export { assemblePipelineEvents } from "./smart-compaction/pipeline-events.js";
-export { buildTraditionalPipelinePlan, isAllowlistedPipelineDropReason } from "./smart-compaction/pipeline-policy.js";
-export { buildTraditionalPipelinedPrompt } from "./smart-compaction/traditional-pipelined.js";
+export {
+  buildPipelinedPlan,
+  buildPipelinedPlan as buildTraditionalPipelinePlan,
+  isAllowlistedPipelineDropReason,
+  type PipelinedPlan,
+  type PipelinedPlan as TraditionalPipelinePlan,
+} from "./smart-compaction/pipeline-policy.js";
+export {
+  buildPipelinedPrompt,
+  buildPipelinedPrompt as buildTraditionalPipelinedPrompt,
+  type PipelinedPrompt,
+  type PipelinedPrompt as TraditionalPipelinedPrompt,
+} from "./smart-compaction/pipelined.js";
 export {
   formatProgressCount,
   formatProgressRange,

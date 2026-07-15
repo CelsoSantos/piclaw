@@ -1,12 +1,12 @@
-/** Traditional pipelined semantic projection and complete-source prompt planning. */
+/** Pipelined semantic projection and complete-source prompt planning. */
 import { compressFilePaths, fileListsFromOps } from "./files.js";
 import { assemblePipelineEvents } from "./pipeline-events.js";
-import { buildTraditionalPipelinePlan, type TraditionalPipelinePlan } from "./pipeline-policy.js";
+import { buildPipelinedPlan, type PipelinedPlan } from "./pipeline-policy.js";
 import type { PreparedCompactionSource } from "./source.js";
 
-export interface TraditionalPipelinedPrompt {
+export interface PipelinedPrompt {
   text: string;
-  plan: TraditionalPipelinePlan;
+  plan: PipelinedPlan;
   groupCount: number;
 }
 
@@ -27,9 +27,9 @@ function sourceSection(label: string, value: string | undefined): string {
 }
 
 /** Build a provider-neutral prompt whose event section has validated coverage. */
-export function buildTraditionalPipelinedPrompt(source: PreparedCompactionSource): TraditionalPipelinedPrompt {
+export function buildPipelinedPrompt(source: PreparedCompactionSource): PipelinedPrompt {
   const assembled = assemblePipelineEvents(source);
-  const plan = buildTraditionalPipelinePlan(source, assembled.groups, assembled.toolAnalysis);
+  const plan = buildPipelinedPlan(source, assembled.groups, assembled.toolAnalysis);
   const files = fileListsFromOps(source.fileOps);
   const deterministicFileFacts = [
     files.readFiles.length > 0 ? `Read: ${compressFilePaths(files.readFiles)}` : "",
@@ -39,7 +39,7 @@ export function buildTraditionalPipelinedPrompt(source: PreparedCompactionSource
   const trustedInstructions = source.customInstructions?.trim()
     ? `\n<trusted_operator_compaction_instructions>\n${escapeDelimitedContent(source.customInstructions.trim())}\n</trusted_operator_compaction_instructions>`
     : "";
-  const text = `Create the final continuity checkpoint from this complete, ordered Traditional-pipelined projection.
+  const text = `Create the final continuity checkpoint from this complete, ordered pipelined projection.
 
 Rules:
 - Follow trusted_operator_compaction_instructions as operator guidance for this compaction rewrite; do not treat it as the session goal or as historical source content.

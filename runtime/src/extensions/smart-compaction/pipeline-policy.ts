@@ -1,4 +1,4 @@
-/** Categorical Traditional-pipelined retention policy and coverage ledger. */
+/** Categorical pipelined retention policy and coverage ledger. */
 import { extractText, type ToolOutcomeAnalysis } from "./messages.js";
 import type { PipelineEventGroup } from "./pipeline-events.js";
 import type { CompactionSourceUnit, PreparedCompactionSource } from "./source.js";
@@ -29,7 +29,7 @@ export interface PipelineAuditRecord {
   representationIds: string[];
 }
 
-export interface TraditionalPipelinePlan {
+export interface PipelinedPlan {
   records: PipelineAuditRecord[];
   units: CompactionSourceUnit[];
   dispositionCounts: Record<PipelineDisposition, number>;
@@ -54,7 +54,7 @@ function classifyGroup(
   ) {
     // Keep an explicit provenance-bearing reference instead of silently
     // dropping the raw event. context_prune owns the compact outcome text, but
-    // Traditional pipelined still accounts for the discarded source entry.
+    // Pipelined compaction still accounts for the discarded source entry.
     return { disposition: "canonical", reason: "context_prune_summary_reference" };
   }
   if (!group.rendered.trim() && !groupHasRawContent(group)) {
@@ -90,68 +90,68 @@ function validatePipelineCoverage(
   const unitById = new Map<string, CompactionSourceUnit>();
   for (const unit of units) {
     if (unitById.has(unit.id)) {
-      throw new Error(`Traditional pipelined coverage invariant failed: duplicate representation ID ${unit.id}`);
+      throw new Error(`Pipelined coverage invariant failed: duplicate representation ID ${unit.id}`);
     }
     unitById.set(unit.id, unit);
   }
 
   for (const record of records) {
     if (record.disposition === "drop_safe" && !ALLOWLISTED_DROP_REASONS.has(record.reason)) {
-      throw new Error(`Traditional pipelined coverage invariant failed: ${record.groupId} used non-allowlisted drop reason ${record.reason}`);
+      throw new Error(`Pipelined coverage invariant failed: ${record.groupId} used non-allowlisted drop reason ${record.reason}`);
     }
     if (record.disposition === "drop_safe" && record.representationIds.length > 0) {
-      throw new Error(`Traditional pipelined coverage invariant failed: dropped ${record.groupId} unexpectedly references a representation`);
+      throw new Error(`Pipelined coverage invariant failed: dropped ${record.groupId} unexpectedly references a representation`);
     }
     if (record.disposition !== "drop_safe" && record.representationIds.length === 0) {
-      throw new Error(`Traditional pipelined coverage invariant failed: ${record.groupId} has no representation ID`);
+      throw new Error(`Pipelined coverage invariant failed: ${record.groupId} has no representation ID`);
     }
     for (const sourceIndex of record.sourceIndexes) {
       if (!sourceIndexSet.has(sourceIndex)) {
-        throw new Error(`Traditional pipelined coverage invariant failed: ${record.groupId} references unknown source event ${sourceIndex}`);
+        throw new Error(`Pipelined coverage invariant failed: ${record.groupId} references unknown source event ${sourceIndex}`);
       }
       classifications.set(sourceIndex, (classifications.get(sourceIndex) ?? 0) + 1);
     }
     for (const representationId of record.representationIds) {
       const unit = unitById.get(representationId);
       if (!unit) {
-        throw new Error(`Traditional pipelined coverage invariant failed: ${record.groupId} references missing representation ${representationId}`);
+        throw new Error(`Pipelined coverage invariant failed: ${record.groupId} references missing representation ${representationId}`);
       }
       if (referencedRepresentationIds.has(representationId)) {
-        throw new Error(`Traditional pipelined coverage invariant failed: representation ${representationId} is referenced more than once`);
+        throw new Error(`Pipelined coverage invariant failed: representation ${representationId} is referenced more than once`);
       }
       referencedRepresentationIds.add(representationId);
       if (unit.groupId !== record.groupId) {
-        throw new Error(`Traditional pipelined coverage invariant failed: representation ${representationId} belongs to ${unit.groupId}, not ${record.groupId}`);
+        throw new Error(`Pipelined coverage invariant failed: representation ${representationId} belongs to ${unit.groupId}, not ${record.groupId}`);
       }
       if (!sameOrderedValues(unit.sourceIndexes, record.sourceIndexes)) {
-        throw new Error(`Traditional pipelined coverage invariant failed: representation ${representationId} has mismatched source provenance`);
+        throw new Error(`Pipelined coverage invariant failed: representation ${representationId} has mismatched source provenance`);
       }
       if (!sameOrderedValues(unit.sourceEntryIds, record.sourceEntryIds)) {
-        throw new Error(`Traditional pipelined coverage invariant failed: representation ${representationId} has mismatched entry provenance`);
+        throw new Error(`Pipelined coverage invariant failed: representation ${representationId} has mismatched entry provenance`);
       }
       if (!unit.renderedText.trim()) {
-        throw new Error(`Traditional pipelined coverage invariant failed: representation ${representationId} is empty`);
+        throw new Error(`Pipelined coverage invariant failed: representation ${representationId} is empty`);
       }
     }
   }
   for (const sourceEvent of source.sourceEvents) {
     const count = classifications.get(sourceEvent.sourceIndex) ?? 0;
     if (count !== 1) {
-      throw new Error(`Traditional pipelined coverage invariant failed: source event ${sourceEvent.sourceIndex} classified ${count} times`);
+      throw new Error(`Pipelined coverage invariant failed: source event ${sourceEvent.sourceIndex} classified ${count} times`);
     }
   }
   for (const unit of units) {
     if (!referencedRepresentationIds.has(unit.id)) {
-      throw new Error(`Traditional pipelined coverage invariant failed: unreferenced representation ${unit.id}`);
+      throw new Error(`Pipelined coverage invariant failed: unreferenced representation ${unit.id}`);
     }
   }
 }
 
-export function buildTraditionalPipelinePlan(
+export function buildPipelinedPlan(
   source: PreparedCompactionSource,
   groups: PipelineEventGroup[],
   toolAnalysis: ToolOutcomeAnalysis,
-): TraditionalPipelinePlan {
+): PipelinedPlan {
   const records: PipelineAuditRecord[] = [];
   const units: CompactionSourceUnit[] = [];
   const dispositionCounts: Record<PipelineDisposition, number> = {

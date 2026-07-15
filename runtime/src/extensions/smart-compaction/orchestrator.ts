@@ -24,7 +24,7 @@ import type { CompactionStreamFn } from "./stream-complete.js";
 import { validateCompactionSummaryResponse } from "./summary-validation.js";
 import { resolveSmartCompactionModelRequest } from "./model-request.js";
 import { runCompactionModelExecution } from "./model-execution.js";
-import { buildTraditionalPipelinedPrompt } from "./traditional-pipelined.js";
+import { buildPipelinedPrompt } from "./pipelined.js";
 import { assemblePipelineEvents, buildCanonicalPipelineSourceUnits } from "./pipeline-events.js";
 import { sanitizeContextPruneCompactionMessages } from "../context-prune/pruner.js";
 import {
@@ -206,19 +206,19 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         modelMessageCount: preparedSource.llmMessages.length,
         contextPrunedEventCount: preparedSource.sourceEvents.filter((sourceEvent) => sourceEvent.contextPruned).length,
       });
-      const traditionalPrompt = smartCompactionMethod === "traditional_pipelined"
-        ? buildTraditionalPipelinedPrompt(preparedSource)
+      const pipelinedPrompt = smartCompactionMethod === "pipelined"
+        ? buildPipelinedPrompt(preparedSource)
         : null;
-      if (traditionalPrompt) {
-        log.debug("Traditional pipelined source ledger validated", {
+      if (pipelinedPrompt) {
+        log.debug("Pipelined source ledger validated", {
           operation: "smart_compaction.pipeline_planned",
           method: smartCompactionMethod,
           sourceEventCount: preparedSource.sourceEvents.length,
-          groupCount: traditionalPrompt.groupCount,
-          sourceUnitCount: traditionalPrompt.plan.units.length,
-          dispositionCounts: traditionalPrompt.plan.dispositionCounts,
-          coverageComplete: traditionalPrompt.plan.coverageComplete,
-          auditLedger: traditionalPrompt.plan.records,
+          groupCount: pipelinedPrompt.groupCount,
+          sourceUnitCount: pipelinedPrompt.plan.units.length,
+          dispositionCounts: pipelinedPrompt.plan.dispositionCounts,
+          coverageComplete: pipelinedPrompt.plan.coverageComplete,
+          auditLedger: pipelinedPrompt.plan.records,
         });
       }
       const discardedRawSourceChars = preparedSource.sourceEvents.reduce((total, sourceEvent) => {
@@ -231,8 +231,8 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       const discardedSourceTokenEstimate = applyTokenEstimateSafetyMultiplier(
         Math.max(1, Math.ceil(discardedRawSourceChars / 4)),
       );
-      const canonicalTokenEstimate = traditionalPrompt
-        ? estimateCompactionPromptTokens(traditionalPrompt.plan.units.map((unit) => unit.renderedText).join("\n"))
+      const canonicalTokenEstimate = pipelinedPrompt
+        ? estimateCompactionPromptTokens(pipelinedPrompt.plan.units.map((unit) => unit.renderedText).join("\n"))
         : null;
       const logNoOpMetrics = (summary: string, postCompactionTokenEstimate: number, partialBoundary: string | null) => {
         const summaryTokenEstimate = estimateCompactionPromptTokens(summary);
@@ -241,8 +241,8 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           method: smartCompactionMethod,
           execution: "deterministic_noop",
           sourceEventCount: preparedSource.sourceEvents.length,
-          sourceGroupCount: traditionalPrompt?.groupCount ?? preparedSource.sourceEvents.length,
-          dispositionCounts: traditionalPrompt?.plan.dispositionCounts ?? null,
+          sourceGroupCount: pipelinedPrompt?.groupCount ?? preparedSource.sourceEvents.length,
+          dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
           sourceTokenEstimate: discardedSourceTokenEstimate,
           canonicalTokenEstimate,
           semanticInputTokenEstimate: 0,
@@ -364,7 +364,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           );
       }
 
-      const methodLabel = smartCompactionMethod === "traditional_pipelined" ? "traditional pipelined" : "selective";
+      const methodLabel = smartCompactionMethod === "pipelined" ? "pipelined" : "selective";
       publishCompactionStage(statusMessage(compactionMetadata, `extracting signal from ${messagesForCompaction.length} messages with ${methodLabel}…`), "extracting", tokensBefore);
       log.debug(
         `${getCompactionStatusPrefix(compactionMetadata)}: ${messagesForCompaction.length} msgs → ${smartCompactionMethod}`,
@@ -378,7 +378,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             topicShift,
           })
         : null;
-      const promptText = traditionalPrompt?.text ?? selectivePrompt!.text;
+      const promptText = pipelinedPrompt?.text ?? selectivePrompt!.text;
 
       await maybeYieldPiclawCompaction("smart_compaction.handler.after_method_prompt");
       const promptTokens = estimateCompactionPromptTokens(promptText);
@@ -446,7 +446,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           log.debug(
             `Progressive compaction enabled (${compactionMetadata.trigger}): prompt ${Math.round(promptText.length / 1000)}k chars / ~${Math.round(promptTokens / 1000)}k tokens exceeds safe single-pass budget (${Math.round(budget.promptBudgetChars / 1000)}k chars, ${budget.contextWindow.toLocaleString()} context)`,
           );
-          const progressiveSourceUnits = traditionalPrompt?.plan.units
+          const progressiveSourceUnits = pipelinedPrompt?.plan.units
             ?? buildCanonicalPipelineSourceUnits(assemblePipelineEvents(preparedSource).groups);
           const progressiveResult = await runProgressiveCompaction({
             llmMessages,
@@ -578,15 +578,15 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             operation: "smart_compaction.completed",
             method: smartCompactionMethod,
             sourceEventCount: preparedSource.sourceEvents.length,
-            sourceGroupCount: traditionalPrompt?.groupCount ?? null,
-            dispositionCounts: traditionalPrompt?.plan.dispositionCounts ?? null,
+            sourceGroupCount: pipelinedPrompt?.groupCount ?? null,
+            dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
             sourceTokenEstimate: discardedSourceTokenEstimate,
             canonicalTokenEstimate,
             semanticInputTokenEstimate: promptTokens,
             summaryTokenEstimate: estimateCompactionPromptTokens(fullSummary),
             retainedTokenEstimate: estimateCompactionPromptTokens(keptMessagesSummary),
             postCompactionTokenEstimate: estimatedTotal,
-            deterministicReductionPercent: traditionalPrompt
+            deterministicReductionPercent: pipelinedPrompt
               ? Math.max(0, Math.round((1 - (canonicalTokenEstimate ?? discardedSourceTokenEstimate) / Math.max(1, discardedSourceTokenEstimate)) * 1000) / 10)
               : null,
             finalReductionPercent: Math.max(0, Math.round((1 - estimateCompactionPromptTokens(fullSummary) / Math.max(1, discardedSourceTokenEstimate)) * 1000) / 10),
@@ -627,7 +627,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           if (stage === "generating") {
             publishCompactionStage(statusMessage(compactionMetadata, `generating ${methodLabel} summary…`), "generating_summary", stagePromptTokens);
           } else {
-            publishCompactionStage(statusMessage(compactionMetadata, "repairing incomplete summary output…"), "generating_summary_trimmed_retry", stagePromptTokens);
+            publishCompactionStage(statusMessage(compactionMetadata, "repairing incomplete summary output…"), "generating_summary_repair", stagePromptTokens);
           }
         },
       });
@@ -648,7 +648,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       finalContextTokens = adjustedFit.estimatedTotal;
       publishCompactionStage(
         statusMessage(compactionMetadata, `completed ${methodLabel} summary…`),
-        smartCompactionMethod === "traditional_pipelined" ? "completed_traditional_pipelined" : "completed_selective",
+        smartCompactionMethod === "pipelined" ? "completed_pipelined" : "completed_selective",
         adjustedFit.estimatedTotal,
         100,
       );
@@ -660,15 +660,15 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         operation: "smart_compaction.completed",
         method: smartCompactionMethod,
         sourceEventCount: preparedSource.sourceEvents.length,
-        sourceGroupCount: traditionalPrompt?.groupCount ?? null,
-        dispositionCounts: traditionalPrompt?.plan.dispositionCounts ?? null,
+        sourceGroupCount: pipelinedPrompt?.groupCount ?? null,
+        dispositionCounts: pipelinedPrompt?.plan.dispositionCounts ?? null,
         sourceTokenEstimate: discardedSourceTokenEstimate,
         canonicalTokenEstimate,
         semanticInputTokenEstimate: promptTokens,
         summaryTokenEstimate: estimateCompactionPromptTokens(fullSummary),
         retainedTokenEstimate: estimateCompactionPromptTokens(keptMessagesSummary),
         postCompactionTokenEstimate: adjustedFit.estimatedTotal,
-        deterministicReductionPercent: traditionalPrompt
+        deterministicReductionPercent: pipelinedPrompt
           ? Math.max(0, Math.round((1 - (canonicalTokenEstimate ?? discardedSourceTokenEstimate) / Math.max(1, discardedSourceTokenEstimate)) * 1000) / 10)
           : null,
         finalReductionPercent: Math.max(0, Math.round((1 - estimateCompactionPromptTokens(fullSummary) / Math.max(1, discardedSourceTokenEstimate)) * 1000) / 10),

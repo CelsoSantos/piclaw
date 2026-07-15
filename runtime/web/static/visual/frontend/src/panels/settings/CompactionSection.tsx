@@ -3,6 +3,11 @@ import { type SettingsData, type WatchdogPhase, type CompactionBackoff, type Set
 import { NumberStepper } from "./NumberStepper";
 import { registerSettingsPane } from "./pane-registry";
 
+function normalizeSmartCompactionMethod(value: unknown): "selective" | "pipelined" {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "pipelined" || normalized === "traditional_pipelined" ? "pipelined" : "selective";
+}
+
 export function CompactionSection({
   data,
   onSaveCompaction,
@@ -11,8 +16,8 @@ export function CompactionSection({
   onSaveCompaction: (field: string, value: unknown) => void;
 }) {
   const autoCompactionEnabled = useSignal(data.autoCompactionEnabled ?? true);
-  const processingMethod = useSignal<"selective" | "traditional_pipelined">(
-    data.smartCompactionMethod === "traditional_pipelined" ? "traditional_pipelined" : "selective"
+  const processingMethod = useSignal<"selective" | "pipelined">(
+    normalizeSmartCompactionMethod(data.smartCompactionMethod)
   );
   const timeoutSec = useSignal(data.compactionTimeoutSec ?? 300);
   const backoffBase = useSignal(data.compactionBackoffBaseMin ?? 0);
@@ -81,18 +86,16 @@ export function CompactionSection({
             className="settings-panel__input"
             value={processingMethod.value}
             onChange={(event) => {
-              const value = (event.target as HTMLSelectElement).value === "traditional_pipelined"
-                ? "traditional_pipelined"
-                : "selective";
+              const value = normalizeSmartCompactionMethod((event.target as HTMLSelectElement).value);
               processingMethod.value = value;
               onSaveCompaction("smartCompactionMethod", value);
             }}
           >
             <option value="selective">Selective</option>
-            <option value="traditional_pipelined">Traditional pipelined</option>
+            <option value="pipelined">Pipelined</option>
           </select>
           <span className="settings-panel__description">
-            {processingMethod.value === "traditional_pipelined"
+            {processingMethod.value === "pipelined"
               ? "Canonicalize and classify every discarded source event with an auditable coverage ledger before summarizing."
               : "Extract the highest-value continuity excerpts and use complete progressive coverage when the bounded prompt cannot represent all source."}
           </span>
