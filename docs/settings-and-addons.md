@@ -28,7 +28,8 @@ The hamburger menu button uses `position: fixed` and appears:
 - **Web terminal** toggle
 
 ### Compaction (order 13)
-- **Processing method** selector: **Selective** (default) or **Pipelined**. The method is captured once per compaction generation; both choices share lifecycle, provider/auth resolution, progressive execution, exact-boundary handling, and pruning. See [Smart-compaction processing method](configuration.md#smart-compaction-processing-method) and the complete [Pipelined smart-compaction guide](pipelined-compaction.md).
+- **Processing method** selector: **Selective** (default) or **Pipelined**. The local method is captured once per compaction generation; both choices share lifecycle, provider/auth resolution, progressive execution, exact-boundary handling, and pruning. See [Smart-compaction processing method](configuration.md#smart-compaction-processing-method) and the complete [Pipelined smart-compaction guide](pipelined-compaction.md).
+- **Provider-native compaction** opt-in pre-pass and timeout. Shared source preparation and tool analysis run first; a successful supported remote attempt then completes before the local method's ledger/prompt/model-execution path, while safe failure continues into the captured Selective or Pipelined fallback. See [Provider-native remote compaction](configuration.md#provider-native-remote-compaction).
 - **Enable tool-result compaction** runtime gate
 - **Semantic summaries for compacted tool results** toggle
 - Semantic summary controls:

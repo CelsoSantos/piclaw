@@ -321,7 +321,7 @@ The Pipelined coverage ledger assigns every discarded-source group a determinist
 
 Classification, reason assignment, canonical fact rendering, duplicate handling, integrity checks, and prompt construction are deterministic. The model only receives the validated ordered projection through a zero-call no-op, one complete request, or ordered progressive chunk and merge slots. See [Pipelined smart compaction](pipelined-compaction.md) for the architecture, ledger contract, model-call flow, invariants, telemetry, failure behavior, and troubleshooting guide.
 
-Both methods share the same compaction lifecycle, provider/auth resolution, output validation, progressive source-unit executor, exact partial-boundary handling, and post-compaction pruning. Changing the setting affects the **next** compaction without requiring a restart; an active compaction keeps the method it captured when it started.
+When local compaction runs, both methods share the same lifecycle, provider/auth resolution, output validation, progressive source-unit executor, exact partial-boundary handling, and post-compaction pruning. A web/runtime settings change affects the **next** compaction without requiring a restart; an active compaction keeps the method it captured when it started. Manual `.piclaw/config.json` or environment changes require a restart unless the running process is updated separately. The optional provider-native pre-pass described below is orthogonal: shared source preparation and tool analysis run first; remote success then completes before local ledger/prompt construction and model execution, while a safe remote failure continues into the captured Selective or Pipelined method.
 
 Set the method with the web **Compaction → Processing method** control, the environment variable, or `.piclaw/config.json`:
 
@@ -341,7 +341,7 @@ The legacy aliases `traditional_pipelined`, `traditional-pipelined`, and `tradit
 
 ### Provider-native remote compaction
 
-Provider-native compaction is an **opt-in pre-pass**. When enabled, Piclaw attempts it before the configured Selective or Pipelined method. The local method remains the atomic fallback for disabled or unsupported providers, unverified endpoints, missing authentication, timeouts, malformed responses, and provider errors. A remote failure does not partially mutate the session or skip local compaction.
+Provider-native compaction is an **opt-in pre-pass** after shared source preparation, tool analysis, and file-operation reconciliation. When enabled, Piclaw attempts it before the configured Selective or Pipelined method's ledger/prompt construction and model execution. The local method remains the atomic fallback for disabled or unsupported providers, unverified endpoints, missing authentication, timeouts, malformed responses, provider errors, and remote-backoff suppression. A remote failure does not partially mutate the session or skip local compaction.
 
 Support is capability-gated by exact provider, API, and endpoint metadata. Piclaw does not infer support from a model name or from generic `openai-responses` compatibility. The initial supported matrix is:
 
