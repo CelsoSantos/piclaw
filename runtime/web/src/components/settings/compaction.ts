@@ -16,7 +16,7 @@ function normalizeCompactionSettings(data: Record<string, any> = {}) {
         smartCompactionMethod: normalizeSmartCompactionMethod(data.smartCompactionMethod),
         remoteCompactionEnabled: Boolean(data.remoteCompactionEnabled ?? false),
         remoteCompactionTimeoutSec: data.remoteCompactionTimeoutSec ?? 60,
-        remoteCompactionSupportedProviders: Array.isArray(data.remoteCompactionSupportedProviders) ? data.remoteCompactionSupportedProviders : ['openai'],
+        remoteCompactionSupportedProviders: Array.isArray(data.remoteCompactionSupportedProviders) ? data.remoteCompactionSupportedProviders : ['openai', 'openai-codex'],
         compactionTimeoutSec: data.compactionTimeoutSec ?? 300,
         compactionBackoffBaseMin: data.compactionBackoffBaseMin ?? 15,
         compactionBackoffMaxMin: data.compactionBackoffMaxMin ?? 360,
@@ -48,7 +48,7 @@ export function CompactionSection({ settingsData, setStatus, mergeSettingsData }
     const [smartCompactionMethod, setSmartCompactionMethod] = useState('selective');
     const [remoteCompactionEnabled, setRemoteCompactionEnabled] = useState(false);
     const [remoteCompactionTimeoutSec, setRemoteCompactionTimeoutSec] = useState(60);
-    const [remoteCompactionSupportedProviders, setRemoteCompactionSupportedProviders] = useState(['openai']);
+    const [remoteCompactionSupportedProviders, setRemoteCompactionSupportedProviders] = useState(['openai', 'openai-codex']);
     const [compactionTimeoutSec, setCompactionTimeoutSec] = useState(300);
     const [compactionBackoffBaseMin, setCompactionBackoffBaseMin] = useState(15);
     const [compactionBackoffMaxMin, setCompactionBackoffMaxMin] = useState(360);

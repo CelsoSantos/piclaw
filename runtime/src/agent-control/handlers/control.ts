@@ -21,6 +21,7 @@ import { createLogger, debugSuppressedError } from "../../utils/logger.js";
 import { killTrackedProcesses } from "../../utils/process-tracker.js";
 import { abortLiveSshCommand } from "../../extensions/ssh-core.js";
 import { pruneOrphanToolResults } from "../../agent-pool/orphan-tool-results.js";
+import { parsePiclawCompactionResultDetails, type PiclawCompactionResultDetails } from "../../extensions/smart-compaction/result-details.js";
 import {
   buildFreshContextUsageUpdateEvent,
   isCompactionCancellationError,
@@ -91,7 +92,7 @@ function formatCompactionTokenDelta(report: CompactionContextReport): string {
   const source = report.estimatedTokensAfterSource === "upstream" ? "upstream" : "Piclaw";
   const reduction = formatReductionPercent(report.reductionPercent);
   return [
-    `${formatCompactNumber(report.estimatedTokensAfter)} after (${source} estimate)`,
+    `${formatCompactNumber(report.estimatedTokensAfter)} (${source} estimate)`,
     reduction ? `${reduction} reduction` : null,
   ].filter(Boolean).join(" · ");
 }
@@ -109,14 +110,44 @@ function contextUsageFromEvent(event: unknown): AgentControlResult["contextUsage
   };
 }
 
+function capitalizeLabel(value: string): string {
+  return value.split("_").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+}
+
+function formatCompactionPath(details: PiclawCompactionResultDetails | null): {
+  method: string;
+  execution: string;
+  remote: string;
+} {
+  if (details?.kind === "piclaw.remote_compaction") {
+    return { method: "Provider-native", execution: "Provider-native", remote: "Success" };
+  }
+  if (details?.kind === "piclaw.smart_compaction") {
+    const remote = capitalizeLabel(details.remoteCompaction.outcome)
+      + (details.remoteCompaction.reason ? ` — ${details.remoteCompaction.reason}` : "");
+    return {
+      method: capitalizeLabel(details.method),
+      execution: capitalizeLabel(details.execution),
+      remote,
+    };
+  }
+  return {
+    method: "Unreported by compaction provider",
+    execution: "Unreported by compaction provider",
+    remote: "Unreported by compaction provider",
+  };
+}
+
 function buildCompactReport(
   summary: string,
   tokensBefore: number,
   firstKeptEntryId: string | number | null | undefined,
   timestamp: string,
-  contextReport: CompactionContextReport
+  contextReport: CompactionContextReport,
+  details: PiclawCompactionResultDetails | null,
 ): string {
   const reduction = formatReductionPercent(contextReport.reductionPercent);
+  const path = formatCompactionPath(details);
   return [
     "# Compaction report",
     "",
@@ -126,6 +157,9 @@ function buildCompactReport(
     `Safety-adjusted tokens after: ${formatCompactNumber(contextReport.safetyAdjustedTokensAfter)}`,
     reduction ? `Estimated reduction: ${reduction}` : null,
     `First kept entry: ${firstKeptEntryId ?? "unknown"}`,
+    `Method: ${path.method}`,
+    `Execution: ${path.execution}`,
+    `Provider-native pre-pass: ${path.remote}`,
     "",
     "## Summary",
     "",
@@ -139,11 +173,13 @@ function createCompactReportAttachment(
   tokensBefore: number,
   firstKeptEntryId: string | number | null | undefined,
   timestamp: string,
-  contextReport: CompactionContextReport
+  contextReport: CompactionContextReport,
+  details: PiclawCompactionResultDetails | null,
 ): number | null {
   try {
     const filename = toCompactReportFilename(timestamp);
-    const content = buildCompactReport(summary, tokensBefore, firstKeptEntryId, timestamp, contextReport);
+    const content = buildCompactReport(summary, tokensBefore, firstKeptEntryId, timestamp, contextReport, details);
+    const path = formatCompactionPath(details);
     return createMedia(
       filename,
       "text/markdown",
@@ -158,6 +194,9 @@ function createCompactReportAttachment(
         safety_adjusted_tokens_after: contextReport.safetyAdjustedTokensAfter,
         reduction_percent: contextReport.reductionPercent,
         first_kept_entry_id: firstKeptEntryId ?? null,
+        compaction_method: path.method,
+        compaction_execution: path.execution,
+        remote_compaction_outcome: path.remote,
       }
     );
   } catch (error) {
@@ -348,7 +387,9 @@ export async function handleCompact(session: AgentSession, command: CompactComma
           countSuccess: false,
         });
       }
-      const compactResult = compactionResult.result as { summary: string; tokensBefore: number; firstKeptEntryId: string | number | null | undefined; estimatedTokensAfter?: number };
+      const compactResult = compactionResult.result as { summary: string; tokensBefore: number; firstKeptEntryId: string | number | null | undefined; estimatedTokensAfter?: number; details?: unknown };
+      const compactionDetails = parsePiclawCompactionResultDetails(compactResult.details);
+      const compactionPath = formatCompactionPath(compactionDetails);
       const contextReport = getCompactionContextReport(session, compactResult);
       const freshContextUsage = contextUsageFromEvent(buildFreshContextUsageUpdateEvent(session, chatJid, "after_manual_compaction", {
         source: "compact_command",
@@ -359,10 +400,14 @@ export async function handleCompact(session: AgentSession, command: CompactComma
         compactResult.tokensBefore,
         compactResult.firstKeptEntryId,
         generatedAt,
-        contextReport
+        contextReport,
+        compactionDetails,
       );
       const lines = [
         "Compaction complete.",
+        `Method: ${compactionPath.method}`,
+        `Execution: ${compactionPath.execution}`,
+        `Provider-native pre-pass: ${compactionPath.remote}`,
         prunedToolResults > 0 ? `Removed ${prunedToolResults} orphaned tool-result block${prunedToolResults === 1 ? "" : "s"} before rewriting the session.` : null,
         `Tokens before: ${formatCompactNumber(compactResult.tokensBefore)}`,
         `Estimated after: ${formatCompactionTokenDelta(contextReport)}`,

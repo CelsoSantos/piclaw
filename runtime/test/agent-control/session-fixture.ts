@@ -199,7 +199,20 @@ export class TestAgentControlSession {
       thinkingLevel: "low",
       model: { provider: "openai", modelId: "gpt-test" },
     };
-    return { tokensBefore: 1200, estimatedTokensAfter: 42, firstKeptEntryId: "entry-1", summary: "Summary" } as any;
+    return {
+      tokensBefore: 1200,
+      estimatedTokensAfter: 42,
+      firstKeptEntryId: "entry-1",
+      summary: "Summary",
+      details: {
+        kind: "piclaw.smart_compaction",
+        version: 1,
+        method: "pipelined",
+        execution: "single_pass",
+        remoteCompaction: { outcome: "provider_failure", reason: "Remote endpoint returned HTTP 503" },
+        modelCallCount: 1,
+      },
+    } as any;
   }
 
   setAutoCompactionEnabled(enabled: boolean) {

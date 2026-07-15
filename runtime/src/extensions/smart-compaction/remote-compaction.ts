@@ -1,6 +1,6 @@
 /** Provider-native remote compaction with opaque, persisted canonical-context replay. */
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { convertResponsesMessages } from "@earendil-works/pi-ai/api/openai-responses-shared";
+import { convertResponsesMessages, convertResponsesTools } from "@earendil-works/pi-ai/api/openai-responses-shared";
 import type { Api, Model, Tool } from "@earendil-works/pi-ai";
 import { convertToLlm, type FileOperations, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import type { ModelRequestAuth } from "../../utils/model-auth.js";
@@ -13,14 +13,16 @@ export const REMOTE_COMPACTION_DETAILS_KIND = "piclaw.remote_compaction";
 export const REMOTE_COMPACTION_DETAILS_VERSION = 1;
 const REMOTE_COMPACTION_ADAPTER = "openai-responses-compact";
 const MAX_REMOTE_COMPACTION_RESPONSE_CHARS = 16 * 1024 * 1024;
-const OPENAI_TOOL_CALL_PROVIDERS = new Set(["openai"]);
+const OPENAI_TOOL_CALL_PROVIDERS = new Set(["openai", "openai-codex"]);
 
 export interface RemoteCompactionCapability {
   supportsRemoteCompaction: true;
-  provider: "openai";
-  api: "openai-responses";
+  provider: "openai" | "openai-codex";
+  api: "openai-responses" | "openai-codex-responses";
   adapter: typeof REMOTE_COMPACTION_ADAPTER;
-  baseUrl: "https://api.openai.com/v1";
+  baseUrl: "https://api.openai.com/v1" | "https://chatgpt.com/backend-api";
+  endpointPath: "responses/compact" | "codex/responses/compact";
+  auth: "bearer" | "codex-oauth";
 }
 
 /**
@@ -35,6 +37,17 @@ export const REMOTE_COMPACTION_CAPABILITIES: Readonly<Record<string, RemoteCompa
     api: "openai-responses",
     adapter: REMOTE_COMPACTION_ADAPTER,
     baseUrl: "https://api.openai.com/v1",
+    endpointPath: "responses/compact",
+    auth: "bearer",
+  }),
+  "openai-codex": Object.freeze({
+    supportsRemoteCompaction: true,
+    provider: "openai-codex",
+    api: "openai-codex-responses",
+    adapter: REMOTE_COMPACTION_ADAPTER,
+    baseUrl: "https://chatgpt.com/backend-api",
+    endpointPath: "codex/responses/compact",
+    auth: "codex-oauth",
   }),
 });
 
@@ -69,6 +82,7 @@ export interface RemoteCompactionDetails {
 export type RemoteCompactionFailureCode =
   | "disabled"
   | "unsupported"
+  | "unavailable"
   | "auth"
   | "timeout"
   | "cancelled"
@@ -123,14 +137,42 @@ export function resolveRemoteCompactionCapability(model: Model<Api> | undefined)
   return { ok: true, capability };
 }
 
-function hasAuthorizationHeader(headers: Record<string, string> | undefined): boolean {
-  return Object.entries(headers ?? {}).some(([name, value]) =>
-    name.toLowerCase() === "authorization" && typeof value === "string" && value.trim().length > 0
-  );
+function authorizationBearerToken(headers: Record<string, string> | undefined): string | null {
+  const authorization = Object.entries(headers ?? {}).find(([name]) => name.toLowerCase() === "authorization")?.[1];
+  if (typeof authorization !== "string") return null;
+  const match = authorization.trim().match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
 }
 
-function buildEndpoint(baseUrl: string): string {
-  return `${normalizedBaseUrl(baseUrl)}/responses/compact`;
+function hasAuthorizationHeader(headers: Record<string, string> | undefined): boolean {
+  return authorizationBearerToken(headers) !== null;
+}
+
+function buildEndpoint(baseUrl: string, capability: RemoteCompactionCapability): string {
+  return `${normalizedBaseUrl(baseUrl)}/${capability.endpointPath}`;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+    return decoded && typeof decoded === "object" && !Array.isArray(decoded)
+      ? decoded as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractCodexAccountId(token: string): string | null {
+  const payload = decodeJwtPayload(token);
+  const auth = payload?.["https://api.openai.com/auth"];
+  if (!auth || typeof auth !== "object" || Array.isArray(auth)) return null;
+  const accountId = (auth as Record<string, unknown>).chatgpt_account_id;
+  return typeof accountId === "string" && accountId.trim() ? accountId.trim() : null;
 }
 
 function finiteNonNegative(value: unknown): number | undefined {
@@ -385,6 +427,19 @@ export async function attemptRemoteCompaction(options: {
     ...(options.auth.headers ?? {}),
   };
   if (!hasAuthorizationHeader(headers) && options.auth.apiKey) headers.authorization = `Bearer ${options.auth.apiKey}`;
+  if (capability.capability.auth === "codex-oauth") {
+    const oauthToken = authorizationBearerToken(headers);
+    if (!oauthToken) {
+      return recordFailure({ ok: false, code: "auth", message: "OpenAI Codex OAuth token is unavailable for remote compaction" });
+    }
+    const accountId = extractCodexAccountId(oauthToken);
+    if (!accountId) {
+      return recordFailure({ ok: false, code: "auth", message: "OpenAI Codex OAuth token did not contain a ChatGPT account ID" });
+    }
+    headers["chatgpt-account-id"] = accountId;
+    headers.originator = "pi";
+    headers["OpenAI-Beta"] = "responses=experimental";
+  }
   // The direct compact endpoint bypasses the normal provider-request hook.
   // Apply the same duplicate provider-ID sanitizer before sending a combined
   // persisted + fresh Responses window.
@@ -392,10 +447,13 @@ export async function attemptRemoteCompaction(options: {
     model: options.model.id,
     input,
     ...(options.systemPrompt?.trim() ? { instructions: options.systemPrompt } : {}),
+    ...(options.tools?.length ? { tools: convertResponsesTools(options.tools as readonly Tool[], { strict: null }) } : {}),
+    tool_choice: "auto",
+    parallel_tool_calls: true,
   });
   const combined = createCombinedAbortSignal(options.signal, options.timeoutMs);
   try {
-    const response = await (options.fetchFn ?? fetch)(buildEndpoint(options.model.baseUrl), {
+    const response = await (options.fetchFn ?? fetch)(buildEndpoint(options.model.baseUrl, capability.capability), {
       method: "POST",
       headers,
       body: JSON.stringify(body),

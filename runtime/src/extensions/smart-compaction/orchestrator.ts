@@ -37,6 +37,7 @@ import {
 } from "./remote-compaction.js";
 import { buildPipelinedAuditTelemetry, buildPipelinedPrompt } from "./pipelined.js";
 import { assemblePipelineEvents, buildCanonicalPipelineSourceUnits } from "./pipeline-events.js";
+import { createSmartCompactionResultDetails, type SmartCompactionRemoteOutcome } from "./result-details.js";
 import { sanitizeContextPruneCompactionMessages } from "../context-prune/pruner.js";
 import {
   buildTargetContextGuidance,
@@ -156,6 +157,24 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       // the already-cleared controller.
       const abortSignal = signal;
       const compactionStartedAt = Date.now();
+      let remoteOutcome: Exclude<SmartCompactionRemoteOutcome, "success"> = compactionRuntimeConfig.remoteCompactionEnabled
+        ? "unsupported"
+        : "disabled";
+      let remoteReason = compactionRuntimeConfig.remoteCompactionEnabled
+        ? "Provider-native capability was not attempted"
+        : "Provider-native compaction is disabled";
+      const resultDetails = (
+        execution: Parameters<typeof createSmartCompactionResultDetails>[0]["execution"],
+        modelCallCount: number,
+        progress?: { processedChunkCount: number; totalChunkCount: number },
+      ) => createSmartCompactionResultDetails({
+        method: smartCompactionMethod,
+        execution,
+        remoteOutcome,
+        remoteReason,
+        modelCallCount,
+        ...progress,
+      });
       const publishCompactionStage = (message: string, phase: string, _tokens?: number | null, completionPercent = estimateSmartCompactionCompletionPercent(phase)) => {
         publishCompactionStatus(ctx, message, completionPercent, statusOwner);
       };
@@ -255,6 +274,8 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
       if (compactionRuntimeConfig.remoteCompactionEnabled) {
         const modelRequest = await resolveSmartCompactionModelRequest(ctx);
         if (!modelRequest.ok) {
+          remoteOutcome = "unavailable";
+          remoteReason = modelRequest.error;
           log.debug("Provider-native compaction unavailable; using configured local fallback", {
             operation: "remote_compaction.fallback",
             outcome: "auth",
@@ -317,6 +338,8 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             };
           }
           if (remoteResult.code === "cancelled") return { cancel: true };
+          remoteOutcome = remoteResult.code;
+          remoteReason = remoteResult.message;
           log.debug("Provider-native compaction failed; using configured local fallback", {
             operation: "remote_compaction.fallback",
             outcome: remoteResult.code,
@@ -506,6 +529,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
               compaction: {
                 ...noOpResult.compaction,
                 firstKeptEntryId: adjusted.firstKeptEntryId,
+                details: resultDetails("deterministic_noop", 0),
               },
             };
           } catch {
@@ -519,7 +543,12 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           finalContextTokens = postFit.estimatedTotal;
           publishCompactionStage(statusMessage(compactionMetadata, "reused existing summary…"), "completed_noop", postFit.estimatedTotal);
           logNoOpMetrics(noOpResult.compaction.summary, postFit.estimatedTotal, null);
-          return noOpResult;
+          return {
+            compaction: {
+              ...noOpResult.compaction,
+              details: resultDetails("deterministic_noop", 0),
+            },
+          };
         }
       } else if (noOpResult && noOpValidation && !noOpValidation.ok) {
         log.debug("No-op compaction rejected an inherited malformed summary; falling through to LLM compaction", {
@@ -787,6 +816,14 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
               summary: fullSummary,
               firstKeptEntryId: finalFirstKeptEntryId,
               tokensBefore,
+              details: resultDetails(
+                progressiveResult.complete ? "progressive" : "progressive_partial",
+                progressiveResult.modelCallCount,
+                {
+                  processedChunkCount: progressiveResult.processedChunkCount,
+                  totalChunkCount: progressiveResult.totalChunkCount,
+                },
+              ),
             } satisfies CompactionResult,
           };
         } catch (err) {
@@ -873,6 +910,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           summary: fullSummary,
           firstKeptEntryId: adjustedFit.firstKeptEntryId,
           tokensBefore,
+          details: resultDetails(methodResult.modelCallCount > 1 ? "single_pass_repair" : "single_pass", methodResult.modelCallCount),
         } satisfies CompactionResult,
       };
     } catch (error) {

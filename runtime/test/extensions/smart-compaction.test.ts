@@ -398,7 +398,10 @@ describe("smart-compaction", () => {
         signal: new AbortController().signal,
       }, makeCtx({ model: openaiModel }));
 
-      const requestBody = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body));
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("https://api.openai.com/v1/responses/compact");
+      expect((init.headers as Record<string, string>).authorization).toBe("Bearer test-key");
+      const requestBody = JSON.parse(String(init.body));
       expect(JSON.stringify(requestBody.input)).toContain("LEGACY_LOCAL_SUMMARY");
       expect(result.compaction.summary).toContain("opaque canonical context is injected");
       expect(result.compaction.details).toMatchObject({
@@ -410,6 +413,156 @@ describe("smart-compaction", () => {
       expect(result.compaction.details.output[1].encrypted_content).toBe("opaque-ciphertext");
       expect(result.compaction.details.fileOperations.edited).toContain("/workspace/file-4.ts");
       expect(completeSimple).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("uses the verified ChatGPT Codex compact endpoint with OAuth account headers", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "pipelined" });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [{ type: "compaction", encrypted_content: "codex-opaque-ciphertext" }],
+    }), { status: 200 }));
+    globalThis.fetch = fetchMock as any;
+    const accountId = "account-fixture-123";
+    const jwtPart = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const oauthToken = `${jwtPart({ alg: "none" })}.${jwtPart({ "https://api.openai.com/auth": { chatgpt_account_id: accountId } })}.signature`;
+    const codexModel = {
+      provider: "openai-codex",
+      id: "gpt-5.5",
+      name: "Codex fixture",
+      api: "openai-codex-responses",
+      baseUrl: "https://chatgpt.com/backend-api",
+      reasoning: true,
+      input: ["text", "image"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 272_000,
+      maxTokens: 128_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({
+        model: codexModel,
+        modelRegistry: {
+          getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: oauthToken }),
+          getAll: vi.fn().mockReturnValue([]),
+        },
+      }));
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("https://chatgpt.com/backend-api/codex/responses/compact");
+      const headers = init.headers as Record<string, string>;
+      expect(headers.authorization).toBe(`Bearer ${oauthToken}`);
+      expect(headers["chatgpt-account-id"]).toBe(accountId);
+      expect(headers.originator).toBe("pi");
+      expect(headers["OpenAI-Beta"]).toBe("responses=experimental");
+      const requestBody = JSON.parse(String(init.body));
+      expect(requestBody.model).toBe("gpt-5.5");
+      expect(requestBody.tool_choice).toBe("auto");
+      expect(requestBody.parallel_tool_calls).toBe(true);
+      expect(result.compaction.details).toMatchObject({
+        kind: "piclaw.remote_compaction",
+        provider: "openai-codex",
+        modelId: "gpt-5.5",
+        api: "openai-codex-responses",
+        baseUrl: "https://chatgpt.com/backend-api",
+      });
+      expect(completeSimple).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("derives Codex account metadata from the bearer header when apiKey is absent", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [{ type: "compaction", encrypted_content: "header-token-opaque" }],
+    }), { status: 200 }));
+    globalThis.fetch = fetchMock as any;
+    const accountId = "header-account-123";
+    const jwtPart = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const oauthToken = `${jwtPart({ alg: "none" })}.${jwtPart({ "https://api.openai.com/auth": { chatgpt_account_id: accountId } })}.signature`;
+    const codexModel = {
+      provider: "openai-codex",
+      id: "gpt-5.5",
+      api: "openai-codex-responses",
+      baseUrl: "https://chatgpt.com/backend-api",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 272_000,
+      maxTokens: 128_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({
+        model: codexModel,
+        modelRegistry: {
+          getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, headers: { Authorization: `Bearer ${oauthToken}` } }),
+          getAll: vi.fn().mockReturnValue([]),
+        },
+      }));
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+      expect(headers["chatgpt-account-id"]).toBe(accountId);
+      expect(result.compaction.details).toMatchObject({ kind: "piclaw.remote_compaction", provider: "openai-codex" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls back safely when a Codex OAuth token has no ChatGPT account ID", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as any;
+    const jwtPart = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const oauthToken = `${jwtPart({ alg: "none" })}.${jwtPart({ sub: "fixture" })}.signature`;
+    const codexModel = {
+      provider: "openai-codex",
+      id: "gpt-5.5",
+      api: "openai-codex-responses",
+      baseUrl: "https://chatgpt.com/backend-api",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 272_000,
+      maxTokens: 128_000,
+    };
+    const fallbackSummary = "## Goal\nPreserve continuity\n\n## Current Active Topic\n- Codex fallback\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- safe fallback\n\n## Progress\n### Done\n- [x] validated OAuth metadata\n### In Progress\n- [ ] continue locally\n### Blocked\n- none\n\n## Key Decisions\n- **Auth**: reject incomplete Codex OAuth metadata\n\n## Next Steps\n1. continue\n\n## Critical Context\n- no remote request was sent";
+    completeSimple.mockResolvedValue({ content: [{ type: "text", text: fallbackSummary }], stopReason: "stop" });
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({
+        model: codexModel,
+        modelRegistry: {
+          getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: oauthToken }),
+          getAll: vi.fn().mockReturnValue([]),
+        },
+      }));
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.compaction.details).toMatchObject({
+        kind: "piclaw.smart_compaction",
+        method: "selective",
+        remoteCompaction: {
+          outcome: "auth",
+          reason: "OpenAI Codex OAuth token did not contain a ChatGPT account ID",
+        },
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -444,7 +597,16 @@ describe("smart-compaction", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
       expect(completeSimple).toHaveBeenCalled();
-      expect(result.compaction.details).toBeUndefined();
+      expect(result.compaction.details).toMatchObject({
+        kind: "piclaw.smart_compaction",
+        method: "selective",
+        execution: "single_pass",
+        remoteCompaction: {
+          outcome: "provider_failure",
+          reason: "Remote compaction endpoint returned HTTP 503",
+        },
+        modelCallCount: 1,
+      });
       expect(result.compaction.summary).toContain("## Goal");
     } finally {
       globalThis.fetch = originalFetch;
@@ -964,6 +1126,13 @@ describe("smart-compaction", () => {
           summary: expect.stringContaining("Cross-method continuity"),
           firstKeptEntryId: "kept-matrix",
           tokensBefore: 42_000,
+          details: expect.objectContaining({
+            kind: "piclaw.smart_compaction",
+            method,
+            execution: "single_pass",
+            remoteCompaction: { outcome: "disabled", reason: "Provider-native compaction is disabled" },
+            modelCallCount: 1,
+          }),
         },
       });
       expect(validateCompactionSummaryResponse(
@@ -4042,6 +4211,93 @@ describe("smart-compaction", () => {
       expect(completeSimple).toHaveBeenCalledTimes(1);
       expect(result.compaction.summary).not.toContain("<modified-files>");
       expect(result.compaction.summary).not.toContain("missing.ts");
+    });
+
+    it("removes a successfully shell-deleted file from deterministic file facts", async () => {
+      (completeSimple as any).mockResolvedValueOnce({
+        content: [{ type: "text", text: freshSummary }],
+        stopReason: "stop",
+      });
+
+      const deletedPath = "/workspace/tmp/repro-editor-conflict.ts";
+      const result = await handler!(
+        {
+          preparation: makePreparation(5, {
+            messagesToSummarize: [
+              userMsg("Create the reproduction and remove it after confirming the race"),
+              assistantToolCallMsg([{ id: "tc-write-repro", name: "write", args: { path: deletedPath } }]),
+              toolResultMsg("tc-write-repro", "write", `Created ${deletedPath} successfully`),
+              assistantToolCallMsg([{ id: "tc-rm-repro", name: "bash", args: { command: `rm -f -- '${deletedPath}'` } }]),
+              toolResultMsg("tc-rm-repro", "bash", "Command completed successfully"),
+            ],
+            previousSummary: `${freshSummary}\n<modified-files>\ntmp/repro-editor-conflict.ts\n</modified-files>`,
+            fileOps: { read: new Set<string>(), written: new Set([deletedPath]), edited: new Set<string>() },
+            isSplitTurn: true,
+          }),
+          branchEntries: [],
+          signal: new AbortController().signal,
+        },
+        makeCtx(),
+      );
+
+      expect(result.compaction.summary).not.toContain("repro-editor-conflict.ts");
+      expect(result.compaction.summary).not.toContain("<modified-files>");
+    });
+
+    it("does not infer deletions from compound or failed shell commands", async () => {
+      (completeSimple as any).mockResolvedValueOnce({
+        content: [{ type: "text", text: freshSummary }],
+        stopReason: "stop",
+      });
+
+      const retainedPath = "/workspace/retained.ts";
+      const result = await handler!(
+        {
+          preparation: makePreparation(4, {
+            messagesToSummarize: [
+              assistantToolCallMsg([{ id: "tc-compound-rm", name: "bash", args: { command: `rm -f ${retainedPath} && echo done` } }]),
+              toolResultMsg("tc-compound-rm", "bash", "done"),
+              assistantToolCallMsg([{ id: "tc-failed-rm", name: "bash", args: { command: `rm -f ${retainedPath}` } }]),
+              toolResultMsg("tc-failed-rm", "bash", "permission denied deleting retained.ts"),
+            ],
+            previousSummary: `${freshSummary}\n<modified-files>\nretained.ts\n</modified-files>`,
+            fileOps: { read: new Set<string>(), written: new Set([retainedPath]), edited: new Set<string>() },
+            isSplitTurn: true,
+          }),
+          branchEntries: [],
+          signal: new AbortController().signal,
+        },
+        makeCtx(),
+      );
+
+      expect(result.compaction.summary).toContain("retained.ts");
+    });
+
+    it("removes an inherited tracked file after a confirmed simple shell deletion", async () => {
+      (completeSimple as any).mockResolvedValueOnce({
+        content: [{ type: "text", text: freshSummary }],
+        stopReason: "stop",
+      });
+
+      const inheritedPath = "/workspace/inherited-deleted.ts";
+      const result = await handler!(
+        {
+          preparation: makePreparation(2, {
+            messagesToSummarize: [
+              assistantToolCallMsg([{ id: "tc-rm-inherited", name: "bash", args: { command: `rm -- '${inheritedPath}'` } }]),
+              toolResultMsg("tc-rm-inherited", "bash", "Command completed successfully"),
+            ],
+            previousSummary: `${freshSummary}\n<modified-files>\ninherited-deleted.ts\n</modified-files>`,
+            fileOps: { read: new Set<string>(), written: new Set<string>(), edited: new Set<string>() },
+            isSplitTurn: true,
+          }),
+          branchEntries: [],
+          signal: new AbortController().signal,
+        },
+        makeCtx(),
+      );
+
+      expect(result.compaction.summary).not.toContain("inherited-deleted.ts");
     });
 
     it("retains a file with a matched successful write result", async () => {

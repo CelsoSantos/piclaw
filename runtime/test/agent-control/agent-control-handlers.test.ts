@@ -299,8 +299,11 @@ test("agent control queue, compact, and abort commands", async () => {
 
   const compact = await applyControlCommand(runtime as any, registry, { type: "compact", instructions: "shorten", raw: "/compact shorten" });
   expect(compact.message).toContain("Compaction complete.");
+  expect(compact.message).toContain("Method: Pipelined");
+  expect(compact.message).toContain("Execution: Single Pass");
+  expect(compact.message).toContain("Provider-native pre-pass: Provider Failure — Remote endpoint returned HTTP 503");
   expect(compact.message).toContain("Removed 1 orphaned tool-result block before rewriting the session.");
-  expect(compact.message).toContain("Estimated after: 42 after (upstream estimate)");
+  expect(compact.message).toContain("Estimated after: 42 (upstream estimate)");
   expect(compact.message).toContain("96.5% reduction");
   expect(compact.message).toContain("Safety-adjusted after:");
   expect(compact.message).toContain("Attached: full compaction report (.md).");
@@ -322,8 +325,16 @@ test("agent control queue, compact, and abort commands", async () => {
   const compactMedia = db.getMediaById(compact.mediaIds![0]);
   expect(compactMedia?.filename).toMatch(/^compaction-report-.*\.md$/);
   expect(compactMedia?.content_type).toBe("text/markdown");
+  expect(compactMedia?.metadata).toMatchObject({
+    compaction_method: "Pipelined",
+    compaction_execution: "Single Pass",
+    remote_compaction_outcome: "Provider Failure — Remote endpoint returned HTTP 503",
+  });
   const compactReport = compactMedia ? new TextDecoder().decode(compactMedia.data) : "";
   expect(compactReport).toContain("# Compaction report");
+  expect(compactReport).toContain("Method: Pipelined");
+  expect(compactReport).toContain("Execution: Single Pass");
+  expect(compactReport).toContain("Provider-native pre-pass: Provider Failure — Remote endpoint returned HTTP 503");
   expect(compactReport).toContain("Estimated tokens after: 42 (upstream)");
   expect(compactReport).toContain("Estimated reduction: 96.5%");
   expect(compactReport).toContain("## Summary");

@@ -134,6 +134,7 @@ export interface ToolOutcomeFact {
   assistantIndex: number;
   resultIndex: number | null;
   keyArgument: string;
+  exactKeyArgument: string;
   pathArgument: string;
   outcome: string;
   isError: boolean;
@@ -260,9 +261,11 @@ export function analyzeToolOutcomes(messages: Message[]): ToolOutcomeAnalysis {
         : "";
       const outcome = compactToolOutcome(rawOutcome);
       const toolName = typeof call.name === "string" ? call.name : "?";
+      const exactKeyValue = call.arguments?.path ?? call.arguments?.command ?? call.arguments?.pattern ?? call.arguments?.query ?? "";
+      const exactKeyArgument = typeof exactKeyValue === "string" ? exactKeyValue.trim() : "";
       const isError = !!(matched?.message as any)?.isError
         || (MUTATION_STATUS_TOOLS.has(toolName) && hasFailureOutcome(rawOutcome))
-        || (COMMAND_STATUS_TOOLS.has(toolName) && COMMAND_FAILURE_OUTCOME_REGEX.test(rawOutcome));
+        || (COMMAND_STATUS_TOOLS.has(toolName) && (COMMAND_FAILURE_OUTCOME_REGEX.test(rawOutcome) || hasFailureOutcome(rawOutcome)));
       const missing = !matched;
       const noChange = NO_CHANGE_OUTCOME_REGEX.test(rawOutcome);
       const lowInformationSuccess = !!matched
@@ -290,6 +293,7 @@ export function analyzeToolOutcomes(messages: Message[]): ToolOutcomeAnalysis {
         assistantIndex,
         resultIndex: matched?.index ?? null,
         keyArgument: toolCallKeyArgument(call),
+        exactKeyArgument,
         pathArgument: typeof call.arguments?.path === "string" ? call.arguments.path : "",
         outcome,
         isError,

@@ -110,7 +110,7 @@ export function getCompactionSettingsData(): CompactionSettingsData {
     smartCompactionMethod: config.smartCompactionMethod,
     remoteCompactionEnabled: config.remoteCompactionEnabled,
     remoteCompactionTimeoutSec: Math.max(1, Math.round(config.remoteCompactionTimeoutMs / 1000)),
-    remoteCompactionSupportedProviders: ["openai"],
+    remoteCompactionSupportedProviders: ["openai", "openai-codex"],
     compactionTimeoutSec: Math.max(1, Math.round(config.timeoutMs / 1000)),
     compactionBackoffBaseMin: Math.max(1, Math.round(config.backoffBaseMs / 60_000)),
     compactionBackoffMaxMin: Math.max(1, Math.round(config.backoffMaxMs / 60_000)),

@@ -59,7 +59,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       smartCompactionMethod: 'pipelined',
       remoteCompactionEnabled: true,
       remoteCompactionTimeoutSec: 45,
-      remoteCompactionSupportedProviders: ['openai'],
+      remoteCompactionSupportedProviders: ['openai', 'openai-codex'],
       compactionTimeoutSec: 240,
       compactionBackoffBaseMin: 12,
       compactionBackoffMaxMin: 180,

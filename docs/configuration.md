@@ -347,7 +347,8 @@ Support is capability-gated by exact provider, API, and endpoint metadata. Picla
 
 | Provider | API | Endpoint | Status |
 |----------|-----|----------|--------|
-| OpenAI | `openai-responses` | `https://api.openai.com/v1/responses/compact` | Supported |
+| OpenAI API | `openai-responses` | `https://api.openai.com/v1/responses/compact` | Supported with API-key bearer authentication |
+| OpenAI Codex subscription | `openai-codex-responses` | `https://chatgpt.com/backend-api/codex/responses/compact` | Supported with Codex OAuth and `chatgpt-account-id` |
 | GitHub Copilot | any | any | Unsupported (verified compaction routes returned HTTP 404) |
 | OpenAI-compatible proxies and other providers | any | any | Unsupported until explicitly verified and registered |
 
