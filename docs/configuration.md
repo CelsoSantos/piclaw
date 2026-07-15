@@ -269,7 +269,7 @@ For the packaged Azure managed-identity/static-key path and its additional token
 | `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` | `48` | Last-resort executed-tool safety ceiling inside one prompt attempt; values above `512` are clamped. Reaching it does not itself imply context pressure or trigger compaction. |
 | `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction local processing method: `selective` or `pipelined` |
 | `PICLAW_REMOTE_COMPACTION_ENABLED` | `0` | Opt in to provider-native compaction before the selected local method |
-| `PICLAW_REMOTE_COMPACTION_TIMEOUT_MS` | `60000` | Provider-native compaction request deadline before deterministic local fallback |
+| `PICLAW_REMOTE_COMPACTION_TIMEOUT_MS` | `300000` | Provider-native compaction request deadline before deterministic local fallback; aligned with Codex's long-running compact endpoint |
 | `PICLAW_WHATSAPP_PHONE` | _(empty)_ | Alias for `WHATSAPP_PHONE` |
 | `PICLAW_TOOL_OUTPUT_RETENTION_MS` | `14400000` (4 h) | Milliseconds to retain stored tool outputs (preferred; overrides `_DAYS`) |
 | `PICLAW_TOOL_OUTPUT_RETENTION_DAYS` | _(legacy)_ | Days to retain stored tool outputs (deprecated; use `_MS`) |
@@ -356,14 +356,14 @@ Enable the feature in either web settings frontend under **Compaction → Provid
 
 ```bash
 PICLAW_REMOTE_COMPACTION_ENABLED=1
-PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=60000
+PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=300000
 ```
 
 ```json
 {
   "compaction": {
     "remoteCompactionEnabled": true,
-    "remoteCompactionTimeoutMs": 60000
+    "remoteCompactionTimeoutMs": 300000
   }
 }
 ```

@@ -276,15 +276,20 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         if (!modelRequest.ok) {
           remoteOutcome = "unavailable";
           remoteReason = modelRequest.error;
-          log.debug("Provider-native compaction unavailable; using configured local fallback", {
+          log.info("Provider-native compaction unavailable; using configured local fallback", {
             operation: "remote_compaction.fallback",
-            outcome: "auth",
+            outcome: remoteOutcome,
             fallbackMethod: smartCompactionMethod,
             reason: modelRequest.error,
           });
+          publishCompactionStage(
+            statusMessage(compactionMetadata, `LOCAL FALLBACK · ${smartCompactionMethod} · remote unavailable: ${modelRequest.error}`),
+            "remote_fallback",
+            tokensBefore,
+          );
         } else {
           publishCompactionStage(
-            statusMessage(compactionMetadata, "attempting provider-native compaction…"),
+            statusMessage(compactionMetadata, `REMOTE · ${modelRequest.model.provider}/${modelRequest.model.id} · compacting on provider…`),
             "remote_compaction",
             tokensBefore,
           );
@@ -312,12 +317,12 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             const outputChars = JSON.stringify(remoteResult.details.output).length;
             finalContextTokens = Math.max(1, Math.ceil(outputChars / 4)) + Math.max(0, Number(settings.keepRecentTokens) || 0);
             publishCompactionStage(
-              statusMessage(compactionMetadata, "completed provider-native compaction…"),
+              statusMessage(compactionMetadata, `REMOTE · ${remoteResult.details.provider}/${remoteResult.details.modelId} · provider-native compaction complete`),
               "completed_remote",
               finalContextTokens,
               100,
             );
-            log.debug("Provider-native compaction completed", {
+            log.info("Provider-native compaction completed", {
               operation: "remote_compaction.completed",
               outcome: "success",
               provider: remoteResult.details.provider,
@@ -340,7 +345,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
           if (remoteResult.code === "cancelled") return { cancel: true };
           remoteOutcome = remoteResult.code;
           remoteReason = remoteResult.message;
-          log.debug("Provider-native compaction failed; using configured local fallback", {
+          log.info("Provider-native compaction failed; using configured local fallback", {
             operation: "remote_compaction.fallback",
             outcome: remoteResult.code,
             provider: modelRequest.model.provider,
@@ -351,7 +356,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             reason: remoteResult.message,
           });
           publishCompactionStage(
-            statusMessage(compactionMetadata, `provider-native unavailable; falling back to ${smartCompactionMethod}…`),
+            statusMessage(compactionMetadata, `LOCAL FALLBACK · ${smartCompactionMethod} · remote ${remoteResult.code}: ${remoteResult.message}`),
             "remote_fallback",
             tokensBefore,
           );
@@ -829,8 +834,15 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           if (abortSignal.aborted || /Compaction cancelled/i.test(msg)) return { cancel: true };
-          log.debug(`Progressive compaction failed; cancelling instead of falling back to upstream full-pass compaction: ${msg}`);
-          return cancelCompactionWithReason(ctx, msg);
+          log.warn("Progressive compaction failed after provider-native fallback", {
+            operation: "smart_compaction.progressive_failed",
+            method: smartCompactionMethod,
+            remoteOutcome,
+            remoteReason,
+            durationMs: Date.now() - compactionStartedAt,
+            reason: msg,
+          });
+          return cancelCompactionWithReason(ctx, `${msg} (provider-native pre-pass: ${remoteOutcome} — ${remoteReason})`);
         }
       }
 

@@ -78,6 +78,60 @@ function extractResponseText(response: any): string {
     .trim();
 }
 
+function normalizeChunkFileBlocks(
+  rawText: string,
+  stopReason: string,
+): { ok: true; text: string } | CompactionSummaryValidationFailure {
+  const tagLikeMatches = [...rawText.matchAll(/<\/?(?:read-files|modified-files)\b[^>\n]*(?:>|$)/gi)];
+  if (tagLikeMatches.length === 0) return { ok: true, text: rawText };
+  for (const match of tagLikeMatches) {
+    if (!/^<\/?(?:read-files|modified-files)>$/i.test(match[0])) {
+      return failure("invalid_file_sections", `malformed deterministic file tag: ${match[0]}`, stopReason);
+    }
+  }
+
+  const terminalHeading = /^##\s+Key Continuity Facts\s*$/gm.exec(rawText);
+  if (!terminalHeading) return { ok: true, text: rawText };
+  const terminalBodyStart = (terminalHeading.index ?? 0) + terminalHeading[0].length;
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (const tag of ["read-files", "modified-files"] as const) {
+    const opens = [...rawText.matchAll(new RegExp(`<${tag}>`, "gi"))];
+    const closes = [...rawText.matchAll(new RegExp(`</${tag}>`, "gi"))];
+    if (opens.length !== closes.length || opens.length > 1) {
+      return failure("invalid_file_sections", `${tag} must have at most one balanced opening/closing pair`, stopReason);
+    }
+    if (opens.length === 0) continue;
+    const start = opens[0].index ?? -1;
+    const closeStart = closes[0].index ?? -1;
+    if (start < terminalBodyStart || closeStart <= start) {
+      return failure("invalid_file_sections", `${tag} must be a balanced block after ## Key Continuity Facts`, stopReason);
+    }
+    const end = closeStart + closes[0][0].length;
+    if (!rawText.slice(start + opens[0][0].length, closeStart).trim()) {
+      return failure("invalid_file_sections", `${tag} block is empty`, stopReason);
+    }
+    ranges.push({ start, end });
+  }
+  ranges.sort((left, right) => left.start - right.start);
+  for (let index = 1; index < ranges.length; index += 1) {
+    if (ranges[index].start < ranges[index - 1].end) {
+      return failure("invalid_file_sections", "deterministic file blocks must not overlap", stopReason);
+    }
+    if (rawText.slice(ranges[index - 1].end, ranges[index].start).trim()) {
+      return failure("invalid_file_sections", "chunk deterministic file blocks must be trailing", stopReason);
+    }
+  }
+  if (ranges.length > 0 && rawText.slice(ranges.at(-1)!.end).trim()) {
+    return failure("invalid_file_sections", "chunk deterministic file blocks must be trailing", stopReason);
+  }
+
+  let text = rawText;
+  for (const range of [...ranges].reverse()) {
+    text = `${text.slice(0, range.start).trimEnd()}\n${text.slice(range.end).trimStart()}`;
+  }
+  return { ok: true, text: text.trim() };
+}
+
 function hasSubstantiveSectionContent(content: string): boolean {
   return content
     .replace(/^###\s+.*$/gm, "")
@@ -102,13 +156,16 @@ export function validateCompactionSummaryResponse(
     );
   }
 
-  const text = extractResponseText(response);
-  if (!text) return failure("missing_text", "completion contained no text", stopReason);
+  const rawText = extractResponseText(response);
+  if (!rawText) return failure("missing_text", "completion contained no text", stopReason);
+  if (rawText.length > maxChars) {
+    return failure("too_large", `summary was ${rawText.length} characters; maximum is ${maxChars}`, stopReason);
+  }
+  const normalizedChunk = schema === "chunk" ? normalizeChunkFileBlocks(rawText, stopReason) : { ok: true as const, text: rawText };
+  if (!normalizedChunk.ok) return normalizedChunk;
+  const text = normalizedChunk.text;
   if (text.length < MIN_SUMMARY_CHARS) {
     return failure("too_short", `summary was ${text.length} characters; minimum is ${MIN_SUMMARY_CHARS}`, stopReason);
-  }
-  if (text.length > maxChars) {
-    return failure("too_large", `summary was ${text.length} characters; maximum is ${maxChars}`, stopReason);
   }
 
   const expected = schema === "final" ? FINAL_HEADINGS : CHUNK_HEADINGS;
@@ -172,7 +229,7 @@ export function validateCompactionSummaryResponse(
   const fileSectionRanges: Array<{ start: number; end: number }> = [];
   const tagLikeMatches = [...text.matchAll(/<\/?(?:read-files|modified-files)\b[^>\n]*(?:>|$)/gi)];
   if (schema === "chunk" && tagLikeMatches.length > 0) {
-    return failure("invalid_file_sections", "chunk summaries must not contain deterministic file blocks", stopReason);
+    return failure("invalid_file_sections", "chunk summaries contained malformed or unbalanced deterministic file blocks", stopReason);
   }
   for (const match of tagLikeMatches) {
     if (!/^<\/?(?:read-files|modified-files)>$/i.test(match[0])) {

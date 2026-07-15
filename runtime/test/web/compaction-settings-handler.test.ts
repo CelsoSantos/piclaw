@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import '../helpers.js';
-import { getCompactionRuntimeConfig, setCompactionRuntimeConfig } from '../../src/core/config.js';
+import { getCompactionRuntimeConfig, setCompactionRuntimeConfigForTests } from '../../src/core/config.js';
 import { importFresh, withTempWorkspaceEnv } from '../helpers.js';
 
 test('saveCompactionSettings persists and applies compaction settings immediately', async () => {
@@ -104,7 +104,7 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       },
     });
 
-    setCompactionRuntimeConfig({ ...runtimeBefore });
+    setCompactionRuntimeConfigForTests({ ...runtimeBefore });
     expect(getCompactionRuntimeConfig()).toEqual(runtimeBefore);
   });
 });

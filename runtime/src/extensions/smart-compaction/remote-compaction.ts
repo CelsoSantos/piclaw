@@ -448,7 +448,6 @@ export async function attemptRemoteCompaction(options: {
     input,
     ...(options.systemPrompt?.trim() ? { instructions: options.systemPrompt } : {}),
     ...(options.tools?.length ? { tools: convertResponsesTools(options.tools as readonly Tool[], { strict: null }) } : {}),
-    tool_choice: "auto",
     parallel_tool_calls: true,
   });
   const combined = createCombinedAbortSignal(options.signal, options.timeoutMs);
@@ -459,12 +458,6 @@ export async function attemptRemoteCompaction(options: {
       body: JSON.stringify(body),
       signal: combined.signal,
     });
-    if (!response.ok) {
-      const code: RemoteCompactionFailureCode = response.status === 401 || response.status === 403
-        ? "auth"
-        : "provider_failure";
-      return recordFailure({ ok: false, code, status: response.status, message: `Remote compaction endpoint returned HTTP ${response.status}` });
-    }
     const contentLength = Number(response.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > MAX_REMOTE_COMPACTION_RESPONSE_CHARS) {
       return recordFailure({ ok: false, code: "malformed", message: "Remote compaction response exceeded the safety limit" });
@@ -472,6 +465,32 @@ export async function attemptRemoteCompaction(options: {
     const text = await response.text();
     if (text.length > MAX_REMOTE_COMPACTION_RESPONSE_CHARS) {
       return recordFailure({ ok: false, code: "malformed", message: "Remote compaction response exceeded the safety limit" });
+    }
+    if (!response.ok) {
+      const code: RemoteCompactionFailureCode = response.status === 401 || response.status === 403
+        ? "auth"
+        : "provider_failure";
+      const errorDetail = (() => {
+        try {
+          const parsed = JSON.parse(text) as Record<string, unknown>;
+          const error = parsed.error;
+          if (typeof error === "string") return error;
+          if (error && typeof error === "object" && !Array.isArray(error)) {
+            const message = (error as Record<string, unknown>).message;
+            if (typeof message === "string") return message;
+          }
+          if (typeof parsed.detail === "string") return parsed.detail;
+        } catch {
+          return "";
+        }
+        return "";
+      })().replace(/\s+/g, " ").trim().slice(0, 500);
+      return recordFailure({
+        ok: false,
+        code,
+        status: response.status,
+        message: `Remote compaction endpoint returned HTTP ${response.status}${errorDetail ? `: ${errorDetail}` : ""}`,
+      });
     }
     let parsed: unknown;
     try {

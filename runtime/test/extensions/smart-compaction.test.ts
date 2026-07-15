@@ -2,9 +2,9 @@
  * smart-compaction.test.ts – unit tests for Selective and Pipelined compaction.
  */
 import path from "node:path";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as actualCodingAgent from "../../../node_modules/@earendil-works/pi-coding-agent/dist/index.js";
-import { setCompactionRuntimeConfig } from "../../src/core/config.js";
+import { getCompactionRuntimeConfig, setCompactionRuntimeConfigForTests, type CompactionRuntimeConfig } from "../../src/core/config.js";
 
 // We test the module by importing its factory and invoking it with a
 // mock ExtensionAPI, then firing the session_before_compact handler.
@@ -192,6 +192,7 @@ import {
   detectRecentTopicShift,
 } from "../../src/extensions/smart-compaction/selective-prompt.js";
 import { validateCompactionSummaryResponse } from "../../src/extensions/smart-compaction/summary-validation.js";
+import { clearRemoteCompactionBackoffForTests } from "../../src/extensions/smart-compaction/remote-compaction.js";
 import {
   beginCompactionStatusOwnership,
   finishCompactionStatusOwnership,
@@ -265,6 +266,27 @@ describe("smart-compaction output validation", () => {
     }
   });
 
+  it("strips balanced deterministic file blocks from chunk output while preserving file facts as ordinary bullets", () => {
+    const chunkSummary = `## Chunk Range\n- 1-4\n\n## Goals / User Intent\n- Preserve the exact file outcome\n\n## Constraints & Preferences\n- Keep paths exact\n\n## Decisions\n- Use deterministic final file facts\n\n## Files / Commands / Tool Outcomes\n- Wrote /workspace/a.ts\n\n## Progress\n- Done: reproduced\n- In progress: validate\n- Blocked: none\n\n## Open Questions / Next Steps\n- Continue\n\n## Key Continuity Facts\n- /workspace/a.ts was written\n\n<modified-files>\n/workspace/a.ts\n</modified-files>`;
+    expect(validateCompactionSummaryResponse(
+      { content: [{ type: "text", text: chunkSummary }], stopReason: "stop" },
+      "chunk",
+      20_000,
+    )).toMatchObject({
+      ok: true,
+      text: expect.not.stringContaining("<modified-files>"),
+    });
+  });
+
+  it("still rejects malformed deterministic file blocks in chunk output", () => {
+    const malformedChunk = `## Chunk Range\n- 1-4\n\n## Goals / User Intent\n- Preserve state\n\n## Constraints & Preferences\n- Keep paths exact\n\n## Decisions\n- Use deterministic facts\n\n## Files / Commands / Tool Outcomes\n- Wrote a.ts\n\n## Progress\n- Done: reproduced\n- In progress: validate\n- Blocked: none\n\n## Open Questions / Next Steps\n- Continue\n\n## Key Continuity Facts\n- a.ts was written\n<modified-files>\na.ts`;
+    expect(validateCompactionSummaryResponse(
+      { content: [{ type: "text", text: malformedChunk }], stopReason: "stop" },
+      "chunk",
+      20_000,
+    )).toMatchObject({ ok: false, code: "invalid_file_sections" });
+  });
+
   it("accepts one complete, normally stopped structured summary", () => {
     expect(validateCompactionSummaryResponse(
       { content: [{ type: "text", text: validSummary }], stopReason: "stop" },
@@ -276,14 +298,17 @@ describe("smart-compaction output validation", () => {
 
 describe("smart-compaction", () => {
   let handler: ((event: any, ctx: any) => Promise<any>) | null = null;
+  let runtimeConfigBefore: Readonly<CompactionRuntimeConfig>;
 
   beforeEach(() => {
     handler = null;
+    runtimeConfigBefore = getCompactionRuntimeConfig();
     // Method selection is mutable process state. Keep default-method tests
     // isolated from earlier parametrized or cross-file cases.
     delete process.env.PICLAW_SMART_COMPACTION_METHOD;
     delete process.env.PICLAW_REMOTE_COMPACTION_ENABLED;
-    setCompactionRuntimeConfig({ smartCompactionMethod: "selective", remoteCompactionEnabled: false, remoteCompactionTimeoutMs: 60_000 });
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: "selective", remoteCompactionEnabled: false, remoteCompactionTimeoutMs: 60_000 });
+    clearRemoteCompactionBackoffForTests();
     // Capture the registered handler
     const mockPi = {
       on: (eventName: string, fn: any) => {
@@ -293,6 +318,11 @@ describe("smart-compaction", () => {
     };
     createSmartCompactionExtension({ streamFn: compactionStreamFn })(mockPi as any);
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    setCompactionRuntimeConfigForTests({ ...runtimeConfigBefore });
+    clearRemoteCompactionBackoffForTests();
   });
 
   function makeCtx(overrides: Partial<any> = {}) {
@@ -370,7 +400,7 @@ describe("smart-compaction", () => {
 
   it("returns persisted opaque state when provider-native compaction succeeds before local execution", async () => {
     const originalFetch = globalThis.fetch;
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       output: [
         { type: "message", role: "user", content: [{ type: "input_text", text: "canonical" }] },
@@ -420,7 +450,7 @@ describe("smart-compaction", () => {
 
   it("uses the verified ChatGPT Codex compact endpoint with OAuth account headers", async () => {
     const originalFetch = globalThis.fetch;
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "pipelined" });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "pipelined" });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       output: [{ type: "compaction", encrypted_content: "codex-opaque-ciphertext" }],
     }), { status: 200 }));
@@ -463,7 +493,7 @@ describe("smart-compaction", () => {
       expect(headers["OpenAI-Beta"]).toBe("responses=experimental");
       const requestBody = JSON.parse(String(init.body));
       expect(requestBody.model).toBe("gpt-5.5");
-      expect(requestBody.tool_choice).toBe("auto");
+      expect(requestBody).not.toHaveProperty("tool_choice");
       expect(requestBody.parallel_tool_calls).toBe(true);
       expect(result.compaction.details).toMatchObject({
         kind: "piclaw.remote_compaction",
@@ -480,7 +510,7 @@ describe("smart-compaction", () => {
 
   it("derives Codex account metadata from the bearer header when apiKey is absent", async () => {
     const originalFetch = globalThis.fetch;
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       output: [{ type: "compaction", encrypted_content: "header-token-opaque" }],
     }), { status: 200 }));
@@ -523,7 +553,7 @@ describe("smart-compaction", () => {
 
   it("falls back safely when a Codex OAuth token has no ChatGPT account ID", async () => {
     const originalFetch = globalThis.fetch;
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
     const fetchMock = vi.fn();
     globalThis.fetch = fetchMock as any;
     const jwtPart = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -568,9 +598,43 @@ describe("smart-compaction", () => {
     }
   });
 
+  it("includes bounded provider error detail in remote fallback reporting", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { message: "Unknown parameter: tool_choice" },
+    }), { status: 400 })) as any;
+    const fallbackSummary = "## Goal\nPreserve continuity\n\n## Current Active Topic\n- remote fallback detail\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- bounded errors\n\n## Progress\n### Done\n- [x] captured provider detail\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Errors**: report provider detail\n\n## Next Steps\n1. continue\n\n## Critical Context\n- remote returned 400";
+    completeSimple.mockResolvedValue({ content: [{ type: "text", text: fallbackSummary }], stopReason: "stop" });
+    const openaiModel = {
+      provider: "openai",
+      id: "gpt-5.1",
+      api: "openai-responses",
+      baseUrl: "https://api.openai.com/v1",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128_000,
+      maxTokens: 16_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({ model: openaiModel }));
+      expect(result.compaction.details.remoteCompaction).toEqual({
+        outcome: "provider_failure",
+        reason: "Remote compaction endpoint returned HTTP 400: Unknown parameter: tool_choice",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("falls back atomically to the selected local method after a provider-native failure", async () => {
     const originalFetch = globalThis.fetch;
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })) as any;
     completeSimple.mockResolvedValue({
       content: [{ type: "text", text: "## Goal\nPreserve continuity\n\n## Current Active Topic\n- fallback\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- safe\n\n## Progress\n### Done\n- [x] remote attempt failed\n### In Progress\n- [ ] local fallback\n### Blocked\n- none\n\n## Key Decisions\n- **Fallback**: local compaction remains authoritative\n\n## Next Steps\n1. continue\n\n## Critical Context\n- provider returned 503" }],
@@ -615,7 +679,7 @@ describe("smart-compaction", () => {
 
   it("rehydrates prior opaque context when the remote retry falls back to local compaction", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("unavailable", { status: 503 }));
-    setCompactionRuntimeConfig({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
     completeSimple.mockResolvedValue({
       content: [{ type: "text", text: "## Goal\nPreserve native continuity\n\n## Current Active Topic\n- local fallback\n\n## Historical / Background Context\n- opaque context supplied\n\n## Constraints & Preferences\n- preserve all state\n\n## Progress\n### Done\n- [x] restored prior state\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Native input**: rehydrated before prompt\n\n## Next Steps\n1. continue\n\n## Critical Context\n- canonical state was available" }],
       stopReason: "stop",

@@ -21,7 +21,7 @@ test("classic compaction settings expose and persist both canonical processing m
   expect(component).toContain('<option value="selective">');
   expect(component).toContain('<option value="pipelined">');
   expect(component).toContain("remoteCompactionEnabled: Boolean(data.remoteCompactionEnabled ?? false)");
-  expect(component).toContain("remoteCompactionTimeoutSec: data.remoteCompactionTimeoutSec ?? 60");
+  expect(component).toContain("remoteCompactionTimeoutSec: data.remoteCompactionTimeoutSec ?? 300");
   expect(component).toContain("t('settings.compaction.remoteNative'");
   expect(component).toContain("mergeSettingsData?.(payload.settings)");
   expect(component).toContain("applyIncoming({ ...(settingsData || {}), ...(payload.settings || {}) })");

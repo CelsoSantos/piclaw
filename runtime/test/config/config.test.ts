@@ -5,6 +5,7 @@ import { createTempWorkspace, importFresh, withTempWorkspaceEnv } from "../helpe
 
 const RUNTIME_DIR = resolve(import.meta.dir, "../..");
 const CONFIG_SUBPROCESS = join(RUNTIME_DIR, "test", "config", "config-subprocess.ts");
+const COMPACTION_PERSISTENCE_SUBPROCESS = join(RUNTIME_DIR, "test", "config", "compaction-persistence-subprocess.ts");
 
 type ConfigSnapshot = Record<string, any>;
 
@@ -59,6 +60,47 @@ function loadConfigInSubprocess(
   return runConfigSubprocess(workspace, exports, options).snapshot;
 }
 
+test("compaction runtime settings survive a fresh process restart", () => {
+  const ws = createTempWorkspace("piclaw-compaction-persistence-");
+  try {
+    const write = Bun.spawnSync({
+      cmd: ["bun", COMPACTION_PERSISTENCE_SUBPROCESS],
+      cwd: ws.workspace,
+      env: {
+        PATH: process.env.PATH || "",
+        HOME: process.env.HOME || "/tmp",
+        PICLAW_WORKSPACE: ws.workspace,
+        PICLAW_STORE: ws.store,
+        PICLAW_DATA: ws.data,
+        PICLAW_DB_IN_MEMORY: "1",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(write.exitCode, write.stderr.toString()).toBe(0);
+    expect(JSON.parse(write.stdout.toString())).toMatchObject({
+      smartCompactionMethod: "pipelined",
+      remoteCompactionEnabled: true,
+      remoteCompactionTimeoutMs: 300_000,
+    });
+
+    const restarted = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: {
+        PICLAW_SMART_COMPACTION_METHOD: undefined,
+        PICLAW_REMOTE_COMPACTION_ENABLED: undefined,
+        PICLAW_REMOTE_COMPACTION_TIMEOUT_MS: undefined,
+      },
+    });
+    expect(restarted["call:getCompactionRuntimeConfig"]).toMatchObject({
+      smartCompactionMethod: "pipelined",
+      remoteCompactionEnabled: true,
+      remoteCompactionTimeoutMs: 300_000,
+    });
+  } finally {
+    ws.cleanup();
+  }
+});
+
 test("uses proportional compaction thresholds with the 300s progress watchdog disabled by default", () => {
   const ws = createTempWorkspace("piclaw-config-");
 
@@ -108,6 +150,49 @@ test("loads Piclaw-owned auto-compaction enable state without honoring poisoned 
       env: { PICLAW_AUTO_COMPACTION_ENABLED: "1" },
     });
     expect(snapshot["call:getCompactionRuntimeConfig"].autoCompactionEnabled).toBe(true);
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test("loads remote compaction settings from .env", () => {
+  const ws = createTempWorkspace("piclaw-compaction-dotenv-");
+  try {
+    writeFileSync(join(ws.workspace, ".env"), [
+      "PICLAW_SMART_COMPACTION_METHOD=pipelined",
+      "PICLAW_REMOTE_COMPACTION_ENABLED=1",
+      "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=300000",
+      "PICLAW_COMPACTION_TIMEOUT_MS=600000",
+      "PICLAW_COMPACTION_BACKOFF_BASE_MS=120000",
+      "PICLAW_COMPACTION_BACKOFF_MAX_MS=600000",
+      "PICLAW_COMPACTION_THRESHOLD_PERCENT=70",
+      "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS=123456",
+      "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR=0.25",
+    ].join("\n"), "utf8");
+    const snapshot = loadConfigInSubprocess(ws, ["call:getCompactionRuntimeConfig"], {
+      env: {
+        PICLAW_SMART_COMPACTION_METHOD: undefined,
+        PICLAW_REMOTE_COMPACTION_ENABLED: undefined,
+        PICLAW_REMOTE_COMPACTION_TIMEOUT_MS: undefined,
+        PICLAW_COMPACTION_TIMEOUT_MS: undefined,
+        PICLAW_COMPACTION_BACKOFF_BASE_MS: undefined,
+        PICLAW_COMPACTION_BACKOFF_MAX_MS: undefined,
+        PICLAW_COMPACTION_THRESHOLD_PERCENT: undefined,
+        PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS: undefined,
+        PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: undefined,
+      },
+    });
+    expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+      smartCompactionMethod: "pipelined",
+      remoteCompactionEnabled: true,
+      remoteCompactionTimeoutMs: 300_000,
+      timeoutMs: 600_000,
+      backoffBaseMs: 120_000,
+      backoffMaxMs: 600_000,
+      thresholdPercent: 70,
+      maxThresholdTokens: 123456,
+      backoffDecayFactor: 0.25,
+    });
   } finally {
     ws.cleanup();
   }

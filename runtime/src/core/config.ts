@@ -97,6 +97,16 @@ const envConfig = readEnvFile([
   "PICLAW_SESSION_AUTO_ROTATE",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
   "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
+  "PICLAW_AUTO_COMPACTION_ENABLED",
+  "PICLAW_SMART_COMPACTION_METHOD",
+  "PICLAW_REMOTE_COMPACTION_ENABLED",
+  "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+  "PICLAW_COMPACTION_TIMEOUT_MS",
+  "PICLAW_COMPACTION_BACKOFF_BASE_MS",
+  "PICLAW_COMPACTION_BACKOFF_MAX_MS",
+  "PICLAW_COMPACTION_THRESHOLD_PERCENT",
+  "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
+  "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
   "PICLAW_PROGRESS_WATCHDOG_ENABLED",
   "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
   "PICLAW_AUTO_COMPACTION_SCOPE",
@@ -1552,7 +1562,7 @@ export function setToolUseMessageBudget(budget: number): number {
 }
 
 const DEFAULT_COMPACTION_TIMEOUT_MS = 300_000;
-const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 60_000;
+const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 5 * 60_000;
 const DEFAULT_COMPACTION_BACKOFF_BASE_MS = 15 * 60_000;
 const DEFAULT_COMPACTION_BACKOFF_MAX_MS = 6 * 60 * 60_000;
 const DEFAULT_PROGRESS_WATCHDOG_TIMEOUT_MS = 300_000;
@@ -1592,18 +1602,30 @@ let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
       ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
     configRemoteCompactionEnabled ?? false,
   ),
-  remoteCompactionTimeoutMs: Number.isFinite(configRemoteCompactionTimeoutMs) && (configRemoteCompactionTimeoutMs ?? 0) > 0
-    ? Math.round(Number(configRemoteCompactionTimeoutMs))
-    : DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS,
-  timeoutMs: Number.isFinite(configCompactionTimeoutMs) && (configCompactionTimeoutMs ?? 0) > 0
-    ? Math.round(Number(configCompactionTimeoutMs))
-    : DEFAULT_COMPACTION_TIMEOUT_MS,
-  backoffBaseMs: Number.isFinite(configCompactionBackoffBaseMs) && (configCompactionBackoffBaseMs ?? 0) > 0
-    ? Math.round(Number(configCompactionBackoffBaseMs))
-    : DEFAULT_COMPACTION_BACKOFF_BASE_MS,
-  backoffMaxMs: Number.isFinite(configCompactionBackoffMaxMs) && (configCompactionBackoffMaxMs ?? 0) > 0
-    ? Math.round(Number(configCompactionBackoffMaxMs))
-    : DEFAULT_COMPACTION_BACKOFF_MAX_MS,
+  remoteCompactionTimeoutMs: parsePositiveDurationMs(
+    process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
+    Number.isFinite(configRemoteCompactionTimeoutMs) && (configRemoteCompactionTimeoutMs ?? 0) > 0
+      ? Math.round(Number(configRemoteCompactionTimeoutMs))
+      : DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS,
+  ),
+  timeoutMs: parsePositiveDurationMs(
+    process.env.PICLAW_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_COMPACTION_TIMEOUT_MS,
+    Number.isFinite(configCompactionTimeoutMs) && (configCompactionTimeoutMs ?? 0) > 0
+      ? Math.round(Number(configCompactionTimeoutMs))
+      : DEFAULT_COMPACTION_TIMEOUT_MS,
+  ),
+  backoffBaseMs: parsePositiveDurationMs(
+    process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_BASE_MS,
+    Number.isFinite(configCompactionBackoffBaseMs) && (configCompactionBackoffBaseMs ?? 0) > 0
+      ? Math.round(Number(configCompactionBackoffBaseMs))
+      : DEFAULT_COMPACTION_BACKOFF_BASE_MS,
+  ),
+  backoffMaxMs: parsePositiveDurationMs(
+    process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_MAX_MS,
+    Number.isFinite(configCompactionBackoffMaxMs) && (configCompactionBackoffMaxMs ?? 0) > 0
+      ? Math.round(Number(configCompactionBackoffMaxMs))
+      : DEFAULT_COMPACTION_BACKOFF_MAX_MS,
+  ),
   progressWatchdogEnabled: resolveDefaultProgressWatchdogEnabled(),
   progressWatchdogTimeoutMs: Number.isFinite(configProgressWatchdogTimeoutMs)
     ? Math.max(0, Math.round(Number(configProgressWatchdogTimeoutMs)))
@@ -1699,9 +1721,18 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
       COMPACTION_RUNTIME_CONFIG.remoteCompactionTimeoutMs,
     ),
-    timeoutMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_TIMEOUT_MS, COMPACTION_RUNTIME_CONFIG.timeoutMs),
-    backoffBaseMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS, COMPACTION_RUNTIME_CONFIG.backoffBaseMs),
-    backoffMaxMs: parsePositiveDurationMs(process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS, COMPACTION_RUNTIME_CONFIG.backoffMaxMs),
+    timeoutMs: parsePositiveDurationMs(
+      process.env.PICLAW_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_COMPACTION_TIMEOUT_MS,
+      COMPACTION_RUNTIME_CONFIG.timeoutMs,
+    ),
+    backoffBaseMs: parsePositiveDurationMs(
+      process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_BASE_MS,
+      COMPACTION_RUNTIME_CONFIG.backoffBaseMs,
+    ),
+    backoffMaxMs: parsePositiveDurationMs(
+      process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_MAX_MS,
+      COMPACTION_RUNTIME_CONFIG.backoffMaxMs,
+    ),
     progressWatchdogEnabled: parseOptionalBooleanFlag(
       process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED,
       COMPACTION_RUNTIME_CONFIG.progressWatchdogEnabled,
@@ -1711,7 +1742,7 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       COMPACTION_RUNTIME_CONFIG.progressWatchdogTimeoutMs,
     ),
     thresholdPercent: (() => {
-      const parsed = Number(process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT);
+      const parsed = Number(process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT ?? envConfig.PICLAW_COMPACTION_THRESHOLD_PERCENT);
       return Number.isFinite(parsed) && parsed > 0 && parsed <= 100
         ? parsed
         : COMPACTION_RUNTIME_CONFIG.thresholdPercent;
@@ -1733,7 +1764,7 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       COMPACTION_RUNTIME_CONFIG.warningThreshold,
     ),
     backoffDecayFactor: (() => {
-      const parsed = Number(process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR);
+      const parsed = Number(process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR ?? envConfig.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR);
       return Number.isFinite(parsed) && parsed > 0 && parsed <= 1
         ? parsed
         : COMPACTION_RUNTIME_CONFIG.backoffDecayFactor;
@@ -1748,7 +1779,7 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
   return Object.freeze(enforceProgressWatchdogSafety(resolved));
 }
 
-export function setCompactionRuntimeConfig(patch: {
+export interface CompactionRuntimeConfigPatch {
   autoCompactionEnabled?: boolean;
   smartCompactionMethod?: SmartCompactionMethod;
   remoteCompactionEnabled?: boolean;
@@ -1764,7 +1795,12 @@ export function setCompactionRuntimeConfig(patch: {
   hardCeilingPercent?: number;
   warningThreshold?: number;
   backoffDecayFactor?: number;
-}): Readonly<CompactionRuntimeConfig> {
+}
+
+function applyCompactionRuntimeConfig(
+  patch: CompactionRuntimeConfigPatch,
+  persist: boolean,
+): Readonly<CompactionRuntimeConfig> {
   const current = getCompactionRuntimeConfig();
   const next: CompactionRuntimeConfig = {
     autoCompactionEnabled: typeof patch.autoCompactionEnabled === "boolean"
@@ -1812,88 +1848,90 @@ export function setCompactionRuntimeConfig(patch: {
     next.backoffMaxMs = next.backoffBaseMs;
   }
 
-  const config = readJsonConfig(getConfigPath());
-  const compaction =
-    config.compaction && typeof config.compaction === "object"
-      ? { ...(config.compaction as Record<string, unknown>) }
-      : {};
-  const clearKeys = [
-    "autoCompactionEnabled",
-    "auto_compaction_enabled",
-    "PICLAW_AUTO_COMPACTION_ENABLED",
-    "smartCompactionMethod",
-    "smart_compaction_method",
-    "PICLAW_SMART_COMPACTION_METHOD",
-    "remoteCompactionEnabled",
-    "remote_compaction_enabled",
-    "PICLAW_REMOTE_COMPACTION_ENABLED",
-    "remoteCompactionTimeoutMs",
-    "remote_compaction_timeout_ms",
-    "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
-    "timeoutMs",
-    "timeout_ms",
-    "compactionTimeoutMs",
-    "backoffBaseMs",
-    "backoff_base_ms",
-    "compactionBackoffBaseMs",
-    "backoffMaxMs",
-    "backoff_max_ms",
-    "compactionBackoffMaxMs",
-    "progressWatchdogEnabled",
-    "progress_watchdog_enabled",
-    "watchdogEnabled",
-    "progressWatchdogTimeoutMs",
-    "progress_watchdog_timeout_ms",
-    "watchdogTimeoutMs",
-    "thresholdPercent",
-    "threshold_percent",
-    "PICLAW_COMPACTION_THRESHOLD_PERCENT",
-    "maxThresholdTokens",
-    "max_threshold_tokens",
-    "compactionMaxThresholdTokens",
-    "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
-    "autoCompactionScope",
-    "auto_compaction_scope",
-    "autoCompactScope",
-    "PICLAW_AUTO_COMPACTION_SCOPE",
-    "hardCeilingPercent",
-    "hard_ceiling_percent",
-    "compactionHardCeilingPercent",
-    "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
-    "warningThreshold",
-    "warning_threshold",
-    "repeatedWarningThreshold",
-    "PICLAW_COMPACTION_WARNING_THRESHOLD",
-    "backoffDecayFactor",
-    "backoff_decay_factor",
-    "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
-    "PICLAW_COMPACTION_TIMEOUT_MS",
-    "PICLAW_COMPACTION_BACKOFF_BASE_MS",
-    "PICLAW_COMPACTION_BACKOFF_MAX_MS",
-    "PICLAW_PROGRESS_WATCHDOG_ENABLED",
-    "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
-  ];
-  for (const key of clearKeys) {
-    delete compaction[key];
-    delete config[key];
+  if (persist) {
+    const config = readJsonConfig(getConfigPath());
+    const compaction =
+      config.compaction && typeof config.compaction === "object"
+        ? { ...(config.compaction as Record<string, unknown>) }
+        : {};
+    const clearKeys = [
+      "autoCompactionEnabled",
+      "auto_compaction_enabled",
+      "PICLAW_AUTO_COMPACTION_ENABLED",
+      "smartCompactionMethod",
+      "smart_compaction_method",
+      "PICLAW_SMART_COMPACTION_METHOD",
+      "remoteCompactionEnabled",
+      "remote_compaction_enabled",
+      "PICLAW_REMOTE_COMPACTION_ENABLED",
+      "remoteCompactionTimeoutMs",
+      "remote_compaction_timeout_ms",
+      "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+      "timeoutMs",
+      "timeout_ms",
+      "compactionTimeoutMs",
+      "backoffBaseMs",
+      "backoff_base_ms",
+      "compactionBackoffBaseMs",
+      "backoffMaxMs",
+      "backoff_max_ms",
+      "compactionBackoffMaxMs",
+      "progressWatchdogEnabled",
+      "progress_watchdog_enabled",
+      "watchdogEnabled",
+      "progressWatchdogTimeoutMs",
+      "progress_watchdog_timeout_ms",
+      "watchdogTimeoutMs",
+      "thresholdPercent",
+      "threshold_percent",
+      "PICLAW_COMPACTION_THRESHOLD_PERCENT",
+      "maxThresholdTokens",
+      "max_threshold_tokens",
+      "compactionMaxThresholdTokens",
+      "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
+      "autoCompactionScope",
+      "auto_compaction_scope",
+      "autoCompactScope",
+      "PICLAW_AUTO_COMPACTION_SCOPE",
+      "hardCeilingPercent",
+      "hard_ceiling_percent",
+      "compactionHardCeilingPercent",
+      "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
+      "warningThreshold",
+      "warning_threshold",
+      "repeatedWarningThreshold",
+      "PICLAW_COMPACTION_WARNING_THRESHOLD",
+      "backoffDecayFactor",
+      "backoff_decay_factor",
+      "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
+      "PICLAW_COMPACTION_TIMEOUT_MS",
+      "PICLAW_COMPACTION_BACKOFF_BASE_MS",
+      "PICLAW_COMPACTION_BACKOFF_MAX_MS",
+      "PICLAW_PROGRESS_WATCHDOG_ENABLED",
+      "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
+    ];
+    for (const key of clearKeys) {
+      delete compaction[key];
+      delete config[key];
+    }
+    compaction.autoCompactionEnabled = next.autoCompactionEnabled;
+    compaction.smartCompactionMethod = next.smartCompactionMethod;
+    compaction.remoteCompactionEnabled = next.remoteCompactionEnabled;
+    compaction.remoteCompactionTimeoutMs = next.remoteCompactionTimeoutMs;
+    compaction.timeoutMs = next.timeoutMs;
+    compaction.backoffBaseMs = next.backoffBaseMs;
+    compaction.backoffMaxMs = next.backoffMaxMs;
+    compaction.progressWatchdogEnabled = next.progressWatchdogEnabled;
+    compaction.progressWatchdogTimeoutMs = next.progressWatchdogTimeoutMs;
+    compaction.thresholdPercent = next.thresholdPercent;
+    compaction.maxThresholdTokens = next.maxThresholdTokens;
+    compaction.autoCompactionScope = next.autoCompactionScope;
+    compaction.hardCeilingPercent = next.hardCeilingPercent;
+    compaction.warningThreshold = next.warningThreshold;
+    compaction.backoffDecayFactor = next.backoffDecayFactor;
+    config.compaction = compaction;
+    writeJsonConfig(getConfigPath(), config);
   }
-  compaction.autoCompactionEnabled = next.autoCompactionEnabled;
-  compaction.smartCompactionMethod = next.smartCompactionMethod;
-  compaction.remoteCompactionEnabled = next.remoteCompactionEnabled;
-  compaction.remoteCompactionTimeoutMs = next.remoteCompactionTimeoutMs;
-  compaction.timeoutMs = next.timeoutMs;
-  compaction.backoffBaseMs = next.backoffBaseMs;
-  compaction.backoffMaxMs = next.backoffMaxMs;
-  compaction.progressWatchdogEnabled = next.progressWatchdogEnabled;
-  compaction.progressWatchdogTimeoutMs = next.progressWatchdogTimeoutMs;
-  compaction.thresholdPercent = next.thresholdPercent;
-  compaction.maxThresholdTokens = next.maxThresholdTokens;
-  compaction.autoCompactionScope = next.autoCompactionScope;
-  compaction.hardCeilingPercent = next.hardCeilingPercent;
-  compaction.warningThreshold = next.warningThreshold;
-  compaction.backoffDecayFactor = next.backoffDecayFactor;
-  config.compaction = compaction;
-  writeJsonConfig(getConfigPath(), config);
 
   process.env.PICLAW_AUTO_COMPACTION_ENABLED = next.autoCompactionEnabled ? "1" : "0";
   process.env.PICLAW_SMART_COMPACTION_METHOD = next.smartCompactionMethod;
@@ -1913,6 +1951,44 @@ export function setCompactionRuntimeConfig(patch: {
 
   COMPACTION_RUNTIME_CONFIG = Object.seal(next);
   return getCompactionRuntimeConfig();
+}
+
+export function setCompactionRuntimeConfig(
+  patch: CompactionRuntimeConfigPatch,
+): Readonly<CompactionRuntimeConfig> {
+  return applyCompactionRuntimeConfig(patch, true);
+}
+
+/** Test-only runtime override that cannot rewrite the workspace config file. */
+export function setCompactionRuntimeConfigForTests(
+  patch: CompactionRuntimeConfigPatch,
+): Readonly<CompactionRuntimeConfig> {
+  if (process.env.PICLAW_DB_IN_MEMORY !== "1" && process.env.NODE_ENV !== "test") {
+    throw new Error("setCompactionRuntimeConfigForTests requires a test runtime");
+  }
+  const envKeys = [
+    "PICLAW_AUTO_COMPACTION_ENABLED",
+    "PICLAW_SMART_COMPACTION_METHOD",
+    "PICLAW_REMOTE_COMPACTION_ENABLED",
+    "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+    "PICLAW_COMPACTION_TIMEOUT_MS",
+    "PICLAW_COMPACTION_BACKOFF_BASE_MS",
+    "PICLAW_COMPACTION_BACKOFF_MAX_MS",
+    "PICLAW_PROGRESS_WATCHDOG_ENABLED",
+    "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
+    "PICLAW_COMPACTION_THRESHOLD_PERCENT",
+    "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
+    "PICLAW_AUTO_COMPACTION_SCOPE",
+    "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
+    "PICLAW_COMPACTION_WARNING_THRESHOLD",
+    "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
+  ];
+  for (const key of envKeys) delete process.env[key];
+  const result = applyCompactionRuntimeConfig(patch, false);
+  // Prevent process-env precedence from leaking this test override into later
+  // module reloads; in-memory tests use COMPACTION_RUNTIME_CONFIG directly.
+  for (const key of envKeys) delete process.env[key];
+  return result;
 }
 
 // ---------------------------------------------------------------------------
