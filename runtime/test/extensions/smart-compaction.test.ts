@@ -192,6 +192,7 @@ import {
   detectRecentTopicShift,
 } from "../../src/extensions/smart-compaction/selective-prompt.js";
 import { validateCompactionSummaryResponse } from "../../src/extensions/smart-compaction/summary-validation.js";
+import { canonicalizeFileLists } from "../../src/extensions/smart-compaction/noop.js";
 import { clearRemoteCompactionBackoffForTests } from "../../src/extensions/smart-compaction/remote-compaction.js";
 import {
   beginCompactionStatusOwnership,
@@ -250,12 +251,14 @@ describe("smart-compaction output validation", () => {
       .toMatchObject({ ok: false, code: "unexpected_heading" });
   });
 
-  it("rejects malformed, duplicated, misplaced, and empty deterministic file sections", () => {
+  it("rejects malformed, misplaced, empty, nested, interleaved, and non-trailing deterministic file sections", () => {
     const cases = [
       `${validSummary}\n<read-files>\n/workspace/a.ts`,
-      `${validSummary}\n<read-files>\n/workspace/a.ts\n</read-files>\n<read-files>\n/workspace/b.ts\n</read-files>`,
       validSummary.replace("Preserve conversation continuity", "Preserve conversation continuity\n<read-files>\n/workspace/a.ts\n</read-files>"),
       `${validSummary}\n<modified-files>\n</modified-files>`,
+      `${validSummary}\n<read-files>\n/workspace/a.ts\n<modified-files>\n/workspace/b.ts\n</modified-files>\n</read-files>`,
+      `${validSummary}\n<read-files>\n/workspace/a.ts\n</read-files>\nnot a file block\n<read-files>\n/workspace/b.ts\n</read-files>`,
+      `${validSummary}\n<read-files>\n/workspace/a.ts\n</read-files>\ntrailing commentary`,
     ];
     for (const text of cases) {
       expect(validateCompactionSummaryResponse(
@@ -264,6 +267,33 @@ describe("smart-compaction output validation", () => {
         20_000,
       )).toMatchObject({ ok: false, code: "invalid_file_sections" });
     }
+  });
+
+  it("strips repeated trailing model-authored file blocks before final validation", () => {
+    const result = validateCompactionSummaryResponse(
+      {
+        content: [{
+          type: "text",
+          text: `${validSummary}\n<read-files>\n/workspace/a.ts\n</read-files>\n<read-files>\n/workspace/b.ts\n</read-files>\n<modified-files>\n/workspace/c.ts\n</modified-files>\n<modified-files>\n/workspace/d.ts\n</modified-files>`,
+        }],
+        stopReason: "stop",
+      },
+      "final",
+      20_000,
+    );
+    expect(result).toEqual({ ok: true, text: validSummary, stopReason: "stop" });
+    if (!result.ok) throw new Error(result.reason);
+    const canonical = canonicalizeFileLists(result.text, {
+      read: new Set(["/workspace/authoritative-read.ts"]),
+      written: new Set(["/workspace/authoritative-write.ts"]),
+      edited: new Set(),
+    });
+    expect(canonical.match(/<read-files>/g)).toHaveLength(1);
+    expect(canonical.match(/<modified-files>/g)).toHaveLength(1);
+    expect(canonical).toContain("authoritative-read.ts");
+    expect(canonical).toContain("authoritative-write.ts");
+    expect(canonical).not.toContain("/workspace/a.ts");
+    expect(canonical).not.toContain("/workspace/d.ts");
   });
 
   it("strips balanced deterministic file blocks from chunk output while preserving file facts as ordinary bullets", () => {
@@ -276,6 +306,20 @@ describe("smart-compaction output validation", () => {
       ok: true,
       text: expect.not.stringContaining("<modified-files>"),
     });
+  });
+
+  it("strips repeated trailing deterministic file blocks from chunk output", () => {
+    const chunkSummary = `## Chunk Range\n- 1-4\n\n## Goals / User Intent\n- Preserve state\n\n## Constraints & Preferences\n- Keep paths exact\n\n## Decisions\n- Use deterministic facts\n\n## Files / Commands / Tool Outcomes\n- Read a.ts and b.ts\n\n## Progress\n- Done: reproduced\n- In progress: validate\n- Blocked: none\n\n## Open Questions / Next Steps\n- Continue\n\n## Key Continuity Facts\n- Both paths remain ordinary bullets\n\n<read-files>\na.ts\n</read-files>\n<read-files>\nb.ts\n</read-files>`;
+    const result = validateCompactionSummaryResponse(
+      { content: [{ type: "text", text: chunkSummary }], stopReason: "stop" },
+      "chunk",
+      20_000,
+    );
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.text).not.toContain("<read-files>");
+    expect(result.text).toContain("- Read a.ts and b.ts");
+    expect(result.text).toContain("- Both paths remain ordinary bullets");
   });
 
   it("still rejects malformed deterministic file blocks in chunk output", () => {

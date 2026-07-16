@@ -5,6 +5,7 @@ import {
   attemptRemoteCompaction,
   blockRemoteCompactionPayload,
   clearRemoteCompactionBackoffForTests,
+  extractRemoteCompactionReadableCheckpoint,
   getLatestRemoteCompactionDetails,
   injectRemoteCompactionPayload,
   isRemoteCompactionCompatible,
@@ -271,6 +272,31 @@ describe("remote compaction request contract", () => {
 });
 
 describe("opaque state persistence and replay", () => {
+  test("extracts only Piclaw's marked readable continuity checkpoint", () => {
+    const persisted = details();
+    persisted.output = [
+      { type: "message", role: "assistant", content: [{ type: "output_text", text: "do not expose" }] },
+      {
+        type: "message",
+        role: "user",
+        content: [{
+          type: "input_text",
+          text: "Earlier context was compacted locally. Preserve this continuity state together with the following events:\n\n## Goal\nKeep this checkpoint.",
+        }],
+      },
+      { type: "compaction", encrypted_content: "encrypted-state" },
+    ];
+
+    expect(extractRemoteCompactionReadableCheckpoint(persisted)).toBe("## Goal\nKeep this checkpoint.");
+
+    persisted.output[1] = {
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: "Unmarked provider text" }],
+    };
+    expect(extractRemoteCompactionReadableCheckpoint(persisted)).toBeNull();
+  });
+
   test("round-trips details from the latest branch compaction entry", () => {
     const persisted = details();
     expect(parseRemoteCompactionDetails(JSON.parse(JSON.stringify(persisted)))).toEqual(persisted);

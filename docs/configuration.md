@@ -370,6 +370,8 @@ PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=300000
 
 On success, Piclaw persists the provider's opaque canonical compaction window in the normal Pi `CompactionEntry.details` field, alongside compatibility metadata and deterministic file-operation facts. On resume, a provider-request hook restores that window verbatim in place of Piclaw's marker summary. Provider, model ID, API, and base URL compatibility metadata is checked against the explicit capability registry before replay. If a later remote attempt fails, the same opaque window is prepended to the local fallback request; inherited file facts remain canonicalized separately. Incompatible, malformed, or unverified state is blocked rather than reduced to local summary text or sent to another model. The opaque payload and credentials are never written to bounded diagnostic logs; logs contain only outcome codes, provider/model identifiers, counts, usage totals, and durations.
 
+Manual `/compact` attaches a Markdown report. For provider-native success, that report never prints encrypted state or arbitrary provider output. If the canonical window carries Piclaw's explicitly marked local continuity checkpoint, the report shows it as **Readable continuity checkpoint**; otherwise it explains under **Provider-native context** that continuity is preserved in encrypted state and intentionally omitted. The command also publishes post-compaction context usage immediately, preferring a rebuilt-session estimate and falling back to the report's safety-adjusted estimate when rebuilt-session tokens are unavailable.
+
 Deprecated env names (still supported): `ASSISTANT_NAME`, `ASSISTANT_AVATAR`, `AGENT_TIMEOUT`, `AGENT_TIMEOUT_BACKGROUND`.
 
 ## Experimental M365 extension

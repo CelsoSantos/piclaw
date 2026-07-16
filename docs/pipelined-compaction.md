@@ -414,6 +414,8 @@ When the complete request does not fit—or progressive execution is forced—th
 
 Chunk calls can be concurrent, but results are retained and merged in source order. Exact concurrency and chunk budgets are implementation details.
 
+Intermediate model-authored `<read-files>` and `<modified-files>` blocks are auxiliary rather than authoritative. Before chunk or final schema validation, Piclaw strips any number of complete, non-nested blocks only when they form one contiguous trailing group after the terminal section. Malformed, unbalanced, nested, misplaced, empty, interleaved, or non-trailing blocks are still rejected. This normalization cannot add or change file facts: after final validation, Piclaw appends one canonical pair derived from deterministic tool-operation analysis.
+
 If a provider has a hidden input cap, progressive execution bisects the complete ordered batch instead of silently truncating it.
 
 ## 10. Handle time budgets and retained boundaries
@@ -442,7 +444,7 @@ Pipelined uses the shared strict final-summary schema. A valid response must:
 - contain no extra top-level headings or leading commentary
 - provide substantive `Goal`, `Progress`, and `Critical Context` sections
 - structure `Progress` as `Done`, `In Progress`, and `Blocked`
-- place valid deterministic file blocks only in the terminal section
+- contain no malformed, unbalanced, nested, misplaced, empty, interleaved, or non-trailing model-authored file blocks
 
 Required final headings:
 
@@ -457,7 +459,7 @@ Required final headings:
 
 Invalid partial output is not persisted. Retryable validation failures get at most one repair attempt per model invocation; otherwise compaction cancels.
 
-After validation, deterministic file lists are canonicalized and the retained window is adjusted if needed to keep the resulting context within the target model budget.
+Complete model-authored file blocks are stripped before schema validation, including repeated blocks, because they are not authoritative. After validation, Piclaw appends exactly one `<read-files>` and/or `<modified-files>` block from reconciled deterministic tool operations, then adjusts the retained window if needed to keep the resulting context within the target model budget.
 
 ## 12. Failure and fallback behavior
 
@@ -565,7 +567,7 @@ The model-visible projection still contains the evidence required by the selecte
 | `smart_compaction.context_prune_sanitize` | Context-pruned history normalized before planning |
 | `smart_compaction.boundary_selection` | Retained-boundary decision evidence |
 
-The web UI also publishes `smart_compaction` status and `context_usage` updates during the lifecycle. If provider-native compaction succeeds first, expect `remote_compaction.attempt` and `remote_compaction.completed` instead of `smart_compaction.pipeline_planned` and local Pipelined completion metrics.
+The web UI also publishes `smart_compaction` status and `context_usage` updates during the lifecycle. Manual `/compact` publishes a fresh context update immediately after completion: Piclaw prefers the rebuilt-session estimate and falls back to the report's safety-adjusted estimate when rebuilt-session tokens are unavailable. Null-token updates are not persisted or broadcast. The context endpoint also falls back to validated persisted usage after session eviction or lookup failure, so the indicator does not require a new model turn to refresh. If provider-native compaction succeeds first, expect `remote_compaction.attempt` and `remote_compaction.completed` instead of `smart_compaction.pipeline_planned` and local Pipelined completion metrics.
 
 ## 15. Troubleshoot Pipelined compaction
 
@@ -591,7 +593,7 @@ This is expected when complete progressive coverage or a safe retained boundary 
 
 ### Output is rejected
 
-Inspect `smart_compaction.output_invalid` or `smart_compaction.progressive_output_invalid`, especially the validation code and stop reason. A repair is attempted only once and only when the complete repaired request fits safely.
+Inspect `smart_compaction.output_invalid` or `smart_compaction.progressive_output_invalid`, especially the validation code and stop reason. A repair is attempted only once and only when the complete repaired request fits safely. Repeated complete trailing `<read-files>` or `<modified-files>` blocks are normalized away and rebuilt canonically; `invalid_file_sections` now indicates a genuinely malformed, nested, misplaced, empty, interleaved, or non-trailing block shape.
 
 ### Coverage is false at completion
 
@@ -640,7 +642,7 @@ Treat these as implementation details:
 - `runtime/src/extensions/smart-compaction/model-execution.ts` — single-pass call and repair
 - `runtime/src/extensions/smart-compaction/remote-compaction.ts` — optional provider-native pre-pass, opaque persistence, compatibility checks, and replay
 - `runtime/src/extensions/smart-compaction/progressive.ts` — progressive calls, merges, and partial completion
-- `runtime/src/extensions/smart-compaction/summary-validation.ts` — final/chunk output validation
+- `runtime/src/extensions/smart-compaction/summary-validation.ts` — final/chunk output validation and safe model-authored file-block normalization
 - `runtime/src/extensions/smart-compaction/boundary-policy.ts` — retained-boundary safety
 
 ### Pipelined ledger
