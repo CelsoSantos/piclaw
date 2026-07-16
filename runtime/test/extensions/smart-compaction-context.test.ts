@@ -1,10 +1,17 @@
 import { expect, test } from "bun:test";
-import { estimateSmartCompactionCompletionPercent } from "../../src/extensions/smart-compaction/context.js";
+import { estimateSmartCompactionCompletionPercent, formatSmartCompactionStatus } from "../../src/extensions/smart-compaction/context.js";
 
 test("uses canonical repair and method completion phase names", () => {
   expect(estimateSmartCompactionCompletionPercent("generating_summary_repair", 0)).toBe(55);
   expect(estimateSmartCompactionCompletionPercent("completed_selective", 0)).toBe(100);
   expect(estimateSmartCompactionCompletionPercent("completed_pipelined", 0)).toBe(100);
+});
+
+test("formats real trigger-prefixed progress without double compaction labels", () => {
+  expect(formatSmartCompactionStatus("Manual smart compaction: provider-native compaction in progress — openai-codex/gpt-5.5", 18))
+    .toBe("Smart compaction: 18% — provider-native compaction in progress — openai-codex/gpt-5.5");
+  expect(formatSmartCompactionStatus("Recovery compaction: local pipelined fallback — provider-native unsupported", 30))
+    .toBe("Smart compaction: 30% — local pipelined fallback — provider-native unsupported");
 });
 
 test("does not retain obsolete fallback and method phase mappings", () => {

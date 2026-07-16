@@ -95,7 +95,7 @@ export function formatProgressRange(start: number, end: number, total: number): 
 export function formatSmartCompactionStatus(message: string, completionPercent?: number | null): string {
   const normalizedPercent = normalizeCompletionPercent(completionPercent);
   if (normalizedPercent == null) return message;
-  const body = message.replace(/^Smart compaction:\s*/, "");
+  const body = message.replace(/^(?:(?:Manual|Idle|Target-aware) smart compaction|Recovery compaction|Smart compaction):\s*/i, "");
   return `Smart compaction: ${normalizedPercent}% — ${body}`;
 }
 

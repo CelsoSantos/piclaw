@@ -132,6 +132,48 @@ function normalizeChunkFileBlocks(
   return { ok: true, text: text.trim() };
 }
 
+function normalizeChunkProgressLabels(text: string): string {
+  const progressMatch = /^##\s+Progress\s*$([\s\S]*?)(?=^##\s+|(?![\s\S]))/gmi.exec(text);
+  if (!progressMatch) return text;
+  const body = progressMatch[1].trim();
+  const buckets: Record<"done" | "inProgress" | "blocked", string[]> = {
+    done: [],
+    inProgress: [],
+    blocked: [],
+  };
+  const marker = /^(?:###\s+|[-*]\s*)?(Done|Completed|In progress|In-progress|Current|Ongoing|Blocked|Blockers)\s*:?[ \t]*(.*)$/i;
+  let active: keyof typeof buckets | null = null;
+  const prelude: string[] = [];
+  for (const line of body.split("\n")) {
+    const match = line.trim().match(marker);
+    if (match) {
+      const label = match[1].toLowerCase();
+      active = label === "done" || label === "completed"
+        ? "done"
+        : label === "blocked" || label === "blockers"
+          ? "blocked"
+          : "inProgress";
+      if (match[2].trim()) buckets[active].push(match[2].trim());
+      continue;
+    }
+    (active ? buckets[active] : prelude).push(line);
+  }
+  if (prelude.some((line) => line.trim())) buckets.inProgress.unshift(...prelude);
+
+  const render = (label: string, lines: string[]): string => {
+    const meaningful = lines.map((line) => line.trimEnd()).filter((line) => line.trim());
+    if (meaningful.length === 0) return `- ${label}: (none reported)`;
+    return [`- ${label}: ${meaningful[0].trim()}`, ...meaningful.slice(1).map((line) => `  ${line.trim()}`)].join("\n");
+  };
+  const normalized = [
+    render("Done", buckets.done),
+    render("In progress", buckets.inProgress),
+    render("Blocked", buckets.blocked),
+  ].join("\n");
+  const bodyOffset = progressMatch.index! + progressMatch[0].indexOf(progressMatch[1]);
+  return `${text.slice(0, bodyOffset)}\n${normalized}\n\n${text.slice(bodyOffset + progressMatch[1].length).trimStart()}`.trim();
+}
+
 function hasSubstantiveSectionContent(content: string): boolean {
   return content
     .replace(/^###\s+.*$/gm, "")
@@ -163,7 +205,7 @@ export function validateCompactionSummaryResponse(
   }
   const normalizedChunk = schema === "chunk" ? normalizeChunkFileBlocks(rawText, stopReason) : { ok: true as const, text: rawText };
   if (!normalizedChunk.ok) return normalizedChunk;
-  const text = normalizedChunk.text;
+  const text = schema === "chunk" ? normalizeChunkProgressLabels(normalizedChunk.text) : normalizedChunk.text;
   if (text.length < MIN_SUMMARY_CHARS) {
     return failure("too_short", `summary was ${text.length} characters; minimum is ${MIN_SUMMARY_CHARS}`, stopReason);
   }

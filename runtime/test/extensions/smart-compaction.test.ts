@@ -287,6 +287,30 @@ describe("smart-compaction output validation", () => {
     )).toMatchObject({ ok: false, code: "invalid_file_sections" });
   });
 
+  it("normalizes common chunk progress heading aliases", () => {
+    const chunkSummary = `## Chunk Range\n- 1-4\n\n## Goals / User Intent\n- Preserve state\n\n## Constraints & Preferences\n- Keep paths exact\n\n## Decisions\n- Use deterministic facts\n\n## Files / Commands / Tool Outcomes\n- Wrote a.ts\n\n## Progress\n### Completed\n- reproduced\n### Current\n- validate\n### Blockers\n- none\n\n## Open Questions / Next Steps\n- Continue\n\n## Key Continuity Facts\n- a.ts was written`;
+    expect(validateCompactionSummaryResponse(
+      { content: [{ type: "text", text: chunkSummary }], stopReason: "stop" },
+      "chunk",
+      20_000,
+    )).toMatchObject({ ok: true, text: expect.stringContaining("- In progress:") });
+  });
+
+  it("losslessly normalizes freeform chunk progress into all three canonical categories", () => {
+    const chunkSummary = `## Chunk Range\n- 1-4\n\n## Goals / User Intent\n- Preserve state\n\n## Constraints & Preferences\n- Keep paths exact\n\n## Decisions\n- Use deterministic facts\n\n## Files / Commands / Tool Outcomes\n- Wrote a.ts\n\n## Progress\n- implemented the parser\n- tests remain to run\n\n## Open Questions / Next Steps\n- Continue\n\n## Key Continuity Facts\n- a.ts was written`;
+    const result = validateCompactionSummaryResponse(
+      { content: [{ type: "text", text: chunkSummary }], stopReason: "stop" },
+      "chunk",
+      20_000,
+    );
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.text).toContain("- Done: (none reported)");
+    expect(result.text).toContain("- In progress: - implemented the parser");
+    expect(result.text).toContain("tests remain to run");
+    expect(result.text).toContain("- Blocked: (none reported)");
+  });
+
   it("accepts one complete, normally stopped structured summary", () => {
     expect(validateCompactionSummaryResponse(
       { content: [{ type: "text", text: validSummary }], stopReason: "stop" },
@@ -396,6 +420,71 @@ describe("smart-compaction", () => {
       { type: "compaction", encrypted_content: "persisted-opaque" },
       { role: "user", content: [{ type: "input_text", text: "retained suffix" }] },
     ]);
+  });
+
+  it("accepts Codex context_compaction canonical windows", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000 });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [{ type: "context_compaction", encrypted_content: "codex-context-window" }],
+    }), { status: 200 }));
+    globalThis.fetch = fetchMock as any;
+    const accountId = "account-context-123";
+    const jwtPart = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const oauthToken = `${jwtPart({ alg: "none" })}.${jwtPart({ "https://api.openai.com/auth": { chatgpt_account_id: accountId } })}.signature`;
+    const codexModel = {
+      provider: "openai-codex",
+      id: "gpt-5.5",
+      api: "openai-codex-responses",
+      baseUrl: "https://chatgpt.com/backend-api",
+      reasoning: true,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 272_000,
+      maxTokens: 128_000,
+    };
+    try {
+      const result = await handler!({
+        preparation: makePreparation(18),
+        branchEntries: [],
+        signal: new AbortController().signal,
+      }, makeCtx({
+        model: codexModel,
+        modelRegistry: {
+          getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: oauthToken }),
+          getAll: vi.fn().mockReturnValue([]),
+        },
+      }));
+      expect(result.compaction.details.output).toEqual([
+        { type: "context_compaction", encrypted_content: "codex-context-window" },
+      ]);
+      expect(completeSimple).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("rejects mixed remote windows containing a malformed canonical compaction item", async () => {
+    const originalFetch = globalThis.fetch;
+    setCompactionRuntimeConfigForTests({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 1_000, smartCompactionMethod: "selective" });
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [
+        { type: "context_compaction", encrypted_content: "valid-window" },
+        { type: "compaction", encrypted_content: "" },
+      ],
+    }), { status: 200 })) as any;
+    const fallbackSummary = "## Goal\nReject malformed canonical state\n\n## Current Active Topic\n- remote validation\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- fail closed\n\n## Progress\n### Done\n- [x] rejected mixed state\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Remote state**: validate every canonical item\n\n## Next Steps\n1. continue\n\n## Critical Context\n- local fallback remains safe";
+    completeSimple.mockResolvedValue({ content: [{ type: "text", text: fallbackSummary }], stopReason: "stop" });
+    const openaiModel = {
+      provider: "openai", id: "gpt-5.1", api: "openai-responses", baseUrl: "https://api.openai.com/v1",
+      reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128_000, maxTokens: 16_000,
+    };
+    try {
+      const result = await handler!({ preparation: makePreparation(18), branchEntries: [], signal: new AbortController().signal }, makeCtx({ model: openaiModel }));
+      expect(result.compaction.details.remoteCompaction).toMatchObject({ outcome: "malformed" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("returns persisted opaque state when provider-native compaction succeeds before local execution", async () => {
@@ -1712,7 +1801,9 @@ describe("smart-compaction", () => {
     const prompt = (completeSimple as any).mock.calls[0][1].messages[0].content[0].text as string;
     expect(prompt).toContain("Target-aware compaction for test/metadata-small");
     expect(prompt).toContain("16000 token raw context window");
-    expect(ctx.ui.setStatus).toHaveBeenCalledWith("smart_compaction", expect.stringContaining("Target-aware smart compaction:"));
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith("smart_compaction", expect.stringContaining("Smart compaction:"));
+    expect(ctx.ui.setStatus.mock.calls.filter(([key]: [string]) => key === "smart_compaction").map(([, text]: [string, string]) => text).join("\n"))
+      .not.toContain("Target-aware smart compaction:");
   });
 
   it("records a real failure reason instead of plain user-cancel when target-aware single-pass compaction errors", async () => {

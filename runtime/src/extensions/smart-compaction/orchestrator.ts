@@ -283,13 +283,13 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             reason: modelRequest.error,
           });
           publishCompactionStage(
-            statusMessage(compactionMetadata, `LOCAL FALLBACK · ${smartCompactionMethod} · remote unavailable: ${modelRequest.error}`),
+            statusMessage(compactionMetadata, `local ${smartCompactionMethod} fallback — provider-native unavailable: ${modelRequest.error}`),
             "remote_fallback",
             tokensBefore,
           );
         } else {
           publishCompactionStage(
-            statusMessage(compactionMetadata, `REMOTE · ${modelRequest.model.provider}/${modelRequest.model.id} · compacting on provider…`),
+            statusMessage(compactionMetadata, `provider-native compaction in progress — ${modelRequest.model.provider}/${modelRequest.model.id}`),
             "remote_compaction",
             tokensBefore,
           );
@@ -317,7 +317,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             const outputChars = JSON.stringify(remoteResult.details.output).length;
             finalContextTokens = Math.max(1, Math.ceil(outputChars / 4)) + Math.max(0, Number(settings.keepRecentTokens) || 0);
             publishCompactionStage(
-              statusMessage(compactionMetadata, `REMOTE · ${remoteResult.details.provider}/${remoteResult.details.modelId} · provider-native compaction complete`),
+              statusMessage(compactionMetadata, `provider-native compaction complete — ${remoteResult.details.provider}/${remoteResult.details.modelId}`),
               "completed_remote",
               finalContextTokens,
               100,
@@ -356,7 +356,7 @@ export function createSmartCompactionExtension(options: { streamFn?: CompactionS
             reason: remoteResult.message,
           });
           publishCompactionStage(
-            statusMessage(compactionMetadata, `LOCAL FALLBACK · ${smartCompactionMethod} · remote ${remoteResult.code}: ${remoteResult.message}`),
+            statusMessage(compactionMetadata, `local ${smartCompactionMethod} fallback — provider-native ${remoteResult.code}: ${remoteResult.message}`),
             "remote_fallback",
             tokensBefore,
           );

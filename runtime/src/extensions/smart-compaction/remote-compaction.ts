@@ -235,7 +235,8 @@ function validateCanonicalOutput(value: unknown): Array<Record<string, unknown>>
   for (const item of value) {
     if (!item || typeof item !== "object" || Array.isArray(item)) return null;
     const record = item as Record<string, unknown>;
-    if (record.type === "compaction" && typeof record.encrypted_content === "string" && record.encrypted_content.length > 0) {
+    if (record.type === "compaction" || record.type === "compaction_summary" || record.type === "context_compaction") {
+      if (typeof record.encrypted_content !== "string" || record.encrypted_content.length === 0) return null;
       hasCompactionItem = true;
     }
     output.push(record);
