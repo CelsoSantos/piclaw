@@ -280,6 +280,92 @@ test("agent control session and tree commands", async () => {
   expect(labels.message).toContain("Labels:");
 });
 
+test("provider-native compact report surfaces the marked readable checkpoint without opaque state", async () => {
+  const ws = getTestWorkspace();
+  restoreEnv = setEnv({ PICLAW_WORKSPACE: ws.workspace, PICLAW_STORE: ws.store, PICLAW_DATA: ws.data });
+
+  const db = await import("../../src/db.js");
+  db.initDatabase();
+  const applyControlCommand = await getControl();
+  const session = new TestAgentControlSession(ws.workspace, registry);
+  const runtime = createTestSessionRuntime(session);
+  session.compact = async () => ({
+    tokensBefore: 77399,
+    estimatedTokensAfter: 19730,
+    firstKeptEntryId: "entry-remote",
+    summary: "[Piclaw provider-native compaction state. The opaque canonical context is injected at request time.]",
+    details: {
+      kind: "piclaw.remote_compaction",
+      version: 1,
+      adapter: "openai-responses-compact",
+      provider: "openai-codex",
+      modelId: "gpt-5.5",
+      api: "openai-codex-responses",
+      baseUrl: "https://chatgpt.com/backend-api",
+      output: [
+        {
+          type: "message",
+          role: "user",
+          content: [{
+            type: "input_text",
+            text: "Earlier context was compacted locally. Preserve this continuity state together with the following events:\n\n## Goal\nPreserve this readable checkpoint.",
+          }],
+        },
+        { type: "compaction_summary", encrypted_content: "opaque-secret" },
+      ],
+      fileOperations: { read: [], written: [], edited: [] },
+      createdAt: "2026-07-16T05:34:41.961Z",
+    },
+  }) as any;
+
+  const compact = await applyControlCommand(runtime as any, registry, { type: "compact", raw: "/compact" });
+  expect(compact.status).toBe("success");
+  const media = db.getMediaById(compact.mediaIds![0]);
+  const report = media ? new TextDecoder().decode(media.data) : "";
+  expect(report).toContain("## Readable continuity checkpoint");
+  expect(report).toContain("## Goal\nPreserve this readable checkpoint.");
+  expect(report).not.toContain("## Summary");
+  expect(report).not.toContain("opaque-secret");
+  expect(report).not.toContain("opaque canonical context is injected");
+});
+
+test("manual compaction context usage falls back to the safety-adjusted report estimate", async () => {
+  const { resolveManualCompactionContextUsage } = await import("../../src/agent-control/handlers/control.js");
+  const report = {
+    tokensBefore: 77399,
+    estimatedTokensAfter: 19730,
+    estimatedTokensAfterSource: "upstream" as const,
+    safetyAdjustedTokensAfter: 21703,
+    reductionPercent: 74.5,
+  };
+
+  expect(resolveManualCompactionContextUsage({
+    tokens: null,
+    contextWindow: 200000,
+    percent: null,
+    estimated: true,
+    source: "compact_command",
+    phase: "after_manual_compaction",
+  }, report)).toEqual({
+    tokens: 21703,
+    contextWindow: 200000,
+    percent: 10.8515,
+    estimated: true,
+    source: "compaction_report",
+    phase: "after_manual_compaction",
+  });
+
+  const measured = {
+    tokens: 21000,
+    contextWindow: 200000,
+    percent: 10.5,
+    estimated: true,
+    source: "compact_command",
+    phase: "after_manual_compaction",
+  };
+  expect(resolveManualCompactionContextUsage(measured, report)).toBe(measured);
+});
+
 test("agent control queue, compact, and abort commands", async () => {
   const ws = getTestWorkspace();
   restoreEnv = setEnv({ PICLAW_WORKSPACE: ws.workspace, PICLAW_STORE: ws.store, PICLAW_DATA: ws.data });

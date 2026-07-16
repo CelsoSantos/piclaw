@@ -22,6 +22,7 @@ import { killTrackedProcesses } from "../../utils/process-tracker.js";
 import { abortLiveSshCommand } from "../../extensions/ssh-core.js";
 import { pruneOrphanToolResults } from "../../agent-pool/orphan-tool-results.js";
 import { parsePiclawCompactionResultDetails, type PiclawCompactionResultDetails } from "../../extensions/smart-compaction/result-details.js";
+import { extractRemoteCompactionReadableCheckpoint } from "../../extensions/smart-compaction/remote-compaction.js";
 import {
   buildFreshContextUsageUpdateEvent,
   isCompactionCancellationError,
@@ -110,6 +111,24 @@ function contextUsageFromEvent(event: unknown): AgentControlResult["contextUsage
   };
 }
 
+export function resolveManualCompactionContextUsage(
+  measured: AgentControlResult["contextUsage"] | undefined,
+  contextReport: CompactionContextReport,
+): NonNullable<AgentControlResult["contextUsage"]> {
+  if (measured?.tokens !== null && measured?.tokens !== undefined) return measured;
+  const contextWindow = measured?.contextWindow ?? null;
+  return {
+    tokens: contextReport.safetyAdjustedTokensAfter,
+    contextWindow,
+    percent: contextWindow && contextWindow > 0
+      ? (contextReport.safetyAdjustedTokensAfter / contextWindow) * 100
+      : null,
+    estimated: true,
+    source: "compaction_report",
+    phase: "after_manual_compaction",
+  };
+}
+
 function capitalizeLabel(value: string): string {
   return value.split("_").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
 }
@@ -148,6 +167,16 @@ function buildCompactReport(
 ): string {
   const reduction = formatReductionPercent(contextReport.reductionPercent);
   const path = formatCompactionPath(details);
+  const readableCheckpoint = details?.kind === "piclaw.remote_compaction"
+    ? extractRemoteCompactionReadableCheckpoint(details)
+    : null;
+  const summaryHeading = details?.kind === "piclaw.remote_compaction"
+    ? (readableCheckpoint ? "## Readable continuity checkpoint" : "## Provider-native context")
+    : "## Summary";
+  const summaryContent = details?.kind === "piclaw.remote_compaction"
+    ? (readableCheckpoint
+      ?? "No human-readable checkpoint was returned. Continuity is preserved in encrypted provider-native state, which is intentionally omitted from this report.")
+    : (summary.trim() || "(empty summary)");
   return [
     "# Compaction report",
     "",
@@ -161,9 +190,9 @@ function buildCompactReport(
     `Execution: ${path.execution}`,
     `Provider-native pre-pass: ${path.remote}`,
     "",
-    "## Summary",
+    summaryHeading,
     "",
-    summary.trim() || "(empty summary)",
+    summaryContent,
     "",
   ].filter((line): line is string => line !== null).join("\n");
 }
@@ -391,9 +420,10 @@ export async function handleCompact(session: AgentSession, command: CompactComma
       const compactionDetails = parsePiclawCompactionResultDetails(compactResult.details);
       const compactionPath = formatCompactionPath(compactionDetails);
       const contextReport = getCompactionContextReport(session, compactResult);
-      const freshContextUsage = contextUsageFromEvent(buildFreshContextUsageUpdateEvent(session, chatJid, "after_manual_compaction", {
+      const measuredContextUsage = contextUsageFromEvent(buildFreshContextUsageUpdateEvent(session, chatJid, "after_manual_compaction", {
         source: "compact_command",
       }));
+      const freshContextUsage = resolveManualCompactionContextUsage(measuredContextUsage, contextReport);
       const generatedAt = new Date().toISOString();
       const attachmentId = createCompactReportAttachment(
         compactResult.summary,

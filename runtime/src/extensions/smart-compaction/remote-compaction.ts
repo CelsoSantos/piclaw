@@ -9,6 +9,9 @@ import { sanitizeProviderPayloadItemIds } from "../provider-request-sanitizer.js
 export const REMOTE_COMPACTION_SUMMARY_SENTINEL =
   "[Piclaw provider-native compaction state. The opaque canonical context is injected at request time.]";
 
+const LOCAL_CONTINUITY_CHECKPOINT_PREFIX =
+  "Earlier context was compacted locally. Preserve this continuity state together with the following events:\n\n";
+
 export const REMOTE_COMPACTION_DETAILS_KIND = "piclaw.remote_compaction";
 export const REMOTE_COMPACTION_DETAILS_VERSION = 1;
 const REMOTE_COMPACTION_ADAPTER = "openai-responses-compact";
@@ -314,6 +317,26 @@ export function isRemoteCompactionCompatible(model: Model<Api> | undefined, deta
     && normalizedBaseUrl(model.baseUrl) === details.baseUrl;
 }
 
+/**
+ * Return only Piclaw's explicitly marked, human-readable continuity checkpoint.
+ * Arbitrary provider output is not safe to present as a summary, and encrypted
+ * canonical state must never be surfaced.
+ */
+export function extractRemoteCompactionReadableCheckpoint(details: RemoteCompactionDetails): string | null {
+  for (const item of details.output) {
+    if (item.type !== "message" || item.role !== "user" || !Array.isArray(item.content)) continue;
+    for (const part of item.content) {
+      if (!part || typeof part !== "object" || Array.isArray(part)) continue;
+      const content = part as Record<string, unknown>;
+      if (content.type !== "input_text" || typeof content.text !== "string") continue;
+      if (!content.text.startsWith(LOCAL_CONTINUITY_CHECKPOINT_PREFIX)) continue;
+      const checkpoint = content.text.slice(LOCAL_CONTINUITY_CHECKPOINT_PREFIX.length).trim();
+      if (checkpoint) return checkpoint;
+    }
+  }
+  return null;
+}
+
 function withoutRemoteSummaryMarker(messages: readonly AgentMessage[]): AgentMessage[] {
   return messages.filter((message) => {
     const candidate = message as AgentMessage & { role?: string; summary?: string };
@@ -412,7 +435,7 @@ export async function attemptRemoteCompaction(options: {
             role: "user",
             content: [{
               type: "input_text",
-              text: `Earlier context was compacted locally. Preserve this continuity state together with the following events:\n\n${previousSummary}`,
+              text: `${LOCAL_CONTINUITY_CHECKPOINT_PREFIX}${previousSummary}`,
             }],
           }]
         : []),
