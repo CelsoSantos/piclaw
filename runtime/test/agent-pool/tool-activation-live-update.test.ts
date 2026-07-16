@@ -56,7 +56,6 @@ const customExtension: ExtensionFactory = (pi) => {
 describe("same-turn tool activation live update", () => {
   test("extension tools activated via activate_tools are callable in the same turn", async () => {
     const authStorage = AuthStorage.create();
-    authStorage.set("faux", { type: "api_key", key: "test-key" });
     const modelRegistry = ModelRegistry.inMemory(authStorage);
     const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-issue13-"));
@@ -65,7 +64,17 @@ describe("same-turn tool activation live update", () => {
     const sessionDir = join(tempRoot, "session");
     const previousWorkspace = process.env.PICLAW_WORKSPACE;
     process.env.PICLAW_WORKSPACE = workspaceDir;
-    const faux = registerFauxProvider();
+    // The compat API registry is process-global. Use a unique API/provider/model
+    // namespace so parallel test files cannot replace this registration or
+    // consume this test's queued responses.
+    const namespace = `tool-activation-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const providerId = `faux-${namespace}`;
+    const faux = registerFauxProvider({
+      api: providerId,
+      provider: providerId,
+      models: [{ id: providerId, name: `Faux ${namespace}` }],
+    });
+    authStorage.set(providerId, { type: "api_key", key: "test-key" });
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
@@ -103,6 +112,7 @@ describe("same-turn tool activation live update", () => {
         .filter((block) => block.type === "text")
         .map((block) => block.text);
       expect(assistantTexts).toContain("done");
+      expect(faux.getPendingResponseCount()).toBe(0);
 
       const toolResults = session.agent.state.messages.filter((message) => message.role === "toolResult");
       expect(toolResults.map((message) => message.toolName)).toContain("demo_extension_tool");
