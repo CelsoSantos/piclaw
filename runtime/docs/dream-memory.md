@@ -90,10 +90,11 @@ AutoDream is bounded to avoid no-op nightly runs, but it no longer waits for a f
 AutoDream behaves as follows:
 
 - if there is no prior consolidation, AutoDream runs
-- if there have been **no sessions** since the last consolidation, AutoDream skips
+- if daily-note consolidation is still outstanding, AutoDream runs even when there have been no new sessions
+- if there is no outstanding consolidation and there have been **no sessions** since the last consolidation, AutoDream skips
 - otherwise the nightly run proceeds, even if the previous consolidation happened late the night before
 
-This preserves a nightly cadence and skips empty runs.
+This preserves a nightly cadence, retries unresolved daily-note work, and skips empty runs.
 
 ## First-boot bootstrap
 
@@ -104,7 +105,7 @@ When the core memory files are missing, runtime queues a silent Dream bootstrap 
 - `notes/memory/current-state.md`
 - `notes/memory/recent-context.md`
 
-That bootstrap runs as an out-of-band Dream turn on the temporary `dream:` channel and uses the broader manual-style window so the first container boot can populate both the memory layer and proper daily summaries.
+That bootstrap runs as an out-of-band Dream turn on the temporary `dream:` channel and uses the 2-day AutoDream window to populate the memory layer and recent daily summaries.
 
 ## Memory lifecycle and content model
 

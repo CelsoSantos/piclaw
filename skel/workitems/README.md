@@ -1,14 +1,13 @@
 # Workitems compatibility scaffold
 
-Piclaw tracks active project work in GitHub Issues and GitHub Projects. Do not create new Markdown work-item files here unless a generated project explicitly adopts the legacy file-board workflow.
+Use the current Git repository's GitHub Issues and GitHub Projects for active project work. Do not create new Markdown work-item files here unless this workspace explicitly adopts the legacy file-board workflow.
 
-The lane directories and `_templates/work-item.md` remain for compatibility with older workspaces and external project templates. Piclaw's own repository protects this surface with `.github/workflows/workitems-lock.yml`.
+The lane directories and `_templates/work-item.md` remain for compatibility with older workspaces and project templates.
 
-For active Piclaw work:
+Confirm the repository before changing issues:
 
 ```bash
-gh issue list -R rcarmo/piclaw --state open
-gh issue create -R rcarmo/piclaw --title "..." --body "..."
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh issue list -R "$repo" --state open
+gh issue create -R "$repo" --title "..." --body "..."
 ```
-
-See `docs/workitems-github-migration.md` in the Piclaw source repository for the migration record.

@@ -6,28 +6,25 @@ distribution: public
 
 # Kanban management — archived
 
-The file-based `workitems/` board is archived. Do not create or move Markdown work-item files for active Piclaw work.
+The file-based `workitems/` board is archived. Do not create or move Markdown work-item files unless this workspace explicitly adopts the legacy file-board workflow.
 
 ## Current workflow
 
-Use GitHub Issues and GitHub Projects v2:
+Use the current Git repository's GitHub Issues and GitHub Projects v2. Confirm the repository before changing it:
 
 ```bash
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+
 # Create an issue
-gh issue create -R rcarmo/piclaw --title "..." --body "..."
+gh issue create -R "$repo" --title "..." --body "..."
 
 # List open issues
-gh issue list -R rcarmo/piclaw --state open
+gh issue list -R "$repo" --state open
 
 # Close a completed issue
-gh issue close <number> -R rcarmo/piclaw --reason completed
+gh issue close <number> -R "$repo" --reason completed
 ```
 
-If the `github-issues` skill is installed, load it for project-field IDs, status changes, labels, and board queries. Otherwise inspect the project with `gh issue` and `gh project` before changing it.
+If the `github-issues` skill is installed, load it for project-field IDs, status changes, labels, and board queries. Otherwise inspect the repository with `gh issue` and `gh project` before changing it.
 
-## Migration records
-
-- `docs/workitems-github-migration.md` records the completed migration.
-- `docs/github-issues-migration-plan.md` preserves the superseded plan.
-- `scripts/migrate-workitems-to-github.ts` and `scripts/migrate-state.json` preserve the migration tooling and state map.
-- `skel/workitems/` remains compatibility scaffolding and is protected by `.github/workflows/workitems-lock.yml`; it is not the active work tracker.
+The local `workitems/` directory remains compatibility scaffolding for older workspaces and project templates. It is not the active tracker unless the workspace says otherwise.
