@@ -20,7 +20,7 @@ flowchart TB
 
   subgraph Core[Runtime core]
     ROUTER[Router / request dispatch]
-    QUEUE[AgentQueue\nchat:{jid} lanes\ndream:{jid} lanes]
+    QUEUE["AgentQueue<br/>chat:{jid} lanes<br/>dream:{jid} lanes"]
     POOL[AgentPool]
     SDK[Pi SDK AgentSession]
   end
@@ -69,8 +69,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  USER[Interactive user turn] --> CHATLANE[chat:{jid} lane]
-  DREAMTURN[Dream / AutoDream] --> DREAMLANE[dream:{jid} lane]
+  USER[Interactive user turn] --> CHATLANE["chat:{jid} lane"]
+  DREAMTURN[Dream / AutoDream] --> DREAMLANE["dream:{jid} lane"]
 
   CHATLANE --> MAIN[AgentPool + warm chat session]
   DREAMLANE --> TEMP[AgentPool + temporary dream: session]

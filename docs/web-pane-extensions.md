@@ -60,19 +60,18 @@ They share the same pane host model (`openEditor(path)`), but route to very diff
 
 ```mermaid
 flowchart TD
-    UI[Workspace menu / context menu] -->|Open terminal in tab| Open[openEditor(TERMINAL_TAB_PATH)]
-    Open --> Registry[PaneRegistry.resolve(path)]
-    Registry -->|priority 10000| TabExt[terminalTabPaneExtension]
-    TabExt -->|mount()| TerminalInstance[TerminalPaneInstance]
-    TerminalInstance -->|GET /terminal/session| Sess[/terminal/session]
-    Sess -->|enabled + ws_path| SocketInit[/terminal/ws]
-    SocketInit --> Upgrader[WebSocket upgrade /auth + CSRF checks]
-    Upgrader --> Service[TerminalSessionService
-resolveOwnerFromRequest]
-    Service --> Pty[spawn `/usr/bin/script -qf -c /usr/bin/bash -i`]
-    Pty -->|stdout/stderr| Service
-    Service -->|JSON output/resize| TerminalInstance
-    TerminalInstance -->|xterm.js render| RemoteUI[xterm.js terminal UI]
+    UI["Workspace menu / context menu"] -->|"Open terminal in tab"| Open["openEditor(TERMINAL_TAB_PATH)"]
+    Open --> Registry["PaneRegistry.resolve(path)"]
+    Registry -->|"priority 10000"| TabExt["terminalTabPaneExtension"]
+    TabExt -->|"mount()"| TerminalInstance["TerminalPaneInstance"]
+    TerminalInstance -->|"GET /terminal/session"| Sess["/terminal/session"]
+    Sess -->|"enabled + ws_path"| SocketInit["/terminal/ws"]
+    SocketInit --> Upgrader["WebSocket upgrade / auth + CSRF checks"]
+    Upgrader --> Service["TerminalSessionService<br/>resolveOwnerFromRequest"]
+    Service --> Pty["spawn /usr/bin/script -qf -c /usr/bin/bash -i"]
+    Pty -->|"stdout/stderr"| Service
+    Service -->|"JSON output/resize"| TerminalInstance
+    TerminalInstance -->|"xterm.js render"| RemoteUI["xterm.js terminal UI"]
 ```
 
 **Implementation choices**
@@ -87,21 +86,19 @@ resolveOwnerFromRequest]
 
 ```mermaid
 flowchart TD
-    User[User] -->|Open VNC in tab| OpenVnc[openEditor(VNC_TAB_PREFIX)]
-    OpenVnc --> Registry2[PaneRegistry.resolve(path)]
-    Registry2 -->|priority 9000| VncExt[vncPaneExtension]
-    VncExt --> VncInstance[VncPaneInstance]
-    VncInstance -->|GET /vnc/session?target=...| Sess2[/vnc/session]
-    Sess2 -->|target metadata + ws_path| SocketReq[/vnc/ws?target=...]
-    SocketReq --> Upgrader2[WebSocket upgrade + /auth + CSRF]
-    Upgrader2 --> VncService[VncSessionService
-resolveOwnerFromRequest]
-    VncService --> Bridge[WebSocketTcpBridge
-create TCP socket]
-    Bridge --> Target[(Remote VNC host:port)]
-    Target -->|RFB protocol bytes| VncInstance
-    VncInstance --> Decoder[VncRemoteDisplayProtocol + WASM decoder]
-    Decoder --> Canvas[Canvas framebuffer rendering]
+    User["User"] -->|"Open VNC in tab"| OpenVnc["openEditor(VNC_TAB_PREFIX)"]
+    OpenVnc --> Registry2["PaneRegistry.resolve(path)"]
+    Registry2 -->|"priority 9000"| VncExt["vncPaneExtension"]
+    VncExt --> VncInstance["VncPaneInstance"]
+    VncInstance -->|"GET /vnc/session?target=..."| Sess2["/vnc/session"]
+    Sess2 -->|"target metadata + ws_path"| SocketReq["/vnc/ws?target=..."]
+    SocketReq --> Upgrader2["WebSocket upgrade + auth + CSRF"]
+    Upgrader2 --> VncService["VncSessionService<br/>resolveOwnerFromRequest"]
+    VncService --> Bridge["WebSocketTcpBridge<br/>create TCP socket"]
+    Bridge --> Target[("Remote VNC host:port")]
+    Target -->|"RFB protocol bytes"| VncInstance
+    VncInstance --> Decoder["VncRemoteDisplayProtocol + WASM decoder"]
+    Decoder --> Canvas["Canvas framebuffer rendering"]
 ```
 
 **Implementation choices**
