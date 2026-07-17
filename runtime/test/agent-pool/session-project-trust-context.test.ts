@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AuthStorage, ModelRegistry, SettingsManager, getAgentDir, type ExtensionFactory } from "@earendil-works/pi-coding-agent";
+import { SettingsManager, getAgentDir, type ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import "../helpers.js";
 import { createSessionInDir } from "../../src/agent-pool/session.ts";
+import { createRealTestModelServices } from "../model-services-fixture.js";
 
 describe("project trust extension context", () => {
   test("extension command contexts expose ctx.isProjectTrusted", async () => {
-    const authStorage = AuthStorage.create();
-    const modelRegistry = ModelRegistry.inMemory(authStorage);
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-project-trust-context-"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const workspaceDir = join(tempRoot, "workspace");
     mkdirSync(workspaceDir, { recursive: true });
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
@@ -31,8 +31,7 @@ describe("project trust extension context", () => {
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
-        modelRegistry,
+        modelRuntime,
         settingsManager,
         tools: [],
         extensionFactories: [extension],
