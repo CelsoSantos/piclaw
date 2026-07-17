@@ -4,6 +4,7 @@
 
 import { AgentPool } from "../agent-pool.js";
 import { createRuntimeModelServices } from "../agent-pool/model-services.js";
+import { installRuntimeModelExecutor } from "../extensions/model-execution-runtime.js";
 import {
   getIdentityConfig,
   getRoutingConfig,
@@ -118,6 +119,7 @@ export function createDefaultRuntimeBootstrapDeps(base: RuntimeBootstrapDefaultB
     initializeRuntimeEnvironment: () => initializeRuntimeEnvironment(base.state),
     createAgentPool: async () => {
       const modelServices = await createRuntimeModelServices();
+      installRuntimeModelExecutor(modelServices.modelRuntime);
       const agentPool = new AgentPool({
         credentialStore: modelServices.credentialStore,
         modelRuntime: modelServices.modelRuntime,

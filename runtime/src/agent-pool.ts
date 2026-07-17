@@ -400,7 +400,7 @@ export class AgentPool {
       getOrCreate: (nextChatJid) => this.getOrCreate(nextChatJid),
       getOrCreateSideRuntime: (nextChatJid) => this.getOrCreateSideRuntime(nextChatJid),
       syncSideSessionFromMain: (mainSession, sideRuntime) => this.syncSideSessionFromMain(mainSession, sideRuntime),
-      modelRegistry: this.modelRegistry,
+      modelRuntime: this.modelRuntime,
       sideStreamSimple: this.sideStreamSimple,
       onWarn: (message, details) => log.warn(message, details),
     });

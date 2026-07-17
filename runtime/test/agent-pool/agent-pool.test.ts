@@ -815,7 +815,7 @@ test("agent pool can run a side prompt with the current model and thinking level
   expect(seen).toEqual([{ model: "openai/gpt-test", reasoning: "high", prompt: "Side question" }]);
 });
 
-test("agent pool forwards API key auth for side prompts", async () => {
+test("agent pool leaves side-prompt auth assembly to the runtime stream boundary", async () => {
   const ws = getTestWorkspace();
   restoreEnv = setEnv({ PICLAW_WORKSPACE: ws.workspace, PICLAW_STORE: ws.store, PICLAW_DATA: ws.data });
 
@@ -875,7 +875,7 @@ test("agent pool forwards API key auth for side prompts", async () => {
   const result = await pool.runSidePrompt("web:default", "Side question");
   expect(result.status).toBe("success");
   expect(result.result).toBe("key answer");
-  expect(seen).toEqual([{ apiKey: "side-api-key" }]);
+  expect(seen).toEqual([{ apiKey: undefined }]);
 });
 
 test("agent pool forks active chats from the previous stable turn boundary", async () => {

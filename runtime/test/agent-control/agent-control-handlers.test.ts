@@ -702,15 +702,18 @@ test("agent control cycle and agent identity commands", async () => {
   restoreEnv = setEnv({ PICLAW_WORKSPACE: ws.workspace, PICLAW_STORE: ws.store, PICLAW_DATA: ws.data });
 
   const applyControlCommand = await getControl();
+  let cycleRefreshCalls = 0;
   const cycleRegistry = createTestModelRegistry([
     { provider: "openai", id: "gpt-test", reasoning: true, contextWindow: 200000 },
     { provider: "anthropic", id: "claude-test", reasoning: true, contextWindow: 200000 },
   ]);
+  cycleRegistry.refresh = async () => { cycleRefreshCalls += 1; };
   const session = new TestAgentControlSession(ws.workspace, cycleRegistry);
   const runtime = createTestSessionRuntime(session);
 
   const cycleModel = await applyControlCommand(runtime as any, cycleRegistry, { type: "cycle_model", direction: "forward", raw: "/cycle-model" });
   expect(cycleModel.message).toContain("Model set to");
+  expect(cycleRefreshCalls).toBe(1);
 
   session.isCompacting = true;
   const blockedCycleModel = await applyControlCommand(runtime as any, cycleRegistry, { type: "cycle_model", direction: "forward", raw: "/cycle-model" });

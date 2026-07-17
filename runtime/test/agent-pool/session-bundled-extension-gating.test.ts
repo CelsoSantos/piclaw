@@ -10,7 +10,7 @@ import { createRealTestModelServices } from "../model-services-fixture.js";
 describe("bundled extension gating by channel/platform", () => {
   test("removed viewer tools stay out of bundled session bootstrap while platform-gated tools remain gated", async () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-session-gating-"));
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const webSessionDir = join(tempRoot, "web-session");
     const whatsappSessionDir = join(tempRoot, "wa-session");
@@ -24,18 +24,14 @@ describe("bundled extension gating by channel/platform", () => {
 
     try {
       const webRuntime = await createSessionInDir(webSessionDir, {
-        authStorage,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         chatJid: "web:test",
         cwd: workspaceDir,
       });
       const whatsappRuntime = await createSessionInDir(whatsappSessionDir, {
-        authStorage,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         chatJid: "whatsapp:test",

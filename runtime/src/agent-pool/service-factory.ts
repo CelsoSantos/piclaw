@@ -122,9 +122,7 @@ export function createAgentPoolServices(options: AgentPoolServiceFactoryOptions)
     sidePool: options.sidePool,
     ...(options.createSession ? { createSession: options.createSession } : {}),
     ...(options.createSideSession ? { createSideSession: options.createSideSession } : {}),
-    authStorage: options.authStorage,
     modelRuntime: options.modelRuntime,
-    modelRegistry: options.modelRegistry,
     settingsManager: options.settingsManager,
     mainSessionMaxSize: options.mainSessionMaxSize,
     lightweightPrewarmSession: (chatJid) => lightweightPrewarmSession(chatJid, {

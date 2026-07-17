@@ -10,7 +10,7 @@ import { createRealTestModelServices } from "../model-services-fixture.js";
 describe("bundled pi-mcp-adapter integration", () => {
   test("registers the mcp proxy tool and slash commands for piclaw sessions", async () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-mcp-adapter-"));
-    const { credentialStore, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const sessionDir = join(tempRoot, "session");
     const workspaceDir = join(tempRoot, "workspace");
@@ -18,9 +18,7 @@ describe("bundled pi-mcp-adapter integration", () => {
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage: credentialStore,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         cwd: workspaceDir,

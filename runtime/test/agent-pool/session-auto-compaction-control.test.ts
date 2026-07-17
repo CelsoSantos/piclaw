@@ -14,14 +14,12 @@ describe("session auto-compaction controls", () => {
     const workspaceDir = join(tempRoot, "workspace");
     const sessionDir = join(tempRoot, "session");
     mkdirSync(workspaceDir, { recursive: true });
-    const { credentialStore, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage: credentialStore,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         cwd: workspaceDir,

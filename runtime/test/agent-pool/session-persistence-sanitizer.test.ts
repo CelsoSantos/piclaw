@@ -48,7 +48,7 @@ describe("session persistence sanitizer", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-session-sanitize-resume-"));
     const sessionDir = join(tempRoot, "session");
     const workspaceDir = process.env.PICLAW_WORKSPACE || "/workspace";
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
 
     try {
@@ -64,9 +64,7 @@ describe("session persistence sanitizer", () => {
       expect(beforeText).toContain('"type":"image"');
 
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         chatJid: "web:test",
@@ -95,14 +93,12 @@ describe("session persistence sanitizer", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-session-sanitize-append-"));
     const sessionDir = join(tempRoot, "session");
     const workspaceDir = process.env.PICLAW_WORKSPACE || "/workspace";
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         chatJid: "web:test",

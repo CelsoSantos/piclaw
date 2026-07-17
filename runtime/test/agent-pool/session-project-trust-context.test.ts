@@ -10,7 +10,7 @@ import { createRealTestModelServices } from "../model-services-fixture.js";
 describe("project trust extension context", () => {
   test("extension command contexts expose ctx.isProjectTrusted", async () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-project-trust-context-"));
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
     const workspaceDir = join(tempRoot, "workspace");
     mkdirSync(workspaceDir, { recursive: true });
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
@@ -31,9 +31,7 @@ describe("project trust extension context", () => {
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
         modelRuntime,
-        modelRegistry,
         settingsManager,
         tools: [],
         extensionFactories: [extension],

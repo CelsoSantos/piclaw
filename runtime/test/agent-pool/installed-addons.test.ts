@@ -61,16 +61,14 @@ test('web sessions load installed addon extensions from the workspace extensions
       '',
     ].join('\n'));
 
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(workspace.base, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(workspace.base, "agent"));
     const settingsManager = SettingsManager.create(workspace.workspace, getAgentDir());
     const sessionDir = join(workspace.workspace, 'sessions', 'web-test');
 
     expect(isExtensionRouteRegistryFrozen()).toBe(false);
 
     const runtime = await createSessionInDir(sessionDir, {
-      authStorage,
       modelRuntime,
-      modelRegistry,
       settingsManager,
       tools: [],
       chatJid: 'web:test',
@@ -97,14 +95,12 @@ test('installed eml addon registers the attachment preview route', async () => {
     writeFileSync(join(addonDir, 'package.json'), readFileSync(join(sourceDir, 'package.json'), 'utf8'));
     writeFileSync(join(addonDir, 'index.ts'), readFileSync(join(sourceDir, 'index.ts'), 'utf8'));
 
-    const { credentialStore: authStorage, modelRuntime, modelRegistry } = await createRealTestModelServices(join(workspace.base, "agent"));
+    const { modelRuntime } = await createRealTestModelServices(join(workspace.base, "agent"));
     const settingsManager = SettingsManager.create(workspace.workspace, getAgentDir());
     const sessionDir = join(workspace.workspace, 'sessions', 'web-eml-test');
 
     const runtime = await createSessionInDir(sessionDir, {
-      authStorage,
       modelRuntime,
-      modelRegistry,
       settingsManager,
       tools: [],
       chatJid: 'web:test',

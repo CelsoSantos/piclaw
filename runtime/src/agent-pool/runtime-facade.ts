@@ -548,7 +548,6 @@ export class AgentRuntimeFacade {
     const session = this.options.pool.get(chatJid)?.runtime.session ?? null;
     const persistedState = session ? { current: null, thinkingLevel: null } : getPersistedSessionState(chatJid);
     const registry = (session as (AgentSession & { modelRegistry?: ModelRegistry }) | null)?.modelRegistry ?? this.options.modelRegistry;
-    registry.refresh();
     const scopedModels = resolveModelScope(
       registry.getAvailable(),
       (session as (AgentSession & { settingsManager?: SettingsManager }) | null)?.settingsManager ?? this.options.settingsManager,
