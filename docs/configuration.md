@@ -549,9 +549,9 @@ default set when they are already safe/cheap:
 
 Common read and inspect workflows stay fast while more expensive tools stay opt-in via activation.
 
-#### How to unlock additional tools
+#### Activate additional tools
 
-Follow the existing path:
+Use this sequence:
 
 1. `list_tools` with `query` or `intent` for compact discovery.
 2. Activate only the needed tool(s) via `activate_tools`.
