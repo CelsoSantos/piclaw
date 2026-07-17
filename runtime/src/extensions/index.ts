@@ -25,7 +25,6 @@
  *   - providerRequestSanitizer: defensive provider payload cleanup before HTTP requests.
  *   - llmContextNormalizer: defensive LLM message-shape cleanup before provider conversion.
  *   - mcpTimeoutPatch: Piclaw-compatible outer timeout/abort guard for MCP tools.
- *   - githubCopilotDynamicModels: Piclaw-private GitHub Copilot live /models catalog merge.
  *   - localLitePromptProfile: compact prompt/tool profile for local OpenAI-compatible models.
  *
  * Note: bun_run, keychain, ssh, proxmox, and portainer now live as packaged
@@ -65,7 +64,6 @@ import { llmContextNormalizer } from "./llm-context-normalizer.js";
 import { postCompactionPrune } from "./post-compaction-prune.js";
 import { createContextPruneExtension } from "./context-prune.js";
 import { mcpTimeoutPatch } from "./mcp-timeout-patch.js";
-import { githubCopilotDynamicModels } from "./github-copilot-dynamic-models.js";
 import { localLitePromptProfile } from "./local-lite-prompt-profile.js";
 
 /** Build the built-in extension factory list used for session creation. */
@@ -104,7 +102,6 @@ export function createBuiltinExtensionFactories(options?: {
     createContextPruneExtension({ modelRuntime: options?.modelRuntime }),
     llmContextNormalizer,
     mcpTimeoutPatch,
-    githubCopilotDynamicModels,
     localLitePromptProfile,
   ];
 }

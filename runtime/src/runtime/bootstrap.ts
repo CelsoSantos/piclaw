@@ -5,6 +5,7 @@
 import { AgentPool } from "../agent-pool.js";
 import { createRuntimeModelServices } from "../agent-pool/model-services.js";
 import { installRuntimeModelExecutor } from "../extensions/model-execution-runtime.js";
+import { registerGitHubCopilotDynamicModels } from "../extensions/github-copilot-dynamic-models.js";
 import {
   getIdentityConfig,
   getRoutingConfig,
@@ -18,7 +19,7 @@ import type { RuntimeSignalRegistrar } from "./composition.js";
 import { registerRuntimeShutdownSignals } from "./composition.js";
 import { startRuntimeLoop, type StartRuntimeLoopDeps } from "./coordinator.js";
 import { ModelRefreshCoordinator, type ModelRefreshResult } from "./model-refresh.js";
-import { registerGitHubCopilotDynamicModelsAtBoot, registerOptionalProviders } from "./provider-bootstrap.js";
+import { registerOptionalProviders } from "./provider-bootstrap.js";
 import { createShutdownHandler, type ShutdownDeps } from "./shutdown.js";
 import { registerShutdownHandler } from "./shutdown-registry.js";
 import {
@@ -120,6 +121,7 @@ export function createDefaultRuntimeBootstrapDeps(base: RuntimeBootstrapDefaultB
     createAgentPool: async () => {
       const modelServices = await createRuntimeModelServices();
       installRuntimeModelExecutor(modelServices.modelRuntime);
+      registerGitHubCopilotDynamicModels(modelServices.modelRuntime);
       const agentPool = new AgentPool({
         credentialStore: modelServices.credentialStore,
         modelRuntime: modelServices.modelRuntime,
@@ -135,7 +137,6 @@ export function createDefaultRuntimeBootstrapDeps(base: RuntimeBootstrapDefaultB
     startBackgroundModelRefresh: (agentPool) => {
       void (async () => {
         await registerOptionalProviders(agentPool);
-        await registerGitHubCopilotDynamicModelsAtBoot(agentPool);
         await refreshCoordinator?.queue();
       })().catch((error) => {
         log.warn("Background provider/model bootstrap failed", {
