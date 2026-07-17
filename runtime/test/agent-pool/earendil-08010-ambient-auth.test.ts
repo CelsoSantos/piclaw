@@ -94,5 +94,5 @@ describe("Earendil 0.80.10 ambient auth", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

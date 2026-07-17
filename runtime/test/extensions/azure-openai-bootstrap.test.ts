@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import azureOpenAiExtension, { startAzureProviderBootstrap } from "../../extensions/integrations/azure-openai.ts";
+import azureOpenAiExtension, { runAzureTokenRefresh, startAzureProviderBootstrap, writeAzureTokenCacheFile } from "../../extensions/integrations/azure-openai.ts";
 
 function fakeApi() {
   const handlers: Array<{ event: string; handler: (...args: any[]) => any }> = [];
@@ -21,6 +24,54 @@ describe("azure-openai bootstrap lifecycle", () => {
     expect(handlers.map((entry) => entry.event)).toEqual(["context"]);
     expect(commands.has("image")).toBe(true);
     expect(commands.has("flux")).toBe(true);
+  });
+
+  test("token cache writes are atomic and private regardless of prior mode", () => {
+    const root = mkdtempSync(join(tmpdir(), "piclaw-azure-token-cache-"));
+    const cacheFile = join(root, "nested", "aoai-token.json");
+    try {
+      writeAzureTokenCacheFile(cacheFile, {
+        accessToken: "first-secret",
+        expiresOn: "1",
+        expiresOnEpoch: 1,
+      });
+      expect(statSync(cacheFile).mode & 0o777).toBe(0o600);
+      expect(JSON.parse(readFileSync(cacheFile, "utf8"))).toMatchObject({ accessToken: "first-secret" });
+
+      chmodSync(cacheFile, 0o666);
+      writeFileSync(cacheFile, "stale", { mode: 0o666 });
+      writeAzureTokenCacheFile(cacheFile, {
+        accessToken: "second-secret",
+        expiresOn: "2",
+        expiresOnEpoch: 2,
+      });
+      expect(statSync(cacheFile).mode & 0o777).toBe(0o600);
+      expect(JSON.parse(readFileSync(cacheFile, "utf8"))).toMatchObject({ accessToken: "second-secret" });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("managed identity token refresh coalesces concurrent callers and releases after settlement", async () => {
+    let calls = 0;
+    let release!: () => void;
+    const blocker = new Promise<void>((resolve) => { release = resolve; });
+    const refresh = async () => {
+      calls += 1;
+      await blocker;
+      return { accessToken: `token-${calls}`, expiresOnEpoch: calls };
+    };
+
+    const first = runAzureTokenRefresh(refresh);
+    const second = runAzureTokenRefresh(refresh);
+    expect(first).toBe(second);
+    await Bun.sleep(1);
+    expect(calls).toBe(1);
+    release();
+    expect((await first).accessToken).toBe("token-1");
+
+    expect((await runAzureTokenRefresh(refresh)).accessToken).toBe("token-2");
+    expect(calls).toBe(2);
   });
 
   test("process bootstrap refresh is explicit and coalesces concurrent callers", async () => {

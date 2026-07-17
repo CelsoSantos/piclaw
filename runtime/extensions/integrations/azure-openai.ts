@@ -41,7 +41,8 @@ import {
 } from "../../src/extensions/azure-openai-api.js";
 import { estimateAzureRequestTokens } from "../../src/utils/azure-tool-call-limit.js";
 import { streamSimple as streamSimpleOpenAICompletions } from "@earendil-works/pi-ai/api/openai-completions";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 const PROVIDER = "azure-openai";
 const FOUNDRY_PROVIDER = "azure-foundry";
@@ -71,9 +72,6 @@ const MODEL_NAMES = (process.env.AOAI_MODEL_NAMES || "")
   .split(",")
   .map((entry) => entry.trim());
 const BASE_URL = process.env.AOAI_BASE_URL || "https://{RESOURCE_NAME}.openai.azure.com/openai/v1";
-// API version for direct Azure OpenAI access. The proxy ignores this, but it must
-// be settable locally so the extension works against Azure endpoints without a proxy.
-const AOAI_API_VERSION = process.env.AOAI_API_VERSION || process.env.OPENAI_API_VERSION || "2024-02-15-preview";
 const FOUNDRY_BASE_URL =
   process.env.FOUNDRY_BASE_URL || "https://{FOUNDRY_RESOURCE}.cognitiveservices.azure.com/openai/v1";
 // Secondary Azure OpenAI endpoint (e.g. a different region). Optional.
@@ -96,10 +94,6 @@ const FOUNDRY_MODEL_NAMES = (process.env.FOUNDRY_MODEL_NAMES || "")
   .split(",")
   .map((entry) => entry.trim());
 const FOUNDRY_IMAGE_MODEL_ID = process.env.FOUNDRY_IMAGE_MODEL_ID || "flux-2-pro";
-// API version constants — used for direct Azure/Foundry access (non-proxy mode).
-// Even when running through a proxy, these env vars should be settable locally
-// so the extension can be pointed at Azure endpoints directly without code changes.
-const FOUNDRY_API_VERSION = process.env.FOUNDRY_API_VERSION || AOAI_API_VERSION;
 const FOUNDRY_TEXT_MODEL_IDS = FOUNDRY_MODEL_IDS.filter(
   (id) => id !== FOUNDRY_IMAGE_MODEL_ID && !id.startsWith("flux-")
 );
@@ -279,6 +273,14 @@ export function parseAzureDeploymentNameMap(value?: string): Map<string, string>
 export function resolveAzureDeploymentName(modelId: string, mapValue?: string): string {
   const effectiveMap = mapValue ?? process.env.AOAI_DEPLOYMENT_NAME_MAP ?? process.env.AZURE_OPENAI_DEPLOYMENT_NAME_MAP ?? "";
   return parseAzureDeploymentNameMap(effectiveMap).get(modelId) || modelId;
+}
+
+export function resolveAzureModelIdForDeployment(deploymentName: string, mapValue?: string): string {
+  const effectiveMap = mapValue ?? process.env.AOAI_DEPLOYMENT_NAME_MAP ?? process.env.AZURE_OPENAI_DEPLOYMENT_NAME_MAP ?? "";
+  for (const [modelId, configuredDeployment] of parseAzureDeploymentNameMap(effectiveMap)) {
+    if (configuredDeployment === deploymentName) return modelId;
+  }
+  return deploymentName;
 }
 
 export function formatAzureRetryDelay(delayMs: number | null | undefined): string | null {
@@ -665,7 +667,7 @@ function parseCapabilityBool(value: unknown): boolean | undefined {
  * and rate limits. When available, prefer those live values so downstream
  * request shaping and proactive trimming use the real deployment caps.
  */
-function applyAzureModelCaps(models: any[], deployments: any[]): number {
+export function applyAzureModelCaps(models: any[], deployments: any[], deploymentMapValue?: string): number {
   const capsByModel = new Map<string, { contextWindow?: number; maxTokens?: number; responses?: boolean; chatCompletion?: boolean }>();
 
   for (const model of models) {
@@ -695,13 +697,14 @@ function applyAzureModelCaps(models: any[], deployments: any[]): number {
     const caps = capsByModel.get(`${modelName}|${modelVersion}`);
     if (!caps) continue;
 
-    const existing = MODEL_SPECS[deploymentName] || {};
+    const modelId = resolveAzureModelIdForDeployment(deploymentName, deploymentMapValue);
+    const existing = MODEL_SPECS[modelId] || {};
     const next = { ...existing } as { contextWindow?: number; maxTokens?: number; reasoning?: boolean };
 
     if (caps.contextWindow) next.contextWindow = caps.contextWindow;
     if (caps.maxTokens) next.maxTokens = caps.maxTokens;
 
-    const existingCaps = MODEL_CAPABILITIES[deploymentName] || {};
+    const existingCaps = MODEL_CAPABILITIES[modelId] || {};
     const nextCaps: ModelCapability = { ...existingCaps };
     if (caps.responses !== undefined) nextCaps.responses = caps.responses;
     if (caps.chatCompletion !== undefined) nextCaps.chatCompletion = caps.chatCompletion;
@@ -716,7 +719,7 @@ function applyAzureModelCaps(models: any[], deployments: any[]): number {
       if (key === "token") tpm = parseCapabilityNumber(rl.count);
     }
 
-    const existingRates = MODEL_RATE_LIMITS[deploymentName] || {};
+    const existingRates = MODEL_RATE_LIMITS[modelId] || {};
     const nextRates: RateLimit = { ...existingRates };
     if (rpm !== undefined) nextRates.rpm = rpm;
     if (tpm !== undefined) nextRates.tpm = tpm;
@@ -732,16 +735,16 @@ function applyAzureModelCaps(models: any[], deployments: any[]): number {
       nextRates.tpm !== existingRates.tpm;
 
     if (specChanged) {
-      MODEL_SPECS[deploymentName] = next;
+      MODEL_SPECS[modelId] = next;
     }
     if (capsChanged) {
-      MODEL_CAPABILITIES[deploymentName] = nextCaps;
+      MODEL_CAPABILITIES[modelId] = nextCaps;
     }
     if (ratesChanged) {
-      MODEL_RATE_LIMITS[deploymentName] = nextRates;
+      MODEL_RATE_LIMITS[modelId] = nextRates;
     }
     if (rpm !== undefined || tpm !== undefined) {
-      MODEL_RATE_LIMIT_SOURCES[deploymentName] = "live";
+      MODEL_RATE_LIMIT_SOURCES[modelId] = "live";
     }
     if (specChanged || capsChanged || ratesChanged) {
       updated += 1;
@@ -968,11 +971,14 @@ function stripToolCallItemId(id: string): { id: string; changed: boolean } {
 }
 
 
-interface TokenCache {
+export interface TokenCache {
   accessToken?: string;
   expiresOn?: string;
   expiresOnEpoch?: number;
 }
+
+let tokenCacheWriteSequence = 0;
+let tokenRefreshInFlight: Promise<TokenCache> | null = null;
 
 type ImageArgs = {
   prompt: string;
@@ -1002,10 +1008,22 @@ function isTokenValid(cache: TokenCache): boolean {
   return cache.expiresOnEpoch - now > SKEW_SECONDS;
 }
 
+export function writeAzureTokenCacheFile(cacheFile: string, payload: TokenCache): void {
+  const cacheDir = dirname(cacheFile);
+  const temporaryFile = `${cacheFile}.${process.pid}.${Date.now()}.${++tokenCacheWriteSequence}.tmp`;
+  mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
+  try {
+    writeFileSync(temporaryFile, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+    chmodSync(temporaryFile, 0o600);
+    renameSync(temporaryFile, cacheFile);
+    chmodSync(cacheFile, 0o600);
+  } finally {
+    rmSync(temporaryFile, { force: true });
+  }
+}
+
 function writeCache(token: string, expiresOn: string | undefined, expiresOnEpoch: number): void {
-  mkdirSync(CACHE_DIR, { recursive: true });
-  const payload: TokenCache = { accessToken: token, expiresOn, expiresOnEpoch };
-  writeFileSync(CACHE_FILE, `${JSON.stringify(payload, null, 2)}\n`);
+  writeAzureTokenCacheFile(CACHE_FILE, { accessToken: token, expiresOn, expiresOnEpoch });
 }
 
 async function fetchTokenFromImds(): Promise<TokenCache> {
@@ -1043,16 +1061,30 @@ async function fetchTokenFromImds(): Promise<TokenCache> {
   return { accessToken: data.access_token, expiresOn: expiresRaw, expiresOnEpoch };
 }
 
+export function runAzureTokenRefresh(refresh: () => Promise<TokenCache>): Promise<TokenCache> {
+  if (tokenRefreshInFlight) return tokenRefreshInFlight;
+  const operation = Promise.resolve().then(refresh).finally(() => {
+    if (tokenRefreshInFlight === operation) tokenRefreshInFlight = null;
+  });
+  tokenRefreshInFlight = operation;
+  return operation;
+}
+
 async function ensureToken(force = false): Promise<TokenCache> {
+  if (tokenRefreshInFlight) return tokenRefreshInFlight;
   const cached = readCache();
   if (!force && isTokenValid(cached)) return cached;
 
-  try {
-    return await fetchTokenFromImds();
-  } catch (error) {
-    console.error("[azure-openai] Failed to refresh token via IMDS:", error);
-    return cached;
-  }
+  return runAzureTokenRefresh(async () => {
+    const latest = readCache();
+    if (!force && isTokenValid(latest)) return latest;
+    try {
+      return await fetchTokenFromImds();
+    } catch (error) {
+      console.error("[azure-openai] Failed to refresh token via IMDS:", error);
+      return latest.accessToken ? latest : cached;
+    }
+  });
 }
 
 export async function getAzureAccessToken(): Promise<string> {
