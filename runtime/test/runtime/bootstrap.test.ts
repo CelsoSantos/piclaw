@@ -36,7 +36,7 @@ describe("runtime bootstrap", () => {
       sendNudge: async () => {},
     } as RuntimeSenders;
 
-    let capturedShutdownDeps: { stopIpcWatcher: () => void; stopSchedulerLoop: () => void } | null = null;
+    let capturedShutdownDeps: { stopIpcWatcher: () => void; stopSchedulerLoop: () => void; stopOptionalProviders: () => void } | null = null;
 
     const deps: RuntimeBootstrapDeps = {
       base: { queue, state },
@@ -66,6 +66,7 @@ describe("runtime bootstrap", () => {
         capturedShutdownDeps = {
           stopIpcWatcher: shutdownDeps.stopIpcWatcher,
           stopSchedulerLoop: shutdownDeps.stopSchedulerLoop,
+          stopOptionalProviders: shutdownDeps.stopOptionalProviders,
         };
         return async () => {};
       },
@@ -88,6 +89,7 @@ describe("runtime bootstrap", () => {
       log: () => events.push("log-banner"),
       stopIpcWatcher: async () => {},
       stopSchedulerLoop: () => {},
+      stopOptionalProviders: () => {},
     };
 
     await bootstrapRuntime(deps);
@@ -136,6 +138,7 @@ describe("runtime bootstrap", () => {
       log: () => {},
       stopIpcWatcher: async () => {},
       stopSchedulerLoop: () => {},
+      stopOptionalProviders: () => {},
     } as RuntimeBootstrapDeps;
 
     await bootstrapRuntime(deps);

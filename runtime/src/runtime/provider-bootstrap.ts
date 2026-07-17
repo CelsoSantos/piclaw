@@ -6,8 +6,9 @@ import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { createLogger } from "../utils/logger.js";
 
 export type AzureProviderBootstrapHandle = { stop: () => void; refresh: () => Promise<void> };
+type ProviderRegistration = Parameters<ModelRegistry["registerProvider"]>[1];
 export type AzureProviderBootstrapModule = {
-  startAzureProviderBootstrap: (register: (name: string, config: any) => void) => AzureProviderBootstrapHandle;
+  startAzureProviderBootstrap: (register: (name: string, config: ProviderRegistration) => void) => AzureProviderBootstrapHandle;
 };
 
 const log = createLogger("runtime.provider-bootstrap");
@@ -41,17 +42,27 @@ export async function registerOptionalProviders(agentPool: ProviderBootstrapAgen
   if (activeAzureBootstrap) return;
 
   const mod = await loadAzureBootstrapModuleImpl();
-  activeAzureBootstrap = mod.startAzureProviderBootstrap((name: string, config: any) => {
+  activeAzureBootstrap = mod.startAzureProviderBootstrap((name: string, config: ProviderRegistration) => {
     agentPool.registerModelProvider(name, config);
   });
-
-  await activeAzureBootstrap.refresh();
+  try {
+    await activeAzureBootstrap.refresh();
+  } catch (error) {
+    activeAzureBootstrap.stop();
+    activeAzureBootstrap = null;
+    throw error;
+  }
 
   log.info("Registered Azure optional providers via process bootstrap", {
     operation: "register_optional_providers.azure",
     hasAzureOpenAiModels: agentPool.hasProviderModels(AZURE_OPENAI_PROVIDER),
     hasAzureFoundryModels: agentPool.hasProviderModels(AZURE_FOUNDRY_PROVIDER),
   });
+}
+
+export function stopOptionalProviders(): void {
+  activeAzureBootstrap?.stop();
+  activeAzureBootstrap = null;
 }
 
 export function setProviderBootstrapLoaderForTests(
@@ -61,7 +72,6 @@ export function setProviderBootstrapLoaderForTests(
 }
 
 export function resetProviderBootstrapForTests(): void {
-  activeAzureBootstrap?.stop();
-  activeAzureBootstrap = null;
+  stopOptionalProviders();
   loadAzureBootstrapModuleImpl = async () => await import(AZURE_BOOTSTRAP_MODULE_URL) as AzureProviderBootstrapModule;
 }

@@ -17,6 +17,9 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+type AzureProviderConfig = Parameters<ExtensionAPI["registerProvider"]>[1];
+type AzureProviderRegistrar = (name: string, config: AzureProviderConfig) => void;
 import OpenAI from "openai";
 import {
   AssistantMessageEventStream,
@@ -1602,7 +1605,7 @@ function streamSimpleFoundryOpenAICompletions(model: any, context: any, options:
  * wrappers, while this function is responsible for publishing the provider and
  * model metadata that the rest of piclaw sees.
  */
-export function registerAzureProviders(register: (name: string, config: any) => void, token: string) {
+export function registerAzureProviders(register: AzureProviderRegistrar, token: string): void {
   const openaiModels = MODEL_IDS.flatMap((id, idx) => {
     const spec = MODEL_SPECS[id] || DEFAULT_AZURE_SPEC;
     const caps = MODEL_CAPABILITIES[id];
@@ -1706,12 +1709,6 @@ export function registerAzureProviders(register: (name: string, config: any) => 
   }
 }
 
-// Convenience shim so the exported registration helper can also be used from
-// tests without needing a live ExtensionAPI instance.
-function registerProvider(pi: ExtensionAPI, token: string) {
-  registerAzureProviders((name, config) => pi.registerProvider(name, config), token);
-}
-
 export async function repairAzureContext(event: { messages: any[] }, ctx: { model?: any }): Promise<{ messages: any[] } | void> {
   const currentModel = ctx.model;
   if (!currentModel) return;
@@ -1793,7 +1790,7 @@ function isAzureBootstrapTimerApi(value: unknown): value is AzureBootstrapTimerA
 }
 
 export function startAzureProviderBootstrap(
-  register: (name: string, config: any) => void,
+  register: AzureProviderRegistrar,
   options: AzureBootstrapTimerApi | AzureProviderBootstrapOptions = {},
 ): { stop: () => void; refresh: () => Promise<void> } {
   const timerApi = isAzureBootstrapTimerApi(options) ? options : options.timerApi ?? globalThis;
@@ -1802,6 +1799,7 @@ export function startAzureProviderBootstrap(
   const staticApiKey = isAzureBootstrapTimerApi(options) ? STATIC_API_KEY : options.staticApiKey ?? STATIC_API_KEY;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
+  let refreshInFlight: Promise<void> | null = null;
 
   const scheduleNext = (expiresOnEpoch?: number) => {
     if (timer) timerApi.clearTimeout(timer);
@@ -1809,10 +1807,15 @@ export function startAzureProviderBootstrap(
     const delaySeconds = expiresOnEpoch
       ? Math.max(60, expiresOnEpoch - now - SKEW_SECONDS)
       : 60;
-    timer = timerApi.setTimeout(() => void refresh(), delaySeconds * 1000);
+    timer = timerApi.setTimeout(() => {
+      void refresh().catch((error) => {
+        console.error("[azure-openai] Scheduled provider refresh failed; retaining last-good registration:", error);
+        if (!stopped) scheduleNext();
+      });
+    }, delaySeconds * 1000);
   };
 
-  const refresh = async () => {
+  const runRefresh = async () => {
     if (stopped) return;
     logExtensionLoaded();
     if (staticApiKey) {
@@ -1821,13 +1824,25 @@ export function startAzureProviderBootstrap(
     }
     const cache = await tokenProvider();
     if (cache.accessToken) {
-      await modelCapsProvider();
-      registerAzureProviders(register, cache.accessToken);
+      try {
+        await modelCapsProvider();
+      } catch (error) {
+        console.error("[azure-openai] Model capability refresh failed; retaining last-good/static model metadata:", error);
+      }
+      if (!stopped) registerAzureProviders(register, cache.accessToken);
     }
     if (!stopped) scheduleNext(cache.expiresOnEpoch);
   };
 
-  void refresh();
+  const refresh = (): Promise<void> => {
+    if (refreshInFlight) return refreshInFlight;
+    const task = runRefresh();
+    const tracked = task.finally(() => {
+      if (refreshInFlight === tracked) refreshInFlight = null;
+    });
+    refreshInFlight = tracked;
+    return tracked;
+  };
 
   return {
     stop: () => {
@@ -1836,34 +1851,6 @@ export function startAzureProviderBootstrap(
     },
     refresh,
   };
-}
-
-let createAzureProviderBootstrapImpl = startAzureProviderBootstrap;
-
-export function setAzureProviderBootstrapFactoryForTests(
-  factory: typeof startAzureProviderBootstrap | null,
-): void {
-  createAzureProviderBootstrapImpl = factory ?? startAzureProviderBootstrap;
-}
-
-function startAzureBootstrapUi(ui: {
-  setWorkingIndicator: (options?: { frames?: string[]; intervalMs?: number }) => void;
-  setWorkingMessage: (message?: string) => void;
-  setStatus?: (key: string, value: string | undefined) => void;
-} | undefined): void {
-  if (!ui) return;
-  ui.setWorkingIndicator({ frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], intervalMs: 90 });
-  ui.setWorkingMessage("Azure: refreshing provider bootstrap…");
-}
-
-function finishAzureBootstrapUi(ui: {
-  setWorkingIndicator: (options?: { frames?: string[]; intervalMs?: number }) => void;
-  setWorkingMessage: (message?: string) => void;
-  setStatus?: (key: string, value: string | undefined) => void;
-} | undefined): void {
-  if (!ui) return;
-  ui.setWorkingMessage(undefined);
-  ui.setWorkingIndicator({ frames: [] });
 }
 
 export default function (pi: ExtensionAPI) {
@@ -1890,31 +1877,7 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  let bootstrap: ReturnType<typeof startAzureProviderBootstrap> | null = null;
-
-  pi.on("session_start", async (_event, ctx) => {
-    const ui = ctx?.hasUI ? ctx.ui : undefined;
-    startAzureBootstrapUi(ui);
-    try {
-      bootstrap?.stop();
-      bootstrap = createAzureProviderBootstrapImpl((name, config) => pi.registerProvider(name, config));
-      await bootstrap.refresh();
-      ui?.setStatus?.("azure-openai", "Azure providers ready");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      bootstrap?.stop();
-      bootstrap = null;
-      ui?.setStatus?.("azure-openai", undefined);
-      ui?.notify?.(`Azure provider bootstrap failed: ${message}`, "error");
-      throw error;
-    } finally {
-      finishAzureBootstrapUi(ui);
-    }
-  });
-
-  pi.on("session_shutdown", (event) => {
-    console.log(`[azure-openai] session shutdown (${event?.reason ?? "unknown"})${event?.targetSessionFile ? ` → ${event.targetSessionFile}` : ""}`);
-    bootstrap?.stop();
-    bootstrap = null;
-  });
+  // Provider registration and token refresh are process-owned by
+  // runtime/provider-bootstrap.ts. This default export intentionally contains
+  // no session_start/session_shutdown provider lifecycle.
 }

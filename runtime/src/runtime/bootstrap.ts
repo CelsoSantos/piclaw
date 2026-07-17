@@ -19,7 +19,7 @@ import type { RuntimeSignalRegistrar } from "./composition.js";
 import { registerRuntimeShutdownSignals } from "./composition.js";
 import { startRuntimeLoop, type StartRuntimeLoopDeps } from "./coordinator.js";
 import { ModelRefreshCoordinator, type ModelRefreshResult } from "./model-refresh.js";
-import { registerOptionalProviders } from "./provider-bootstrap.js";
+import { registerOptionalProviders, stopOptionalProviders } from "./provider-bootstrap.js";
 import { createShutdownHandler, type ShutdownDeps } from "./shutdown.js";
 import { registerShutdownHandler } from "./shutdown-registry.js";
 import {
@@ -94,6 +94,7 @@ export interface RuntimeBootstrapDeps {
   log(message: string): void;
   stopIpcWatcher(): Promise<void>;
   stopSchedulerLoop(): void;
+  stopOptionalProviders(): void;
 }
 
 function logBackgroundRefreshResult(result: ModelRefreshResult): void {
@@ -155,6 +156,7 @@ export function createDefaultRuntimeBootstrapDeps(base: RuntimeBootstrapDefaultB
     log: (message) => log.info(message, { operation: "bootstrap.banner" }),
     stopIpcWatcher,
     stopSchedulerLoop,
+    stopOptionalProviders,
   };
 }
 
@@ -177,6 +179,7 @@ export async function bootstrapRuntime(deps: RuntimeBootstrapDeps): Promise<void
     pushover,
     stopIpcWatcher: deps.stopIpcWatcher,
     stopSchedulerLoop: deps.stopSchedulerLoop,
+    stopOptionalProviders: deps.stopOptionalProviders,
   });
   registerShutdownHandler(shutdown);
   deps.registerRuntimeShutdownSignals(deps.signalRegistrar, shutdown);

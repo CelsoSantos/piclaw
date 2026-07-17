@@ -1,15 +1,38 @@
+import type { Api, Model, ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+
+import { sanitizeProviderPayloadItemIds } from "./provider-request-sanitizer.js";
+import { recordProviderResponseDiagnostics } from "./provider-response-diagnostics.js";
 
 export type RuntimeModelExecutor = Pick<ModelRuntime, "streamSimple" | "completeSimple">;
 
 let runtimeModelExecutor: RuntimeModelExecutor | null = null;
 
+function composeOptions(model: Model<Api>, options: ModelsSimpleStreamOptions = {}): ModelsSimpleStreamOptions {
+  const callerPayload = options.onPayload;
+  const callerResponse = options.onResponse;
+  return {
+    ...options,
+    onPayload: async (payload, selectedModel) => {
+      const transformed = callerPayload ? await callerPayload(payload, selectedModel) : undefined;
+      return sanitizeProviderPayloadItemIds(transformed ?? payload, {
+        stripConnectionBoundIds: selectedModel.provider === "github-copilot" && selectedModel.api === "openai-responses",
+      });
+    },
+    onResponse: async (response, selectedModel) => {
+      recordProviderResponseDiagnostics(response.status, response.headers);
+      await callerResponse?.(response, selectedModel);
+    },
+  };
+}
+
 /** Install the process-wide runtime-owned executor used by bundled path extensions. */
-export function installRuntimeModelExecutor(executor: RuntimeModelExecutor): void {
-  if (runtimeModelExecutor && runtimeModelExecutor !== executor) {
-    throw new Error("Runtime model executor is already installed with a different ModelRuntime");
-  }
-  runtimeModelExecutor = executor;
+export function installRuntimeModelExecutor(modelRuntime: ModelRuntime): void {
+  if (runtimeModelExecutor) throw new Error("Runtime model executor is already installed");
+  runtimeModelExecutor = {
+    streamSimple: (model, context, options) => modelRuntime.streamSimple(model, context, composeOptions(model, options)),
+    completeSimple: (model, context, options) => modelRuntime.completeSimple(model, context, composeOptions(model, options)),
+  };
 }
 
 export function getRuntimeModelExecutor(): RuntimeModelExecutor | null {
