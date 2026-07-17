@@ -40,16 +40,16 @@ Use this when piclaw web chats only show thinking or extensions throw errors.
    sudo chown -R agent:agent /workspace/.piclaw/tailscale
    ```
 
-7. Restart piclaw.
+7. Restart Piclaw only with explicit user permission.
 
-   If you are finishing an in-agent deploy or fix, prefer `exit_process` as the last action so the managed process exits cleanly and the enclosing service manager restarts it.
+   For an agent-driven restart, run `session_status` first. If another session is active, report it and wait. Otherwise send the final response, then call `exit_process` as the last tool action.
 
-   For a shell restart, use the active service manager:
+   For a manual shell restart, identify the host's active service manager and use it directly:
    ```bash
-   # container / Supervisor
+   # Supervisor-managed container
    supervisorctl restart piclaw
 
-   # host-native / systemd --user
+   # systemd user unit, including LXC or host-native installs
    systemctl --user restart piclaw.service
    ```
 
