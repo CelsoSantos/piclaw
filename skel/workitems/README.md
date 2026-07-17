@@ -1,31 +1,14 @@
-# Project Workitems Board
+# Workitems compatibility scaffold
 
-This board is the **project-local workitems board** for the generated project.
+Piclaw tracks active project work in GitHub Issues and GitHub Projects. Do not create new Markdown work-item files here unless a generated project explicitly adopts the legacy file-board workflow.
 
-## What belongs here
+The lane directories and `_templates/work-item.md` remain for compatibility with older workspaces and external project templates. Piclaw's own repository protects this surface with `.github/workflows/workitems-lock.yml`.
 
-- project feature work
-- project bugs and regressions
-- project architecture, tooling, release, and UX tickets
+For active Piclaw work:
 
-## What does not belong here
+```bash
+gh issue list -R rcarmo/piclaw --state open
+gh issue create -R rcarmo/piclaw --title "..." --body "..."
+```
 
-- tickets explicitly tagged `non-project`
-- unrelated infrastructure or side-project ideas
-- new-project exploration that should live outside this repository
-
-## Notes
-
-- This board mirrors the standard lane layout used elsewhere.
-- Prefer keeping project work here instead of in a shared global board.
-- Keep unrelated tickets on a separate/global board unless the user requests a different home.
-
-## Layout
-
-- `00-inbox/`
-- `10-next/`
-- `20-doing/`
-- `30-blocked/`
-- `40-review/`
-- `50-done/`
-- `_templates/`
+See `docs/workitems-github-migration.md` in the Piclaw source repository for the migration record.
