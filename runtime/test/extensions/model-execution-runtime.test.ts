@@ -44,6 +44,17 @@ test("runtime executor preserves non-Copilot reasoning while removing duplicate 
   expect(transformed).toEqual({ input: [{ type: "message", id: "m1" }, { type: "message" }] });
 });
 
+test("runtime executor falls back to the requested model when provider callback omits selectedModel", async () => {
+  let options: any;
+  installRuntimeModelExecutor({
+    streamSimple: (_model: any, _context: any, nextOptions: any) => { options = nextOptions; return {} as any; },
+    completeSimple: async () => ({}) as any,
+  } as any);
+  getRuntimeModelExecutor()!.streamSimple(model("azure-openai", "azure-openai-responses-mi"), { messages: [] });
+  const transformed = await options.onPayload({ input: [{ type: "message", id: "m1" }, { type: "message", id: "m1" }] });
+  expect(transformed).toEqual({ input: [{ type: "message", id: "m1" }, { type: "message" }] });
+});
+
 test("runtime executor observes provider responses before the caller callback", async () => {
   const events: string[] = [];
   let options: any;
