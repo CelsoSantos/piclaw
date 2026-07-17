@@ -29,10 +29,10 @@ import {
   ModelRegistry,
   type ModelRuntime,
   SettingsManager,
-  getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 
 import { type AgentControlCommand, type AgentControlResult } from "./agent-control/index.js";
+import { getPiclawAgentDir } from "./core/agent-dir.js";
 import { SESSIONS_DIR, WORKSPACE_DIR, getAgentLogConfig } from "./core/config.js";
 import { getChatChannel, getChatJid } from "./core/chat-context.js";
 import { registerChannelDetector } from "./router.js";
@@ -215,7 +215,7 @@ export class AgentPool {
   private credentialStore: PiclawCredentialStore;
   private modelRuntime: ModelRuntime;
   private modelRegistry: ModelRegistry;
-  private settingsManager = SettingsManager.create(WORKSPACE_DIR, getAgentDir());
+  private settingsManager = SettingsManager.create(WORKSPACE_DIR, getPiclawAgentDir());
   private logsDir = join(WORKSPACE_DIR, "logs");
   private createSession?: AgentPoolOptions["createSession"];
   private createSideSession?: AgentPoolOptions["createSideSession"];

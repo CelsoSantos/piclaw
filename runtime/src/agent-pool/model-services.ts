@@ -1,12 +1,12 @@
 import { join } from "node:path";
 
 import {
-  getAgentDir,
   ModelRegistry,
   ModelRuntime,
   type CreateModelRuntimeOptions,
 } from "@earendil-works/pi-coding-agent";
 
+import { getPiclawAgentDir } from "../core/agent-dir.js";
 import { FileCredentialStore, type PiclawCredentialStore } from "./credential-store.js";
 
 export class PiclawModelRegistry extends ModelRegistry {
@@ -44,7 +44,7 @@ export interface CreateRuntimeModelServicesOptions {
 export async function createRuntimeModelServices(
   options: CreateRuntimeModelServicesOptions = {},
 ): Promise<RuntimeModelServices> {
-  const agentDir = options.agentDir ?? getAgentDir();
+  const agentDir = options.agentDir ?? getPiclawAgentDir();
   const credentialStore = options.credentialStore ?? new FileCredentialStore(join(agentDir, "auth.json"));
   const createModelRuntime = options.createModelRuntime ?? ((runtimeOptions) => ModelRuntime.create(runtimeOptions));
   const modelRuntime = await createModelRuntime({

@@ -8,7 +8,13 @@ import type { CreateModelRuntimeOptions, ModelRuntime } from "@earendil-works/pi
 import { PiclawModelRegistry, createRuntimeModelServices } from "../../src/agent-pool/model-services.js";
 
 const roots: string[] = [];
+const originalPiclawAgentDir = process.env.PICLAW_PI_AGENT_DIR;
+const originalUpstreamAgentDir = process.env.PI_CODING_AGENT_DIR;
 afterEach(() => {
+  if (originalPiclawAgentDir === undefined) delete process.env.PICLAW_PI_AGENT_DIR;
+  else process.env.PICLAW_PI_AGENT_DIR = originalPiclawAgentDir;
+  if (originalUpstreamAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+  else process.env.PI_CODING_AGENT_DIR = originalUpstreamAgentDir;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -41,6 +47,31 @@ describe("runtime model services", () => {
     expect(captured?.credentials).toBe(services.credentialStore);
     expect(services.modelRuntime).toBe(fakeRuntime);
     expect(services.modelRegistry).toBeInstanceOf(PiclawModelRegistry);
+  });
+
+  test("default construction uses Piclaw's agent directory over a conflicting upstream path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "piclaw-model-services-env-"));
+    roots.push(root);
+    const piclawAgentDir = join(root, "piclaw-agent");
+    process.env.PICLAW_PI_AGENT_DIR = piclawAgentDir;
+    process.env.PI_CODING_AGENT_DIR = join(root, "upstream-agent");
+    let captured: CreateModelRuntimeOptions | null = null;
+    const fakeRuntime = { reloadConfig: async () => {} } as unknown as ModelRuntime;
+
+    const services = await createRuntimeModelServices({
+      createModelRuntime: async (options) => {
+        captured = options;
+        return fakeRuntime;
+      },
+    });
+
+    expect(services.agentDir).toBe(piclawAgentDir);
+    expect(services.credentialStore.authPath).toBe(join(piclawAgentDir, "auth.json"));
+    expect(captured).toMatchObject({
+      authPath: join(piclawAgentDir, "auth.json"),
+      modelsPath: join(piclawAgentDir, "models.json"),
+      modelsStorePath: join(piclawAgentDir, "models-store.json"),
+    });
   });
 
   test("compat registry coalesces concurrent config reloads", async () => {

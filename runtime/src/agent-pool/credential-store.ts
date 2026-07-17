@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import type { Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
 import lockfile from "proper-lockfile";
 
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getPiclawAgentDir } from "../core/agent-dir.js";
 
 const AUTH_FILE_MODE = 0o600;
 const AUTH_DIRECTORY_MODE = 0o700;
@@ -100,7 +100,7 @@ export class FileCredentialStore implements PiclawCredentialStore {
   private data: CredentialData = {};
   private errors: Error[] = [];
 
-  constructor(readonly authPath: string = join(getAgentDir(), "auth.json")) {}
+  constructor(readonly authPath: string = join(getPiclawAgentDir(), "auth.json")) {}
 
   private recordError(error: unknown): Error {
     const normalized = error instanceof Error ? error : new Error(String(error));

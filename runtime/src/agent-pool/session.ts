@@ -26,12 +26,12 @@ import {
   type AgentSessionServices,
   type ExtensionFactory,
   type SessionStartEvent,
-  getAgentDir,
   SessionManager,
   type ModelRuntime,
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 
+import { getPiclawAgentDir } from "../core/agent-dir.js";
 import { SESSIONS_DIR, WORKSPACE_DIR } from "../core/config.js";
 import { buildChannelSystemPromptAppendix } from "../channels/formatting.js";
 import { detectChannel } from "../router.js";
@@ -45,7 +45,7 @@ import { normalizeLlmContext } from "./llm-context-normalizer.js";
 import { writeMergedSessionArchive } from "../session-archive.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const AGENT_DIR = getAgentDir();
+const AGENT_DIR = getPiclawAgentDir();
 const EMPTY_STRING_ARRAY: string[] = [];
 const BUNDLED_EXTENSION_PATHS_CACHE = new Map<string, string[]>();
 const SESSION_TOOL_RESULT_MAX_PERSIST_BYTES = parsePositiveInt(

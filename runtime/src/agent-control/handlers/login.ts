@@ -18,7 +18,7 @@ import type { AuthEvent, AuthPrompt, AuthType, CredentialInfo } from "@earendil-
 import type { AgentControlCommand, AgentControlResult } from "../agent-control-types.js";
 import { writeFileSync, readFileSync, existsSync, copyFileSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
+import { getPiclawAgentDir } from "../../core/agent-dir.js";
 import { createLogger } from "../../utils/logger.js";
 import { getProviderDefs, type ProviderDef } from "../provider-defs.js";
 import { handleModel } from "./model.js";
@@ -39,16 +39,12 @@ interface ModelRegistryLike {
 
 // ── Config paths ────────────────────────────────────────────────
 
-function getPiAgentDir(): string {
-  return process.env.PICLAW_PI_AGENT_DIR?.trim() || join(homedir(), ".pi", "agent");
-}
-
 function getAuthJsonPath(): string {
-  return join(getPiAgentDir(), "auth.json");
+  return join(getPiclawAgentDir(), "auth.json");
 }
 
 function getModelsJsonPath(): string {
-  return join(getPiAgentDir(), "models.json");
+  return join(getPiclawAgentDir(), "models.json");
 }
 
 function backupFile(path: string): void {

@@ -1,7 +1,8 @@
 import { join } from "node:path";
 
-import { getAgentDir, readStoredCredential, type ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { readStoredCredential, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 
+import { getPiclawAgentDir } from "../core/agent-dir.js";
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
 
 export interface ProviderUsageWindow {
@@ -185,7 +186,7 @@ export function peekProviderUsage(providerId: string, options: { allowStale?: bo
 }
 
 function resolveUsageAuthPath(modelRuntime: UsageModelRuntime, authPath?: string): string {
-  return authPath ?? (modelRuntime as UsageModelRuntime & { authPath?: string }).authPath ?? join(getAgentDir(), "auth.json");
+  return authPath ?? (modelRuntime as UsageModelRuntime & { authPath?: string }).authPath ?? join(getPiclawAgentDir(), "auth.json");
 }
 
 export async function warmProviderUsage(modelRuntime: UsageModelRuntime, providerId: string, authPath?: string): Promise<ProviderUsageSnapshot | null> {
