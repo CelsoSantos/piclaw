@@ -26,13 +26,13 @@ import { join } from "path";
 import {
   type AgentSession,
   type AgentSessionRuntime,
-  AuthStorage,
   ModelRegistry,
+  type ModelRuntime,
   SettingsManager,
-  getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 
 import { type AgentControlCommand, type AgentControlResult } from "./agent-control/index.js";
+import { getPiclawAgentDir } from "./core/agent-dir.js";
 import { SESSIONS_DIR, WORKSPACE_DIR, getAgentLogConfig } from "./core/config.js";
 import { getChatChannel, getChatJid } from "./core/chat-context.js";
 import { registerChannelDetector } from "./router.js";
@@ -52,6 +52,7 @@ import { rotateSession, type SessionRotationResult } from "./session-rotation.js
 import { type AvailableModelsResult } from "./agent-pool/runtime-facade.js";
 import { createAgentPoolServices, type AgentPoolServices } from "./agent-pool/service-factory.js";
 import { type AgentSessionManagerInstrumentationSnapshot, type PoolEntry } from "./agent-pool/session-manager.js";
+import type { PiclawCredentialStore } from "./agent-pool/credential-store.js";
 import { installLegacySessionAffinityCompatibility } from "./agent-pool/session-affinity-compat.js";
 import {
   type ChatBranchRecord,
@@ -211,9 +212,10 @@ export class AgentPool {
   };
 
   // Shared across all sessions (expensive to create, safe to reuse)
-  private authStorage: AuthStorage;
+  private credentialStore: PiclawCredentialStore;
+  private modelRuntime: ModelRuntime;
   private modelRegistry: ModelRegistry;
-  private settingsManager = SettingsManager.create(WORKSPACE_DIR, getAgentDir());
+  private settingsManager = SettingsManager.create(WORKSPACE_DIR, getPiclawAgentDir());
   private logsDir = join(WORKSPACE_DIR, "logs");
   private createSession?: AgentPoolOptions["createSession"];
   private createSideSession?: AgentPoolOptions["createSideSession"];
@@ -230,11 +232,15 @@ export class AgentPool {
   private sideStreamSimple?: NonNullable<AgentPoolOptions["sideStreamSimple"]>;
   private readonly config = loadAgentPoolConfig();
 
-  constructor(options: AgentPoolOptions = {}) {
+  constructor(options: AgentPoolOptions) {
     this.createSession = options.createSession;
     this.createSideSession = options.createSideSession;
-    this.authStorage = AuthStorage.create();
-    this.modelRegistry = options.modelRegistry ?? ModelRegistry.create(this.authStorage);
+    if (!options.credentialStore || !options.modelRuntime) {
+      throw new Error("AgentPool requires shared credentialStore and modelRuntime services");
+    }
+    this.credentialStore = options.credentialStore;
+    this.modelRuntime = options.modelRuntime;
+    this.modelRegistry = options.modelRegistry ?? new ModelRegistry(this.modelRuntime);
     installLegacySessionAffinityCompatibility(this.modelRegistry, (message, details) => log.warn(message, details));
     this.applyRateLimitRetryDefaults();
     ({
@@ -249,7 +255,8 @@ export class AgentPool {
       pool: this.pool,
       sidePool: this.sidePool,
       activeForkBaseLeafByChat: this.activeForkBaseLeafByChat,
-      authStorage: this.authStorage,
+      authStorage: this.credentialStore,
+      modelRuntime: this.modelRuntime,
       modelRegistry: this.modelRegistry,
       settingsManager: this.settingsManager,
       workspaceDir: WORKSPACE_DIR,
@@ -393,7 +400,7 @@ export class AgentPool {
       getOrCreate: (nextChatJid) => this.getOrCreate(nextChatJid),
       getOrCreateSideRuntime: (nextChatJid) => this.getOrCreateSideRuntime(nextChatJid),
       syncSideSessionFromMain: (mainSession, sideRuntime) => this.syncSideSessionFromMain(mainSession, sideRuntime),
-      modelRegistry: this.modelRegistry,
+      modelRuntime: this.modelRuntime,
       sideStreamSimple: this.sideStreamSimple,
       onWarn: (message, details) => log.warn(message, details),
     });
