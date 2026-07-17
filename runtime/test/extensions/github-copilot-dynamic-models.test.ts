@@ -74,6 +74,8 @@ describe("github-copilot dynamic models overlay", () => {
     expect(merged.map((model) => model.id)).toEqual(["claude-opus-4.7-high", "gpt-4.1", "gpt-5.5", "gpt-5.6"]);
     expect(merged.find((model) => model.id === "gpt-5.5")?.contextWindow).toBe(400000);
     expect(merged.find((model) => model.id === "gpt-5.6")?.thinkingLevelMap).toMatchObject({ max: "max" });
+    expect(merged.find((model) => model.id === "gpt-5.6")?.headers?.["Editor-Version"]).toBe("vscode/1.107.0");
+    expect(merged.find((model) => model.id === "gpt-5.5")?.headers?.["Editor-Version"]).toBe("vscode/1.107.0");
     expect(merged.find((model) => model.id === "claude-opus-4.7-high")?.api).toBe("anthropic-messages");
   });
 
@@ -190,7 +192,11 @@ describe("github-copilot dynamic models overlay", () => {
     expect(typeof after.auth.oauth?.refresh).toBe("function");
     expect(typeof after.auth.oauth?.toAuth).toBe("function");
     expect(typeof after.streamSimple).toBe("function");
-    expect(runtime.getModel("github-copilot", "gpt-5.6")).toBeDefined();
+    const imported = runtime.getModel("github-copilot", "gpt-5.6");
+    expect(imported).toBeDefined();
+    const prepared = await runtime.prepareRequest(imported!);
+    expect(prepared.options.headers?.["Editor-Version"]).toBe("vscode/1.107.0");
+    expect(prepared.options.headers?.["Editor-Plugin-Version"]).toBe("copilot-chat/0.35.0");
   });
 
   test("registers one auth-free process overlay and leaves OAuth/streams inherited", () => {
@@ -204,6 +210,7 @@ describe("github-copilot dynamic models overlay", () => {
     expect(registrations[0].id).toBe("github-copilot");
     expect(registrations[0].config.oauth).toBeUndefined();
     expect(registrations[0].config.streamSimple).toBeUndefined();
+    expect(registrations[0].config.headers?.["Editor-Version"]).toBe("vscode/1.107.0");
     expect(typeof registrations[0].config.refreshModels).toBe("function");
   });
 });

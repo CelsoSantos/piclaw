@@ -14,9 +14,10 @@ function composeOptions(model: Model<Api>, options: ModelsSimpleStreamOptions = 
   return {
     ...options,
     onPayload: async (payload, selectedModel) => {
-      const transformed = callerPayload ? await callerPayload(payload, selectedModel) : undefined;
+      const effectiveModel = selectedModel ?? model;
+      const transformed = callerPayload ? await callerPayload(payload, effectiveModel) : undefined;
       return sanitizeProviderPayloadItemIds(transformed ?? payload, {
-        stripConnectionBoundIds: selectedModel.provider === "github-copilot" && selectedModel.api === "openai-responses",
+        stripConnectionBoundIds: effectiveModel.provider === "github-copilot" && effectiveModel.api === "openai-responses",
       });
     },
     onResponse: async (response, selectedModel) => {

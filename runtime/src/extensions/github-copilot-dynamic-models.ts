@@ -263,7 +263,7 @@ function toProviderModelConfig(model: Model<Api>): ProviderModelConfig {
     cost: model.cost ?? DEFAULT_COST,
     contextWindow: model.contextWindow ?? 128000,
     maxTokens: model.maxTokens ?? 16384,
-    headers: undefined,
+    headers: { ...COPILOT_HEADERS },
     compat: model.compat,
   } satisfies ProviderModelConfig;
 }
@@ -289,7 +289,7 @@ function liveToProviderModelConfig(
     cost: template?.cost ?? DEFAULT_COST,
     contextWindow: liveModelContextWindow(live, template?.contextWindow),
     maxTokens: liveModelMaxTokens(live, template?.maxTokens),
-    headers: undefined,
+    headers: { ...COPILOT_HEADERS },
     compat: inferCompat(id, api, template),
   } satisfies ProviderModelConfig;
 }
@@ -387,7 +387,7 @@ function toStoredModel(model: ProviderModelConfig): Model<Api> {
     ...model,
     provider: PROVIDER,
     baseUrl: model.baseUrl ?? DEFAULT_BASE_URL,
-    headers: model.headers ?? COPILOT_HEADERS,
+    headers: model.headers ?? { ...COPILOT_HEADERS },
   } as Model<Api>;
 }
 
@@ -397,6 +397,11 @@ export function createGitHubCopilotDynamicModelsOverlay(
   let lastGood: ProviderModelConfig[] = mergeGitHubCopilotDynamicModels([...modelRuntime.getModels(PROVIDER)], []);
   let networkInFlight: Promise<ProviderModelConfig[]> | null = null;
   return {
+    // Pi core composes extension-supplied model lists by replacing the built-in
+    // model objects. Keep Copilot's required IDE identity headers at the
+    // provider-auth layer so they survive that composition path for every
+    // static, cached, and live-discovered model.
+    headers: { ...COPILOT_HEADERS },
     refreshModels: async (context) => {
       const cached = await storedProviderModels(context);
       if (cached.length > 0) lastGood = mergeGitHubCopilotDynamicModels([...modelRuntime.getModels(PROVIDER), ...cached], []);
