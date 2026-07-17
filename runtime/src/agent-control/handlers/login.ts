@@ -39,7 +39,7 @@ interface AuthStorageLike {
       onAuth: (info: { url: string; instructions?: string }) => void;
       onPrompt: (prompt: { message: string; placeholder?: string }) => Promise<string>;
       onProgress?: (message: string) => void;
-      onManualCodeInput?: () => Promise<string>;
+      onManualCodeInput?: (signal?: AbortSignal) => Promise<string>;
       onSelect?: (prompt: { message: string; options: Array<{ id: string; label: string }> }) => Promise<string>;
       onDeviceCode?: (device: {
         userCode: string;
@@ -447,15 +447,26 @@ async function startOAuthBackground(
       authUrl = device.verificationUri;
       authReceived?.();
     },
-    onManualCodeInput: () => new Promise<string>((resolve, reject) => {
-      pendingOAuthInputs.set(providerId, { resolve, reject });
+    onManualCodeInput: (signal) => new Promise<string>((resolve, reject) => {
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const finish = (value: string | Error) => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        signal?.removeEventListener("abort", onAbort);
+        if (pendingOAuthInputs.get(providerId)?.resolve === resolveInput) pendingOAuthInputs.delete(providerId);
+        if (value instanceof Error) reject(value);
+        else resolve(value);
+      };
+      const resolveInput = (value: string) => finish(value);
+      const onAbort = () => finish(new Error("OAuth manual input cancelled"));
+      pendingOAuthInputs.set(providerId, { resolve: resolveInput, reject: (error) => finish(error) });
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) {
+        onAbort();
+        return;
+      }
       // Safety timeout — if no card submission arrives within 5 minutes, reject.
-      setTimeout(() => {
-        if (pendingOAuthInputs.get(providerId)?.resolve === resolve) {
-          pendingOAuthInputs.delete(providerId);
-          reject(new Error("Timed out waiting for redirect URL"));
-        }
-      }, 300_000);
+      timeoutHandle = setTimeout(() => finish(new Error("Timed out waiting for redirect URL")), 300_000);
+      (timeoutHandle as { unref?: () => void }).unref?.();
     }),
   });
 

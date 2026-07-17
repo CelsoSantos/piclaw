@@ -2,23 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AuthStorage, ModelRegistry, SettingsManager, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { SettingsManager, getAgentDir } from "@earendil-works/pi-coding-agent";
 import "../helpers.js";
 import { createSessionInDir } from "../../src/agent-pool/session.ts";
+import { createRealTestModelServices } from "../model-services-fixture.js";
 
 describe("bundled pi-mcp-adapter integration", () => {
   test("registers the mcp proxy tool and slash commands for piclaw sessions", async () => {
-    const authStorage = AuthStorage.create();
-    const modelRegistry = ModelRegistry.inMemory(authStorage);
-    const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-mcp-adapter-"));
+    const { credentialStore, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
+    const settingsManager = SettingsManager.create("/workspace", getAgentDir());
     const sessionDir = join(tempRoot, "session");
     const workspaceDir = join(tempRoot, "workspace");
     mkdirSync(workspaceDir, { recursive: true });
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
+        authStorage: credentialStore,
+        modelRuntime,
         modelRegistry,
         settingsManager,
         tools: [],

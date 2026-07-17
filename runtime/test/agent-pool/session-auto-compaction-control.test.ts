@@ -2,24 +2,25 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AuthStorage, ModelRegistry, SettingsManager, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { SettingsManager, getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import "../helpers.js";
 import { createSessionInDir } from "../../src/agent-pool/session.ts";
+import { createRealTestModelServices } from "../model-services-fixture.js";
 
 describe("session auto-compaction controls", () => {
   test("createSessionInDir disables upstream auto-compaction with the public session API", async () => {
-    const authStorage = AuthStorage.create();
-    const modelRegistry = ModelRegistry.inMemory(authStorage);
     const tempRoot = mkdtempSync(join(tmpdir(), "piclaw-session-auto-compaction-"));
     const workspaceDir = join(tempRoot, "workspace");
     const sessionDir = join(tempRoot, "session");
     mkdirSync(workspaceDir, { recursive: true });
+    const { credentialStore, modelRuntime, modelRegistry } = await createRealTestModelServices(join(tempRoot, "agent"));
     const settingsManager = SettingsManager.create(workspaceDir, getAgentDir());
 
     try {
       const runtime = await createSessionInDir(sessionDir, {
-        authStorage,
+        authStorage: credentialStore,
+        modelRuntime,
         modelRegistry,
         settingsManager,
         tools: [],

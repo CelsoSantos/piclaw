@@ -28,8 +28,8 @@ import {
   type SessionStartEvent,
   getAgentDir,
   SessionManager,
-  type AuthStorage,
   type ModelRegistry,
+  type ModelRuntime,
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 
@@ -45,6 +45,7 @@ import { streamSimple } from "@earendil-works/pi-ai/compat";
 import type { CompactionStreamFn } from "../extensions/smart-compaction/stream-complete.js";
 import { normalizeLlmContext } from "./llm-context-normalizer.js";
 import { writeMergedSessionArchive } from "../session-archive.js";
+import type { PiclawCredentialStore } from "./credential-store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_DIR = getAgentDir();
@@ -668,7 +669,8 @@ export function createCompactionStreamFn(modelRegistry: ModelRegistry, settingsM
 export async function createSessionInDir(
   sessionDir: string,
   options: {
-    authStorage: AuthStorage;
+    authStorage: PiclawCredentialStore;
+    modelRuntime: ModelRuntime;
     modelRegistry: ModelRegistry;
     settingsManager: SettingsManager;
     tools: NonNullable<AgentSessionCreateOptions["tools"]>;
@@ -716,9 +718,8 @@ export async function createSessionInDir(
     const services: AgentSessionServices = {
       cwd,
       agentDir,
-      authStorage: options.authStorage,
+      modelRuntime: options.modelRuntime,
       settingsManager: options.settingsManager,
-      modelRegistry: options.modelRegistry,
       resourceLoader,
       diagnostics: [],
     };
@@ -776,7 +777,8 @@ export async function createSessionInDir(
 export async function createDefaultSession(
   chatJid: string,
   options: {
-    authStorage: AuthStorage;
+    authStorage: PiclawCredentialStore;
+    modelRuntime: ModelRuntime;
     modelRegistry: ModelRegistry;
     settingsManager: SettingsManager;
     tools: NonNullable<AgentSessionCreateOptions["tools"]>;

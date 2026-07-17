@@ -1,6 +1,5 @@
-import type { AuthStorage } from "@earendil-works/pi-coding-agent";
-
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
+import type { PiclawCredentialStore } from "./credential-store.js";
 
 export interface ProviderUsageWindow {
   label: string;
@@ -138,7 +137,7 @@ const PROVIDER_API_KEY_ENV: Partial<Record<SupportedProviderId, string[]>> = {
   zai: ["ZAI_API_KEY"],
 };
 
-function getApiKeyCredential(authStorage: AuthStorage, providerId: SupportedProviderId): { key: string } | null {
+function getApiKeyCredential(authStorage: PiclawCredentialStore, providerId: SupportedProviderId): { key: string } | null {
   const current = (authStorage.get(providerId) as any) ?? null;
   if (current && current.type === "api_key" && typeof current.key === "string" && current.key.trim()) {
     return { key: current.key.trim() };
@@ -152,7 +151,7 @@ function getApiKeyCredential(authStorage: AuthStorage, providerId: SupportedProv
   return null;
 }
 
-async function getOAuthCredential(authStorage: AuthStorage, providerId: string): Promise<any | null> {
+async function getOAuthCredential(authStorage: PiclawCredentialStore, providerId: string): Promise<any | null> {
   const current = (authStorage.get(providerId) as any) ?? null;
   if (!current || current.type !== "oauth") return null;
   if (typeof current.expires === "number" && Number.isFinite(current.expires) && Date.now() >= current.expires) {
@@ -168,7 +167,7 @@ async function getOAuthCredential(authStorage: AuthStorage, providerId: string):
   return refreshed && refreshed.type === "oauth" ? refreshed : null;
 }
 
-async function fetchCodexUsage(authStorage: AuthStorage): Promise<ProviderUsageSnapshot | null> {
+async function fetchCodexUsage(authStorage: PiclawCredentialStore): Promise<ProviderUsageSnapshot | null> {
   const credential = await getOAuthCredential(authStorage, "openai-codex");
   if (!credential?.access || !credential?.accountId) return null;
 
@@ -215,7 +214,7 @@ async function fetchCodexUsage(authStorage: AuthStorage): Promise<ProviderUsageS
   };
 }
 
-async function fetchGitHubCopilotUsage(authStorage: AuthStorage): Promise<ProviderUsageSnapshot | null> {
+async function fetchGitHubCopilotUsage(authStorage: PiclawCredentialStore): Promise<ProviderUsageSnapshot | null> {
   const credential = await getOAuthCredential(authStorage, "github-copilot");
   const githubToken = typeof credential?.refresh === "string" ? credential.refresh : null;
   if (!githubToken) return null;
@@ -269,7 +268,7 @@ async function fetchGitHubCopilotUsage(authStorage: AuthStorage): Promise<Provid
   };
 }
 
-async function fetchZaiUsage(authStorage: AuthStorage): Promise<ProviderUsageSnapshot | null> {
+async function fetchZaiUsage(authStorage: PiclawCredentialStore): Promise<ProviderUsageSnapshot | null> {
   const credential = getApiKeyCredential(authStorage, "zai");
   if (!credential?.key) return null;
 
@@ -331,7 +330,7 @@ function hasFreshCachedUsage(providerId: string): boolean {
   return Boolean(cached && cached.expiresAt > Date.now());
 }
 
-async function fetchProviderUsage(authStorage: AuthStorage, providerId: SupportedProviderId): Promise<ProviderUsageSnapshot | null> {
+async function fetchProviderUsage(authStorage: PiclawCredentialStore, providerId: SupportedProviderId): Promise<ProviderUsageSnapshot | null> {
   switch (providerId) {
     case "openai-codex":
       return await fetchCodexUsage(authStorage);
@@ -352,7 +351,7 @@ export function peekProviderUsage(providerId: string, options: { allowStale?: bo
   return cached.expiresAt > Date.now() ? cached.value : null;
 }
 
-export async function warmProviderUsage(authStorage: AuthStorage, providerId: string): Promise<ProviderUsageSnapshot | null> {
+export async function warmProviderUsage(authStorage: PiclawCredentialStore, providerId: string): Promise<ProviderUsageSnapshot | null> {
   if (!isSupportedProviderId(providerId)) return null;
   if (hasFreshCachedUsage(providerId)) {
     return peekProviderUsage(providerId);
@@ -388,7 +387,7 @@ export async function warmProviderUsage(authStorage: AuthStorage, providerId: st
   return await refreshPromise;
 }
 
-export async function getProviderUsage(authStorage: AuthStorage, providerId: string): Promise<ProviderUsageSnapshot | null> {
+export async function getProviderUsage(authStorage: PiclawCredentialStore, providerId: string): Promise<ProviderUsageSnapshot | null> {
   if (!isSupportedProviderId(providerId)) return null;
 
   const cached = getCachedUsageEntry(providerId);

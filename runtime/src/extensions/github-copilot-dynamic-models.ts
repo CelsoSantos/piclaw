@@ -8,7 +8,6 @@
  * non-chat model IDs such as embeddings and trajectory compaction helpers.
  */
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { getOAuthProvider } from "@earendil-works/pi-ai/oauth";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
@@ -360,19 +359,6 @@ function getGithubCopilotModels(ctx: GitHubCopilotDynamicModelsContext): Model<A
   return ctx.modelRegistry.getAll().filter((model) => model.provider === PROVIDER && model.id);
 }
 
-function getGitHubCopilotOAuthProvider(): NonNullable<ProviderConfig["oauth"]> | null {
-  const oauth = getOAuthProvider(PROVIDER) as NonNullable<ProviderConfig["oauth"]> | undefined;
-  if (!oauth || typeof oauth.getApiKey !== "function") {
-    log.warn("Skipping GitHub Copilot dynamic model registration because the upstream OAuth provider is unavailable or incomplete.", {
-      operation: "github_copilot_dynamic_models.oauth_provider_unavailable",
-      hasProvider: Boolean(oauth),
-      hasGetApiKey: typeof oauth?.getApiKey === "function",
-    });
-    return null;
-  }
-  return oauth;
-}
-
 async function refreshGitHubCopilotDynamicModels(ctx: GitHubCopilotDynamicModelsContext, pi: ExtensionAPI): Promise<void> {
   const existingModels = getGithubCopilotModels(ctx);
   if (existingModels.length === 0) return;
@@ -399,13 +385,12 @@ async function refreshGitHubCopilotDynamicModels(ctx: GitHubCopilotDynamicModels
   const addedCount = providerModels.filter((model) => !existingModels.some((existing) => existing.id === model.id)).length;
 
   if (providerModels.length === 0) return;
-  const oauth = getGitHubCopilotOAuthProvider();
-  if (!oauth) return;
+  // 0.80.10 provider composition inherits built-in Copilot auth and stream
+  // behavior when an extension overlay omits oauth/streamSimple.
   pi.registerProvider(PROVIDER, {
     name: "GitHub Copilot",
     baseUrl: providerBaseUrl,
     headers: COPILOT_HEADERS,
-    oauth,
     models: providerModels,
   });
 
@@ -461,13 +446,10 @@ export async function refreshGitHubCopilotDynamicModelsAtBoot(agentPool: {
   const addedCount = providerModels.filter((model) => !existingModels.some((existing) => existing.id === model.id)).length;
 
   if (providerModels.length === 0) return;
-  const oauth = getGitHubCopilotOAuthProvider();
-  if (!oauth) return;
   agentPool.registerModelProvider(PROVIDER, {
     name: "GitHub Copilot",
     baseUrl: providerBaseUrl,
     headers: COPILOT_HEADERS,
-    oauth,
     models: providerModels,
   });
 

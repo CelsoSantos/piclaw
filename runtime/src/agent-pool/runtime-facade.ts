@@ -7,9 +7,10 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentSession, AgentSessionRuntime, ModelRegistry, AuthStorage, SettingsManager } from "@earendil-works/pi-coding-agent";
+import type { AgentSession, AgentSessionRuntime, ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { applyControlCommand, type AgentControlCommand, type AgentControlResult } from "../agent-control/index.js";
+import type { PiclawCredentialStore } from "./credential-store.js";
 import { getLatestTokenUsageModel } from "../db.js";
 import { formatThinkingLevelForDisplay, getAvailableThinkingLevelsForModel } from "../agent-control/agent-control-helpers.js";
 import { SESSIONS_DIR } from "../core/config.js";
@@ -508,7 +509,7 @@ export interface AgentRuntimeFacadeOptions {
   getOrCreateRuntime: (chatJid: string) => Promise<AgentSessionRuntime>;
   modelRegistry: ModelRegistry;
   settingsManager?: SettingsManager;
-  authStorage: AuthStorage;
+  authStorage: PiclawCredentialStore;
   clearAttachments: (chatJid: string) => void;
   refreshRuntime: (chatJid: string, runtime: AgentSessionRuntime) => Promise<void>;
   onWarn?: (message: string, details: Record<string, unknown>) => void;

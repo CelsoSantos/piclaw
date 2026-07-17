@@ -26,8 +26,8 @@ import { join } from "path";
 import {
   type AgentSession,
   type AgentSessionRuntime,
-  AuthStorage,
   ModelRegistry,
+  type ModelRuntime,
   SettingsManager,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
@@ -52,6 +52,7 @@ import { rotateSession, type SessionRotationResult } from "./session-rotation.js
 import { type AvailableModelsResult } from "./agent-pool/runtime-facade.js";
 import { createAgentPoolServices, type AgentPoolServices } from "./agent-pool/service-factory.js";
 import { type AgentSessionManagerInstrumentationSnapshot, type PoolEntry } from "./agent-pool/session-manager.js";
+import type { PiclawCredentialStore } from "./agent-pool/credential-store.js";
 import { installLegacySessionAffinityCompatibility } from "./agent-pool/session-affinity-compat.js";
 import {
   type ChatBranchRecord,
@@ -211,7 +212,8 @@ export class AgentPool {
   };
 
   // Shared across all sessions (expensive to create, safe to reuse)
-  private authStorage: AuthStorage;
+  private authStorage: PiclawCredentialStore;
+  private modelRuntime: ModelRuntime;
   private modelRegistry: ModelRegistry;
   private settingsManager = SettingsManager.create(WORKSPACE_DIR, getAgentDir());
   private logsDir = join(WORKSPACE_DIR, "logs");
@@ -230,11 +232,15 @@ export class AgentPool {
   private sideStreamSimple?: NonNullable<AgentPoolOptions["sideStreamSimple"]>;
   private readonly config = loadAgentPoolConfig();
 
-  constructor(options: AgentPoolOptions = {}) {
+  constructor(options: AgentPoolOptions) {
     this.createSession = options.createSession;
     this.createSideSession = options.createSideSession;
-    this.authStorage = AuthStorage.create();
-    this.modelRegistry = options.modelRegistry ?? ModelRegistry.create(this.authStorage);
+    if (!options.credentialStore || !options.modelRuntime) {
+      throw new Error("AgentPool requires shared credentialStore and modelRuntime services");
+    }
+    this.authStorage = options.credentialStore;
+    this.modelRuntime = options.modelRuntime;
+    this.modelRegistry = options.modelRegistry ?? new ModelRegistry(this.modelRuntime);
     installLegacySessionAffinityCompatibility(this.modelRegistry, (message, details) => log.warn(message, details));
     this.applyRateLimitRetryDefaults();
     ({
@@ -250,6 +256,7 @@ export class AgentPool {
       sidePool: this.sidePool,
       activeForkBaseLeafByChat: this.activeForkBaseLeafByChat,
       authStorage: this.authStorage,
+      modelRuntime: this.modelRuntime,
       modelRegistry: this.modelRegistry,
       settingsManager: this.settingsManager,
       workspaceDir: WORKSPACE_DIR,

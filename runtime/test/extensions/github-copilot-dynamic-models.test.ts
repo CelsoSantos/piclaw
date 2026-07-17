@@ -232,12 +232,10 @@ describe("github-copilot dynamic models extension", () => {
       "mai-code-1-flash-internal",
     ]);
     expect(registrations[0].config.models.some((model: any) => model.id === "text-embedding-3-small")).toBe(false);
-    expect(registrations[0].config.oauth).toBeTruthy();
-    expect(registrations[0].config.oauth.id).toBe("github-copilot");
-    expect(typeof registrations[0].config.oauth.getApiKey).toBe("function");
+    expect(registrations[0].config.oauth).toBeUndefined();
   });
 
-  test("boot refresh registers GitHub Copilot with the real upstream OAuth provider", async () => {
+  test("boot refresh inherits the real upstream OAuth provider", async () => {
     const registrations: Array<{ name: string; config: any }> = [];
     setGitHubCopilotDynamicModelsFetchForTests((async () => new Response(JSON.stringify({
       data: [makeLiveModel("gpt-5.5"), makeLiveModel("claude-opus-4.6-1m", { supported_endpoints: ["/v1/messages"] })],
@@ -257,9 +255,7 @@ describe("github-copilot dynamic models extension", () => {
 
     expect(registrations).toHaveLength(1);
     expect(registrations[0].name).toBe("github-copilot");
-    expect(registrations[0].config.oauth).toBeTruthy();
-    expect(registrations[0].config.oauth.id).toBe("github-copilot");
-    expect(typeof registrations[0].config.oauth.getApiKey).toBe("function");
+    expect(registrations[0].config.oauth).toBeUndefined();
     expect(registrations[0].config.oauth).not.toEqual({ id: "github-copilot" });
   });
 });
