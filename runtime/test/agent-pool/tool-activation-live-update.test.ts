@@ -74,7 +74,7 @@ describe("same-turn tool activation live update", () => {
       models: [{ id: providerId, name: `Faux ${namespace}` }],
     });
     const { credentialStore, modelRuntime } = await createRealTestModelServices(join(tempRoot, "agent"));
-    credentialStore.set(providerId, { type: "api_key", key: "test-key" });
+    await credentialStore.modify(providerId, async () => ({ type: "api_key", key: "test-key" }));
     modelRuntime.registerProvider(providerId, {
       baseUrl: "https://example.invalid/v1",
       api: providerId,

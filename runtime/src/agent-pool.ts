@@ -212,7 +212,7 @@ export class AgentPool {
   };
 
   // Shared across all sessions (expensive to create, safe to reuse)
-  private authStorage: PiclawCredentialStore;
+  private credentialStore: PiclawCredentialStore;
   private modelRuntime: ModelRuntime;
   private modelRegistry: ModelRegistry;
   private settingsManager = SettingsManager.create(WORKSPACE_DIR, getAgentDir());
@@ -238,7 +238,7 @@ export class AgentPool {
     if (!options.credentialStore || !options.modelRuntime) {
       throw new Error("AgentPool requires shared credentialStore and modelRuntime services");
     }
-    this.authStorage = options.credentialStore;
+    this.credentialStore = options.credentialStore;
     this.modelRuntime = options.modelRuntime;
     this.modelRegistry = options.modelRegistry ?? new ModelRegistry(this.modelRuntime);
     installLegacySessionAffinityCompatibility(this.modelRegistry, (message, details) => log.warn(message, details));
@@ -255,7 +255,7 @@ export class AgentPool {
       pool: this.pool,
       sidePool: this.sidePool,
       activeForkBaseLeafByChat: this.activeForkBaseLeafByChat,
-      authStorage: this.authStorage,
+      authStorage: this.credentialStore,
       modelRuntime: this.modelRuntime,
       modelRegistry: this.modelRegistry,
       settingsManager: this.settingsManager,

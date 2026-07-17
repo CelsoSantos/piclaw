@@ -2,28 +2,12 @@ import type { Credential, CredentialInfo } from "@earendil-works/pi-ai";
 import { ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 import type { AgentPoolOptions } from "../src/agent-pool/contracts.js";
-import { FileCredentialStore, type LegacyOAuthCallbacks, type PiclawCredentialStore } from "../src/agent-pool/credential-store.js";
+import { FileCredentialStore, type PiclawCredentialStore } from "../src/agent-pool/credential-store.js";
 
 export function createTestCredentialStore(initial: Record<string, Credential> = {}): PiclawCredentialStore {
   const data = new Map(Object.entries(initial));
-  let runtime: ModelRuntime | null = null;
   return {
-    attachModelRuntime(value) { runtime = value; },
-    get(providerId) { return data.get(providerId); },
-    set(providerId, credential) {
-      if (credential === undefined) data.delete(providerId);
-      else data.set(providerId, credential);
-    },
-    reload() {},
-    getOAuthProviders() {
-      return (runtime?.getProviders() ?? [])
-        .filter((provider) => provider.auth.oauth)
-        .map((provider) => ({ id: provider.id, name: provider.auth.oauth?.name ?? provider.name }));
-    },
-    async login(_providerId: string, _callbacks: LegacyOAuthCallbacks) {
-      throw new Error("Test credential store does not implement OAuth login");
-    },
-    async refreshOAuthTokenWithLock(providerId) { return data.get(providerId); },
+    authPath: "/tmp/piclaw-test-auth.json",
     drainErrors() { return []; },
     async read(providerId) { return data.get(providerId); },
     async list(): Promise<readonly CredentialInfo[]> {
@@ -40,18 +24,11 @@ export function createTestCredentialStore(initial: Record<string, Credential> = 
 
 export async function createRealTestModelServices(agentDir: string, credentials: Record<string, Credential> = {}) {
   const credentialStore = new FileCredentialStore(`${agentDir}/auth.json`);
-  for (const [providerId, credential] of Object.entries(credentials)) credentialStore.set(providerId, credential);
-  const modelRuntime = await ModelRuntime.create({
-    credentials: credentialStore,
-    modelsPath: null,
-    allowModelNetwork: false,
-  });
-  credentialStore.attachModelRuntime(modelRuntime);
-  return {
-    credentialStore,
-    modelRuntime,
-    modelRegistry: new ModelRegistry(modelRuntime),
-  };
+  for (const [providerId, credential] of Object.entries(credentials)) {
+    await credentialStore.modify(providerId, async () => credential);
+  }
+  const modelRuntime = await ModelRuntime.create({ credentials: credentialStore, modelsPath: null, allowModelNetwork: false });
+  return { credentialStore, modelRuntime, modelRegistry: new ModelRegistry(modelRuntime) };
 }
 
 export function createTestModelRuntime(models: any[] = []): ModelRuntime {
@@ -77,8 +54,5 @@ export function createTestModelRuntime(models: any[] = []): ModelRuntime {
 }
 
 export function createAgentPoolModelOptions(models: any[] = []): Pick<AgentPoolOptions, "credentialStore" | "modelRuntime"> {
-  const credentialStore = createTestCredentialStore();
-  const modelRuntime = createTestModelRuntime(models);
-  credentialStore.attachModelRuntime(modelRuntime);
-  return { credentialStore, modelRuntime };
+  return { credentialStore: createTestCredentialStore(), modelRuntime: createTestModelRuntime(models) };
 }

@@ -5,7 +5,6 @@ import { join } from "node:path";
 
 import type { CreateModelRuntimeOptions, ModelRuntime } from "@earendil-works/pi-coding-agent";
 
-import { FileCredentialStore } from "../../src/agent-pool/credential-store.js";
 import { PiclawModelRegistry, createRuntimeModelServices } from "../../src/agent-pool/model-services.js";
 
 const roots: string[] = [];
@@ -45,8 +44,7 @@ describe("runtime model services", () => {
   });
 
   test("compat registry coalesces concurrent config reloads", async () => {
-    const agentDir = tempAgentDir();
-    const credentialStore = new FileCredentialStore(join(agentDir, "auth.json"));
+    tempAgentDir();
     let reloadCalls = 0;
     let release: (() => void) | undefined;
     const blocker = new Promise<void>((resolve) => { release = resolve; });
@@ -56,7 +54,7 @@ describe("runtime model services", () => {
         await blocker;
       },
     } as unknown as ModelRuntime;
-    const registry = new PiclawModelRegistry(runtime, credentialStore);
+    const registry = new PiclawModelRegistry(runtime);
 
     const first = registry.refresh();
     const second = registry.refresh();

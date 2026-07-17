@@ -48,7 +48,6 @@ describe("Earendil 0.80.10 ambient auth", () => {
     try {
       const credentials = new FileCredentialStore(join(root, "auth.json"));
       const modelRuntime = await ModelRuntime.create({ credentials, modelsPath: null, allowModelNetwork: false });
-      credentials.attachModelRuntime(modelRuntime);
       modelRuntime.registerProvider(model.provider, {
         baseUrl: model.baseUrl,
         api: model.api,

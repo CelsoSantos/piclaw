@@ -12,10 +12,7 @@ import { FileCredentialStore, type PiclawCredentialStore } from "./credential-st
 export class PiclawModelRegistry extends ModelRegistry {
   private refreshInFlight: Promise<void> | null = null;
 
-  constructor(
-    readonly modelRuntime: ModelRuntime,
-    readonly authStorage: PiclawCredentialStore,
-  ) {
+  constructor(readonly modelRuntime: ModelRuntime) {
     super(modelRuntime);
   }
 
@@ -57,7 +54,6 @@ export async function createRuntimeModelServices(
     modelsStorePath: join(agentDir, "models-store.json"),
     allowModelNetwork: false,
   });
-  credentialStore.attachModelRuntime(modelRuntime);
-  const modelRegistry = new PiclawModelRegistry(modelRuntime, credentialStore);
+  const modelRegistry = new PiclawModelRegistry(modelRuntime);
   return { credentialStore, modelRuntime, modelRegistry, agentDir };
 }

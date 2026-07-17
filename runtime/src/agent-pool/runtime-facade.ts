@@ -7,10 +7,9 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentSession, AgentSessionRuntime, ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
+import type { AgentSession, AgentSessionRuntime, ModelRegistry, ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { applyControlCommand, type AgentControlCommand, type AgentControlResult } from "../agent-control/index.js";
-import type { PiclawCredentialStore } from "./credential-store.js";
 import { getLatestTokenUsageModel } from "../db.js";
 import { formatThinkingLevelForDisplay, getAvailableThinkingLevelsForModel } from "../agent-control/agent-control-helpers.js";
 import { SESSIONS_DIR } from "../core/config.js";
@@ -508,8 +507,9 @@ export interface AgentRuntimeFacadeOptions {
   pool: Map<string, PoolEntry>;
   getOrCreateRuntime: (chatJid: string) => Promise<AgentSessionRuntime>;
   modelRegistry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   settingsManager?: SettingsManager;
-  authStorage: PiclawCredentialStore;
+  authPath: string;
   clearAttachments: (chatJid: string) => void;
   refreshRuntime: (chatJid: string, runtime: AgentSessionRuntime) => Promise<void>;
   onWarn?: (message: string, details: Record<string, unknown>) => void;
@@ -585,7 +585,7 @@ export class AgentRuntimeFacade {
         : null;
     const activeProvider = session?.model?.provider ?? currentModelOption?.provider ?? null;
     if (activeProvider) {
-      void warmProviderUsage(this.options.authStorage, activeProvider);
+      void warmProviderUsage(this.options.modelRuntime, activeProvider, this.options.authPath);
     }
     const thinkingLevelLabel = thinkingLevel && currentModelDescriptor
       ? formatThinkingLevelForDisplay(thinkingLevel, currentModelDescriptor)
