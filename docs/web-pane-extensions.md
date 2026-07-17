@@ -72,7 +72,7 @@ resolveOwnerFromRequest]
     Service --> Pty[spawn `/usr/bin/script -qf -c /usr/bin/bash -i`]
     Pty -->|stdout/stderr| Service
     Service -->|JSON output/resize| TerminalInstance
-    TerminalInstance -->|ghostty-web render| RemoteUI[Canvas-like terminal UI]
+    TerminalInstance -->|xterm.js render| RemoteUI[xterm.js terminal UI]
 ```
 
 **Implementation choices**
@@ -81,7 +81,7 @@ resolveOwnerFromRequest]
 - WebSocket payload is JSON (`{ type: 'input' | 'resize' }`) with `type:'output'` and `type:'exit'` replies from backend.
 - PTY session state (process, socket clients, PTY path) is retained per web session token.
 - Resize is propagated as terminal columns/rows and mirrored into PTY via `ioctl(TIOCSWINSZ)` + SIGWINCH.
-- Terminal frontend is vendored `ghostty-web` with a light theme sync loop so the remote canvas follows web theme changes.
+- Terminal frontend uses vendored `xterm.js` assets with theme-sync support so the terminal follows web theme changes.
 
 ### VNC tab flow
 
