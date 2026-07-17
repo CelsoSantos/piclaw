@@ -6,7 +6,7 @@ Languages: **English** · [简体中文](README.zh-CN.md) · [日本語](README.
 
 PiClaw packages the [Pi Coding Agent](https://github.com/badlogic/pi-mono) into a self-hosted workspace with a trilingual streaming web UI, persistent state, multi-provider LLM support, and a practical built-in toolset that includes [many add-ons](https://rcarmo.github.io/piclaw-addons/).
 
-It is for people who want one stateful agent workspace they can run locally or in a container without stitching together half a dozen separate services.
+Use it when you want one stateful agent workspace you can run locally or in a container without combining several separate services.
 
 ## Why PiClaw
 
@@ -35,7 +35,7 @@ docker run -d \
   ghcr.io/rcarmo/piclaw:latest
 ```
 
-Open `http://localhost:8080` and type `/login` to configure your LLM provider, including custom OpenAI-compatible endpoints when you are not using one of the built-in hosted providers. The web UI currently ships with English, Simplified Chinese, and Japanese strings; use the Settings language switcher when English is not the hill you want to die on today.
+Open `http://localhost:8080` and type `/login` to configure your LLM provider, including custom OpenAI-compatible endpoints. The web UI ships with English, Simplified Chinese, and Japanese strings; switch languages in Settings.
 
 > [!TIP]
 > Keep `--init` enabled for `docker run` / `podman run` so the runtime inserts a tiny init process for signal forwarding and zombie reaping. The bundled `docker-compose.yml` now sets the equivalent `init: true` flag.
@@ -152,7 +152,7 @@ Use the issue templates and project board labels for lane definitions and triage
 
 ## Credits
 
-- [pi.dev](http://pi.dev) for a stupendously flexible and extensible core
+- [pi.dev](http://pi.dev) for the Pi core used by piclaw
 - [rcarmo/agentbox](https://github.com/rcarmo/agentbox)
 - [qwibitai/nanoclaw](https://github.com/qwibitai/nanoclaw)
 - [badlogic/pi-mono](https://github.com/badlogic/pi-mono)
@@ -160,7 +160,7 @@ Use the issue templates and project board labels for lane definitions and triage
 - [nicobailon/visual-explainer](https://github.com/nicobailon/visual-explainer) — visual artifact generation skill philosophy, prompt workflow, and template patterns by Nico Bailon (adapted, not vendored)
 
 > [!NOTE]
-> piclaw is **not** directly affiliated with [pi.dev](https://pi.dev). It is a derivative work that leverages all of its core Pi functionality and builds additional runtime, tooling, and UI layers around it.
+> piclaw is **not directly affiliated** with [pi.dev](https://pi.dev). It is a derivative work built on the Pi core and adds its own runtime, tooling, and UI layers.
 
 ## Licence
 
