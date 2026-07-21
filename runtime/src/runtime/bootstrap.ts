@@ -10,8 +10,14 @@ import {
   getIdentityConfig,
   getRoutingConfig,
   getRuntimeTimingConfig,
+  WORKSPACE_DIR,
 } from "../core/config.js";
 import { stopIpcWatcher } from "../ipc.js";
+import {
+  clearHydratedMcpCredentials,
+  hydrateMcpKeychainCredentials,
+  type HydratedMcpCredential,
+} from "../secure/mcp-keychain.js";
 import type { SchedulerDeps } from "../task-scheduler.js";
 import { stopSchedulerLoop } from "../task-scheduler.js";
 import { createLogger } from "../utils/logger.js";
@@ -70,6 +76,8 @@ export interface RuntimeBootstrapDeps {
   pollIntervalMs: number;
   signalRegistrar: RuntimeSignalRegistrar;
   initializeRuntimeEnvironment(state: RuntimeBootstrapState): void;
+  hydrateMcpCredentials(): Promise<HydratedMcpCredential[]>;
+  clearMcpCredentials(entries: HydratedMcpCredential[]): void;
   createAgentPool(): Promise<RuntimeBootstrapAgentPool>;
   startWebChannel(queue: RuntimeBootstrapQueue, agentPool: RuntimeBootstrapAgentPool): Promise<RuntimeBootstrapWeb>;
   startBackgroundModelRefresh(agentPool: RuntimeBootstrapAgentPool): void;
@@ -119,6 +127,8 @@ export function createDefaultRuntimeBootstrapDeps(base: RuntimeBootstrapDefaultB
     pollIntervalMs: getRuntimeTimingConfig().pollIntervalMs,
     signalRegistrar: process,
     initializeRuntimeEnvironment: () => initializeRuntimeEnvironment(base.state),
+    hydrateMcpCredentials: () => hydrateMcpKeychainCredentials(WORKSPACE_DIR),
+    clearMcpCredentials: clearHydratedMcpCredentials,
     createAgentPool: async () => {
       const modelServices = await createRuntimeModelServices();
       installRuntimeModelExecutor(modelServices.modelRuntime);
@@ -165,6 +175,7 @@ export async function bootstrapRuntime(deps: RuntimeBootstrapDeps): Promise<void
   const { queue, state } = deps.base;
 
   deps.initializeRuntimeEnvironment(state);
+  const hydratedMcpCredentials = await deps.hydrateMcpCredentials();
   const agentPool = await deps.createAgentPool();
   deps.log("=== Piclaw - Pi Coding Agent Assistant ===");
 
@@ -172,7 +183,7 @@ export async function bootstrapRuntime(deps: RuntimeBootstrapDeps): Promise<void
   const pushover = await deps.startOptionalPushoverChannel();
   deps.startBackgroundModelRefresh(agentPool);
 
-  const shutdown = deps.createShutdownHandler({
+  const baseShutdown = deps.createShutdownHandler({
     queue,
     agentPool,
     web,
@@ -181,6 +192,13 @@ export async function bootstrapRuntime(deps: RuntimeBootstrapDeps): Promise<void
     stopSchedulerLoop: deps.stopSchedulerLoop,
     stopOptionalProviders: deps.stopOptionalProviders,
   });
+  const shutdown = async (signal: string): Promise<void> => {
+    try {
+      await baseShutdown(signal);
+    } finally {
+      deps.clearMcpCredentials(hydratedMcpCredentials);
+    }
+  };
   registerShutdownHandler(shutdown);
   deps.registerRuntimeShutdownSignals(deps.signalRegistrar, shutdown);
 
