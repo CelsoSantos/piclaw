@@ -63,6 +63,10 @@ export interface TurnOutput {
   followedByToolUse?: boolean;
 }
 
+export interface TurnDiscard {
+  reason: "tool_use_commentary";
+}
+
 /** Result returned from a side prompt run. */
 export interface SidePromptResult {
   status: "success" | "error";
@@ -88,6 +92,8 @@ export interface RunAgentOptions {
   onEvent?: (event: AgentSessionEvent) => void;
   /** Called when a completed assistant message can be committed, including before tool dispatch. */
   onTurnComplete?: (turn: TurnOutput) => void;
+  /** Called when completed provider commentary must remain transient. */
+  onTurnDiscard?: (discard: TurnDiscard) => void;
   /** Stable runtime turn identifier for observability/correlation. */
   turnId?: string;
   /** Optional browser/user correlation identifier supplied by the caller. */
