@@ -41,11 +41,15 @@ export interface RecoveryAttemptSnapshot {
   hadToolActivity: boolean;
   hadPartialOutput: boolean;
   hadCompletedTurnOutput?: boolean;
+  hadTerminalTurnOutput?: boolean;
   compactionErrorMessage?: string | null;
   sawCompactionIntent?: boolean;
   sawAssistantToolCall?: boolean;
   sawThinkingOnlyStop?: boolean;
   onlyReadOnlyToolActivity?: boolean;
+  canDisableToolsForRecovery?: boolean;
+  hadToolFailure?: boolean;
+  sawTerminalSideEffectToolActivity?: boolean;
   toolUseBudgetExceeded?: boolean;
   assistantToolUseMessageCount?: number;
   toolExecutionCount?: number;
@@ -251,10 +255,28 @@ export function decideAutomaticRecovery(input: RecoveryDecisionInput): RecoveryD
   }
 
   if (input.snapshot.hadToolActivity) {
-    // Conservative rule: once tool activity happened, automatic recovery is
-    // only allowed for clearly context-related failures. Generic retries could
-    // re-run side-effecting tools, so exhausted/no-terminal runs are held for
-    // explicit retry/skip resolution instead.
+    // A terminal assistant reply is the only prior output that can make a
+    // tool-bearing failure complete. Text emitted before a tool call is an
+    // intermediate lead-in; if the provider later stops or times out, run a
+    // tools-disabled continuation so completed side effects are not replayed.
+    const hadTerminalTurnOutput = input.snapshot.hadTerminalTurnOutput
+      ?? Boolean(input.snapshot.hadCompletedTurnOutput);
+    if (hadTerminalTurnOutput) {
+      return {
+        recover: false,
+        classifier: "completed_turn_output",
+        strategy: null,
+        reason: "Automatic recovery skipped because a terminal assistant reply already completed during the failed run.",
+      };
+    }
+    if (input.snapshot.hadToolFailure && input.snapshot.sawTerminalSideEffectToolActivity) {
+      return {
+        recover: false,
+        classifier: "tool_activity",
+        strategy: null,
+        reason: "A terminal side-effect tool completed after another tool failed; preserve the mixed outcome instead of converting it to recovery success.",
+      };
+    }
     if (isContextPressureFailure(errorText) || input.snapshot.sawCompactionIntent) {
       return {
         recover: true,
@@ -271,10 +293,18 @@ export function decideAutomaticRecovery(input: RecoveryDecisionInput): RecoveryD
         reason: "Turn exceeded the tool-history budget before finalization without context pressure; wait for an explicit continue instead of compacting.",
       };
     }
+    if (isNonRecoverableFailure(errorText)) {
+      return {
+        recover: false,
+        classifier: "non_recoverable",
+        strategy: null,
+        reason: "Failure classified as non-recoverable.",
+      };
+    }
     if (
       input.snapshot.onlyReadOnlyToolActivity
       && input.snapshot.sawAssistantToolCall
-      && !input.snapshot.hadCompletedTurnOutput
+      && !hadTerminalTurnOutput
       && /without emitting an assistant reply before finalization|provider stopped after tool use without a final assistant reply/i.test(errorText)
     ) {
       return {
@@ -284,13 +314,22 @@ export function decideAutomaticRecovery(input: RecoveryDecisionInput): RecoveryD
         reason: "Provider stopped after a read-only tool call without sending a final reply; retrying once is safe.",
       };
     }
+    if (
+      input.snapshot.canDisableToolsForRecovery
+      && (isTransientFailure(errorText) || input.snapshot.hadPartialOutput || input.snapshot.sawAssistantToolCall)
+    ) {
+      return {
+        recover: true,
+        classifier: "transient",
+        strategy: "retry",
+        reason: "Tool work completed without a terminal assistant reply; continuing once with tools disabled.",
+      };
+    }
     return {
       recover: false,
       classifier: "tool_activity",
       strategy: null,
-      reason: input.snapshot.hadCompletedTurnOutput
-        ? "Automatic recovery skipped because tool activity with a completed turn already occurred during the failed run."
-        : "Automatic recovery skipped because tool activity already occurred and the failure was not clearly context-related.",
+      reason: "Automatic recovery skipped because tool activity occurred and the failure was not safely continuable.",
     };
   }
 
