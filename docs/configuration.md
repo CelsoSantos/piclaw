@@ -19,6 +19,34 @@ This page lists Piclaw's environment variables, config files, secrets, authentic
 [External workspace](#using-an-external-workspace) ·
 [Cross-instance interop](#cross-instance-interop)
 
+## Configuration surface policy
+
+Piclaw keeps `PICLAW_*` environment variables for immutable deployment bootstrap, secrets, and compatibility aliases. Runtime code should read ordinary settings through typed config helpers instead of open-coded `process.env.PICLAW_*` expressions.
+
+The machine-readable generated observations are `docs/config/piclaw-env-observations.json`; the reviewed support catalog is `docs/config/piclaw-env-support-catalog.json`. Regenerate or check both with:
+
+```bash
+bun run scripts/audit-piclaw-env-surface.ts --write
+bun run check:env-surface
+```
+
+The observations record where each `PICLAW_*` name appears and count both direct `process.env.PICLAW_*` reads and semantic helper reads such as `readEnvValue("PICLAW_...")`. The support catalog records reviewed metadata for production names. Tranche 1 uses these files as drift guards; it does not claim that supported environment variables have been removed. The catalog also stores the config-source precedence chain:
+
+1. CLI flags where a setting supports them
+2. `process.env`
+3. workspace `.env`
+4. `.piclaw/config.json`
+5. built-in defaults
+
+New settings should prefer `.piclaw/config.json` plus typed config access unless they are bootstrap paths, secrets, process-manager toggles, or deliberate compatibility aliases.
+
+Bootstrap environment variables are reviewed as an allowlist in the inventory. The current allowlist is:
+
+- `PICLAW_WORKSPACE`, `PICLAW_STORE`, `PICLAW_DATA`, `PICLAW_RUNTIME_ROOT`, `PICLAW_PI_AGENT_DIR`
+- `PICLAW_KEYCHAIN_KEY`, `PICLAW_KEYCHAIN_KEY_FILE`
+- `PICLAW_WEB_TLS_CERT`, `PICLAW_WEB_TLS_KEY`
+- `PICLAW_INTERNAL_SECRET`, `PICLAW_WEB_INTERNAL_SECRET`, `PICLAW_WEB_EXTERNAL_URL`
+
 ## Path overrides
 
 | Variable | Default | Purpose |
