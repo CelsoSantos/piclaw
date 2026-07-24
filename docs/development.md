@@ -50,6 +50,22 @@ The implementation lives under `runtime/`, so direct Bun test runs should target
 cd runtime && bun test --max-concurrency=1
 ```
 
+The default full-suite path uses the controlled staged runner:
+
+```bash
+bun run test
+```
+
+Default controlled runs do not write `runtime/generated/controlled-test-report.json` or any other JSON report. They print stage summaries, exit codes, and memory measurements to the terminal so a clean source worktree stays clean after `bun run test`, `bun run quality`, `make ci-fast`, and `make pre-push-ci`.
+
+Use `--report` for #394 or performance evidence that needs a durable JSON artifact:
+
+```bash
+bun run runtime/scripts/controlled-test-runner.ts --report artifacts/performance/controlled-test-report.json
+```
+
+Use `runtime/generated/reports/` for disposable local reports. Use `artifacts/performance/` or another deliberate artifact path when the report should be reviewed or retained.
+
 ## Focused integration notes
 
 ### Earendil 0.81.1 runtime
