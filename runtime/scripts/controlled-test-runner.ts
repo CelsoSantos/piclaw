@@ -177,7 +177,7 @@ function chunkFiles(files: string[], stageSize: number): StagePlan[] {
 
 function readProcEntries(): ProcEntry[] {
   const entries: ProcEntry[] = [];
-  let procDirs: string[] = [];
+  let procDirs: string[];
   try {
     procDirs = readdirSync("/proc");
   } catch {
