@@ -3,21 +3,23 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import '../helpers.js';
-import { getCompactionRuntimeConfig, setCompactionRuntimeConfigForTests } from '../../src/core/config.js';
 import { importFresh, withTempWorkspaceEnv } from '../helpers.js';
 
 test('saveCompactionSettings persists and applies compaction settings immediately', async () => {
   await withTempWorkspaceEnv('piclaw-compaction-settings-', {
-    PICLAW_AUTO_COMPACTION_ENABLED: undefined,
-    PICLAW_SMART_COMPACTION_METHOD: undefined,
+    PICLAW_AUTO_COMPACTION_ENABLED: '',
+    PICLAW_SMART_COMPACTION_METHOD: '',
     PICLAW_REMOTE_COMPACTION_ENABLED: undefined,
     PICLAW_REMOTE_COMPACTION_TIMEOUT_MS: undefined,
-    PICLAW_COMPACTION_TIMEOUT_MS: undefined,
-    PICLAW_COMPACTION_BACKOFF_BASE_MS: undefined,
-    PICLAW_COMPACTION_BACKOFF_MAX_MS: undefined,
-    PICLAW_COMPACTION_THRESHOLD_PERCENT: undefined,
-    PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS: undefined,
-    PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: undefined,
+    PICLAW_COMPACTION_TIMEOUT_MS: '',
+    PICLAW_COMPACTION_BACKOFF_BASE_MS: '',
+    PICLAW_COMPACTION_BACKOFF_MAX_MS: '',
+    PICLAW_COMPACTION_THRESHOLD_PERCENT: '',
+    PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS: '',
+    PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: '',
+    PICLAW_AUTO_COMPACTION_SCOPE: '',
+    PICLAW_COMPACTION_HARD_CEILING_PERCENT: '',
+    PICLAW_COMPACTION_WARNING_THRESHOLD: '',
     PICLAW_PROGRESS_WATCHDOG_ENABLED: undefined,
     PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: undefined,
     PICLAW_TOOL_RESULT_COMPACTION_ENABLED: undefined,
@@ -27,7 +29,10 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS: undefined,
     PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS: undefined,
   }, async (workspace) => {
-    const runtimeBefore = getCompactionRuntimeConfig();
+    const previousAutoCompactionAlias = process.env.PICLAW_AUTO_COMPACTION_ENABLED;
+    delete process.env.PICLAW_AUTO_COMPACTION_ENABLED;
+    const config = await import('../../src/core/config.js');
+    const runtimeBefore = config.getCompactionRuntimeConfig();
     const db = await importFresh<typeof import('../../src/db.js')>('../src/db.js');
     db.initDatabase();
     const handler = await importFresh<typeof import('../../src/channels/web/handlers/compaction-settings.js')>(
@@ -74,26 +79,24 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       toolResultSemanticSummaryMaxTokens: 640,
       toolResultSemanticSummaryTimeoutSec: 30,
     });
-    expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('pipelined');
+    expect(process.env.PICLAW_AUTO_COMPACTION_ENABLED).toBeUndefined();
+    expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('');
     expect(process.env.PICLAW_REMOTE_COMPACTION_ENABLED).toBe('1');
     expect(process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS).toBe('45000');
-    expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('240000');
-    expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('720000');
+    expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('');
+    expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('');
+    expect(process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS).toBe('');
+    expect(process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT).toBe('');
+    expect(process.env.PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS).toBe('');
+    expect(process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR).toBe('');
     expect(process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED).toBeUndefined();
     expect(process.env.PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS).toBeUndefined();
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
       compaction: {
-        autoCompactionEnabled: false,
-        smartCompactionMethod: 'pipelined',
         remoteCompactionEnabled: true,
         remoteCompactionTimeoutMs: 45000,
-        timeoutMs: 240000,
-        backoffBaseMs: 720000,
-        backoffMaxMs: 10800000,
-        thresholdPercent: 75,
-        backoffDecayFactor: 0.25,
         toolResultCompactionEnabled: false,
         toolResultCompactionTools: ['bash', 'exec_batch'],
         toolResultSemanticSummaryEnabled: true,
@@ -102,6 +105,15 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
         toolResultSemanticSummaryTimeoutMs: 30000,
       },
       domains: {
+        compaction: {
+          autoCompactionEnabled: false,
+          smartCompactionMethod: 'pipelined',
+          timeoutMs: 240000,
+          backoffBaseMs: 720000,
+          backoffMaxMs: 10800000,
+          thresholdPercent: 75,
+          backoffDecayFactor: 0.25,
+        },
         watchdog: {
           enabled: true,
           timeoutMs: 75000,
@@ -109,8 +121,10 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       },
     });
 
-    setCompactionRuntimeConfigForTests({ ...runtimeBefore });
-    expect(getCompactionRuntimeConfig()).toEqual(runtimeBefore);
+    config.setCompactionRuntimeConfigForTests({ ...runtimeBefore });
+    expect(config.getCompactionRuntimeConfig()).toEqual(runtimeBefore);
+    if (previousAutoCompactionAlias === undefined) delete process.env.PICLAW_AUTO_COMPACTION_ENABLED;
+    else process.env.PICLAW_AUTO_COMPACTION_ENABLED = previousAutoCompactionAlias;
   });
 });
 

@@ -340,51 +340,67 @@
       "name": "PICLAW_AUTO_COMPACTION_ENABLED",
       "owner": "core",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.autoCompactionEnabled",
+      "deprecation": "compatibility env alias for domains.compaction.autoCompactionEnabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AUTO_COMPACTION_SCOPE",
       "owner": "core",
       "type": "enum",
-      "default": null,
+      "default": "total",
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "total",
+        "body_after_prefix"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.autoCompactionScope",
+      "deprecation": "compatibility env alias for domains.compaction.autoCompactionScope",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_BACKGROUND_AGENT_TIMEOUT",
@@ -467,126 +483,136 @@
       "name": "PICLAW_COMPACTION_BACKOFF_BASE_MS",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 900000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.backoffBaseMs",
+      "deprecation": "compatibility env alias for domains.compaction.backoffBaseMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
       "owner": "core",
       "type": "number",
-      "default": null,
-      "bounds": null,
+      "default": 0.5,
+      "bounds": ">0..1",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.backoffDecayFactor",
+      "deprecation": "compatibility env alias for domains.compaction.backoffDecayFactor",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_BACKOFF_MAX_MS",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 21600000,
+      "bounds": "positive integer ms; normalized >= base",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.backoffMaxMs",
+      "deprecation": "compatibility env alias for domains.compaction.backoffMaxMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
       "owner": "core",
-      "type": "integer",
-      "default": null,
-      "bounds": null,
+      "type": "number",
+      "default": 100,
+      "bounds": ">0..100 percent",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.hardCeilingPercent",
+      "deprecation": "compatibility env alias for domains.compaction.hardCeilingPercent",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
       "owner": "core",
-      "type": "secret",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 0,
+      "bounds": "non-negative integer tokens",
       "allowedValues": [],
-      "secret": true,
+      "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.maxThresholdTokens",
+      "deprecation": "compatibility env alias for domains.compaction.maxThresholdTokens",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_MAX_WORK_UNITS",
@@ -666,77 +692,83 @@
     {
       "name": "PICLAW_COMPACTION_THRESHOLD_PERCENT",
       "owner": "core",
-      "type": "integer",
-      "default": null,
-      "bounds": null,
+      "type": "number",
+      "default": 80,
+      "bounds": ">0..100 percent",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.thresholdPercent",
+      "deprecation": "compatibility env alias for domains.compaction.thresholdPercent",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_TIMEOUT_MS",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 300000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.timeoutMs",
+      "deprecation": "compatibility env alias for domains.compaction.timeoutMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_COMPACTION_WARNING_THRESHOLD",
       "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 3,
+      "bounds": "non-negative integer",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.warningThreshold",
+      "deprecation": "compatibility env alias for domains.compaction.warningThreshold",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_CONFIG_PATH",
@@ -1591,28 +1623,30 @@
     },
     {
       "name": "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
-      "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "owner": "agent-runtime",
+      "type": "integer",
+      "default": 48,
+      "bounds": "1..512 executed tools",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.agent.midTurnToolExecutionHardCeiling",
+      "deprecation": "compatibility env alias for domains.agent.midTurnToolExecutionHardCeiling",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PACKAGE_ROOT",
@@ -2898,26 +2932,34 @@
       "name": "PICLAW_SMART_COMPACTION_METHOD",
       "owner": "core",
       "type": "enum",
-      "default": null,
+      "default": "selective",
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "selective",
+        "pipelined",
+        "traditional-pipelined",
+        "traditional_pipelined",
+        "traditional pipelined"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.smartCompactionMethod",
+      "deprecation": "compatibility env alias for domains.compaction.smartCompactionMethod",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SMART_COMPACTION_PROGRESS_INTERVAL_MS",

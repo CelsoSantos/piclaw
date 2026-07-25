@@ -536,6 +536,7 @@ export interface AgentRuntimeConfig {
 
 interface AgentDomainConfig extends AgentRuntimeConfig {
   toolUseMessageBudget: number;
+  midTurnToolExecutionHardCeiling: number;
 }
 
 const legacyTurnMaxToolUseMessages = pickNumber(piclawConfig, [
@@ -544,6 +545,11 @@ const legacyTurnMaxToolUseMessages = pickNumber(piclawConfig, [
   "toolUseBudget",
   "tool_use_budget",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
+]);
+const configMidTurnToolExecutionHardCeiling = pickNumber(piclawConfig, [
+  "midTurnToolExecutionHardCeiling",
+  "mid_turn_tool_execution_hard_ceiling",
+  "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
 ]);
 
 const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
@@ -588,6 +594,18 @@ const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
       precedence: ["compat-env", "persisted", "default"],
       secretClass: "none",
       compatibilityEnv: [{ envKey: "PICLAW_TURN_MAX_TOOL_USE_MESSAGES", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0" }],
+    }),
+    midTurnToolExecutionHardCeiling: integerField({
+      key: "midTurnToolExecutionHardCeiling",
+      owner: "agent-runtime",
+      defaultValue: configMidTurnToolExecutionHardCeiling ?? 48,
+      min: 1,
+      max: 512,
+      bounds: "1..512 executed tools",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING", replacement: "domains.agent.midTurnToolExecutionHardCeiling", removalVersion: "3.0.0", parse: (raw) => { const value = Number(raw); return Number.isFinite(value) && value > 0 ? Math.min(512, Math.max(1, Math.round(value))) : 0; }, skipInvalid: true }],
     }),
   },
 });
@@ -1071,11 +1089,6 @@ const configSessionMaxCompactions = pickNumber(piclawConfig, [
   "max_compactions_before_rotation",
   "PICLAW_SESSION_MAX_COMPACTIONS",
 ]);
-const configMidTurnToolExecutionHardCeiling = pickNumber(piclawConfig, [
-  "midTurnToolExecutionHardCeiling",
-  "mid_turn_tool_execution_hard_ceiling",
-  "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
-]);
 const configCompactionTimeoutMs = pickNumber(compactionConfig, [
   "timeoutMs",
   "timeout_ms",
@@ -1250,6 +1263,81 @@ export interface CompactionRuntimeConfig {
   warningThreshold: number;
   /** Multiplier applied to backoff duration after a successful compaction (0-1). Default 0.5. */
   backoffDecayFactor: number;
+}
+
+interface CompactionDomainConfig {
+  autoCompactionEnabled: boolean;
+  smartCompactionMethod: SmartCompactionMethod;
+  timeoutMs: number;
+  backoffBaseMs: number;
+  backoffMaxMs: number;
+  thresholdPercent: number;
+  maxThresholdTokens: number;
+  autoCompactionScope: AutoCompactionScope;
+  hardCeilingPercent: number;
+  warningThreshold: number;
+  backoffDecayFactor: number;
+}
+
+function boundedNumberField(options: Omit<DomainConfigField<number>, "type" | "validate"> & { minExclusive?: number; minInclusive?: number; maxInclusive?: number }): DomainConfigField<number> {
+  return {
+    ...options,
+    type: "number",
+    validate(value: unknown) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) throw new Error(`Invalid numeric domain config value for ${options.key}`);
+      if (options.minExclusive !== undefined && parsed <= options.minExclusive) throw new Error(`Domain config value below minimum for ${options.key}`);
+      if (options.minInclusive !== undefined && parsed < options.minInclusive) throw new Error(`Domain config value below minimum for ${options.key}`);
+      if (options.maxInclusive !== undefined && parsed > options.maxInclusive) throw new Error(`Domain config value above maximum for ${options.key}`);
+      return parsed;
+    },
+  };
+}
+
+function parseSmartCompactionCompatibilityValue(raw: string): string | undefined {
+  return raw.trim() ? normalizeSmartCompactionMethod(raw, "selective") : undefined;
+}
+
+function parseAutoCompactionScopeCompatibilityValue(raw: string): string | undefined {
+  return raw.trim() ? normalizeAutoCompactionScope(raw, "total") : undefined;
+}
+
+const compactionDomainSchema = registerDomainConfig<CompactionDomainConfig>({
+  domain: "compaction",
+  fields: {
+    autoCompactionEnabled: boolField({ key: "autoCompactionEnabled", owner: "core", defaultValue: configAutoCompactionEnabled ?? true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_AUTO_COMPACTION_ENABLED", replacement: "domains.compaction.autoCompactionEnabled", removalVersion: "3.0.0", skipInvalid: true }] }),
+    smartCompactionMethod: {
+      ...stringField({ key: "smartCompactionMethod", owner: "core", defaultValue: normalizeSmartCompactionMethod(configSmartCompactionMethod, "selective"), allowedValues: ["selective", "pipelined"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SMART_COMPACTION_METHOD", replacement: "domains.compaction.smartCompactionMethod", removalVersion: "3.0.0", parse: parseSmartCompactionCompatibilityValue, skipInvalid: true }] }),
+      validate: (value: unknown) => {
+        if (value === undefined) throw new Error("Invalid smart compaction method");
+        return normalizeSmartCompactionMethod(value, "selective");
+      },
+    } as DomainConfigField<SmartCompactionMethod>,
+    timeoutMs: integerField({ key: "timeoutMs", owner: "core", defaultValue: Number.isFinite(configCompactionTimeoutMs) && (configCompactionTimeoutMs ?? 0) > 0 ? Math.round(Number(configCompactionTimeoutMs)) : 300_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_TIMEOUT_MS", replacement: "domains.compaction.timeoutMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    backoffBaseMs: integerField({ key: "backoffBaseMs", owner: "core", defaultValue: Number.isFinite(configCompactionBackoffBaseMs) && (configCompactionBackoffBaseMs ?? 0) > 0 ? Math.round(Number(configCompactionBackoffBaseMs)) : 15 * 60_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_BACKOFF_BASE_MS", replacement: "domains.compaction.backoffBaseMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    backoffMaxMs: integerField({ key: "backoffMaxMs", owner: "core", defaultValue: Number.isFinite(configCompactionBackoffMaxMs) && (configCompactionBackoffMaxMs ?? 0) > 0 ? Math.round(Number(configCompactionBackoffMaxMs)) : 6 * 60 * 60_000, min: 1, bounds: "positive integer ms; normalized >= backoffBaseMs", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_BACKOFF_MAX_MS", replacement: "domains.compaction.backoffMaxMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    thresholdPercent: boundedNumberField({ key: "thresholdPercent", owner: "core", defaultValue: typeof configCompactionThresholdPercent === "number" && configCompactionThresholdPercent > 0 && configCompactionThresholdPercent <= 100 ? configCompactionThresholdPercent : 80, minExclusive: 0, maxInclusive: 100, bounds: ">0..100 percent", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_THRESHOLD_PERCENT", replacement: "domains.compaction.thresholdPercent", removalVersion: "3.0.0", skipInvalid: true }] }),
+    maxThresholdTokens: integerField({ key: "maxThresholdTokens", owner: "core", defaultValue: parseOptionalNonNegativeInt(configCompactionMaxThresholdTokens, 0), min: 0, bounds: "non-negative integer tokens", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS", replacement: "domains.compaction.maxThresholdTokens", removalVersion: "3.0.0", skipInvalid: true }] }),
+    autoCompactionScope: {
+      ...stringField({ key: "autoCompactionScope", owner: "core", defaultValue: normalizeAutoCompactionScope(configAutoCompactionScope, "total"), allowedValues: ["total", "body_after_prefix"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_AUTO_COMPACTION_SCOPE", replacement: "domains.compaction.autoCompactionScope", removalVersion: "3.0.0", parse: parseAutoCompactionScopeCompatibilityValue, skipInvalid: true }] }),
+      validate: (value: unknown) => {
+        if (value === undefined) throw new Error("Invalid auto-compaction scope");
+        return normalizeAutoCompactionScope(value, "total");
+      },
+    } as DomainConfigField<AutoCompactionScope>,
+    hardCeilingPercent: boundedNumberField({ key: "hardCeilingPercent", owner: "core", defaultValue: typeof configCompactionHardCeilingPercent === "number" && configCompactionHardCeilingPercent > 0 && configCompactionHardCeilingPercent <= 100 ? configCompactionHardCeilingPercent : 100, minExclusive: 0, maxInclusive: 100, bounds: ">0..100 percent", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_HARD_CEILING_PERCENT", replacement: "domains.compaction.hardCeilingPercent", removalVersion: "3.0.0", skipInvalid: true }] }),
+    warningThreshold: integerField({ key: "warningThreshold", owner: "core", defaultValue: typeof configCompactionWarningThreshold === "number" && configCompactionWarningThreshold >= 0 ? Math.round(configCompactionWarningThreshold) : 3, min: 0, bounds: "non-negative integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_WARNING_THRESHOLD", replacement: "domains.compaction.warningThreshold", removalVersion: "3.0.0", skipInvalid: true }] }),
+    backoffDecayFactor: boundedNumberField({ key: "backoffDecayFactor", owner: "core", defaultValue: typeof configCompactionBackoffDecayFactor === "number" && configCompactionBackoffDecayFactor > 0 && configCompactionBackoffDecayFactor <= 1 ? configCompactionBackoffDecayFactor : 0.5, minExclusive: 0, maxInclusive: 1, bounds: ">0..1", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", replacement: "domains.compaction.backoffDecayFactor", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+let compactionDomainConfigOverride: CompactionDomainConfig | null = null;
+
+function getCompactionDomainConfig(): CompactionDomainConfig {
+  const resolved = compactionDomainConfigOverride ?? readDomainConfig(compactionDomainSchema, getDomainConfigOptions());
+  return resolved.backoffMaxMs < resolved.backoffBaseMs
+    ? { ...resolved, backoffMaxMs: resolved.backoffBaseMs }
+    : { ...resolved };
 }
 
 export type SessionIsolationLevel = "none" | "summary" | "full";
@@ -1753,25 +1841,9 @@ export function getToolUseMessageBudget(): number {
   return TOOL_USE_MESSAGE_BUDGET;
 }
 
-const DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING = 48;
-const MAX_MID_TURN_TOOL_EXECUTION_HARD_CEILING = 512;
-
-function normalizeMidTurnToolExecutionHardCeiling(value: unknown): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING;
-  return Math.min(MAX_MID_TURN_TOOL_EXECUTION_HARD_CEILING, Math.max(1, Math.round(parsed)));
-}
-
 /** Return the hard ceiling for executed tools inside one prompt attempt. */
 export function getMidTurnToolExecutionHardCeiling(): number {
-  const envValue = pickNumber({
-    PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING:
-      process.env.PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING
-        ?? envConfig.PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
-  }, ["PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING"]);
-  return normalizeMidTurnToolExecutionHardCeiling(
-    envValue ?? configMidTurnToolExecutionHardCeiling ?? DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
-  );
+  return readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions()).midTurnToolExecutionHardCeiling;
 }
 
 /** Persist and apply the tool-use budget so subsequent turns use it immediately. */
@@ -1790,13 +1862,7 @@ export function setToolUseMessageBudget(budget: number): number {
   return TOOL_USE_MESSAGE_BUDGET;
 }
 
-const DEFAULT_COMPACTION_TIMEOUT_MS = 300_000;
 const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 5 * 60_000;
-const DEFAULT_COMPACTION_BACKOFF_BASE_MS = 15 * 60_000;
-const DEFAULT_COMPACTION_BACKOFF_MAX_MS = 6 * 60 * 60_000;
-// Context-window percentages already scale across models. A fixed default cap
-// made 1M-token models compact at only 24% utilization, so caps are opt-in.
-const DEFAULT_COMPACTION_MAX_THRESHOLD_TOKENS = 0;
 
 function parseOptionalNonNegativeInt(value: unknown, fallback: number): number {
   if (value === undefined || value === null || String(value).trim() === "") return fallback;
@@ -1805,18 +1871,11 @@ function parseOptionalNonNegativeInt(value: unknown, fallback: number): number {
   return Math.max(0, Math.round(parsed));
 }
 
+const INITIAL_COMPACTION_DOMAIN_CONFIG = getCompactionDomainConfig();
+
 let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
-  autoCompactionEnabled: parseOptionalBooleanFlag(
-    process.env.PICLAW_AUTO_COMPACTION_ENABLED
-      ?? envConfig.PICLAW_AUTO_COMPACTION_ENABLED,
-    configAutoCompactionEnabled ?? true,
-  ),
-  smartCompactionMethod: normalizeSmartCompactionMethod(
-    process.env.PICLAW_SMART_COMPACTION_METHOD
-      ?? envConfig.PICLAW_SMART_COMPACTION_METHOD
-      ?? configSmartCompactionMethod,
-    "selective",
-  ),
+  autoCompactionEnabled: INITIAL_COMPACTION_DOMAIN_CONFIG.autoCompactionEnabled,
+  smartCompactionMethod: INITIAL_COMPACTION_DOMAIN_CONFIG.smartCompactionMethod,
   remoteCompactionEnabled: parseOptionalBooleanFlag(
     process.env.PICLAW_REMOTE_COMPACTION_ENABLED
       ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
@@ -1828,39 +1887,17 @@ let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
       ? Math.round(Number(configRemoteCompactionTimeoutMs))
       : DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS,
   ),
-  timeoutMs: parsePositiveDurationMs(
-    process.env.PICLAW_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_COMPACTION_TIMEOUT_MS,
-    Number.isFinite(configCompactionTimeoutMs) && (configCompactionTimeoutMs ?? 0) > 0
-      ? Math.round(Number(configCompactionTimeoutMs))
-      : DEFAULT_COMPACTION_TIMEOUT_MS,
-  ),
-  backoffBaseMs: parsePositiveDurationMs(
-    process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_BASE_MS,
-    Number.isFinite(configCompactionBackoffBaseMs) && (configCompactionBackoffBaseMs ?? 0) > 0
-      ? Math.round(Number(configCompactionBackoffBaseMs))
-      : DEFAULT_COMPACTION_BACKOFF_BASE_MS,
-  ),
-  backoffMaxMs: parsePositiveDurationMs(
-    process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_MAX_MS,
-    Number.isFinite(configCompactionBackoffMaxMs) && (configCompactionBackoffMaxMs ?? 0) > 0
-      ? Math.round(Number(configCompactionBackoffMaxMs))
-      : DEFAULT_COMPACTION_BACKOFF_MAX_MS,
-  ),
+  timeoutMs: INITIAL_COMPACTION_DOMAIN_CONFIG.timeoutMs,
+  backoffBaseMs: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffBaseMs,
+  backoffMaxMs: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffMaxMs,
   progressWatchdogEnabled: getProgressWatchdogConfig().enabled,
   progressWatchdogTimeoutMs: getProgressWatchdogConfig().timeoutMs,
-  thresholdPercent: typeof configCompactionThresholdPercent === "number" && configCompactionThresholdPercent > 0 && configCompactionThresholdPercent <= 100
-    ? configCompactionThresholdPercent : 80,
-  maxThresholdTokens: parseOptionalNonNegativeInt(configCompactionMaxThresholdTokens, DEFAULT_COMPACTION_MAX_THRESHOLD_TOKENS),
-  autoCompactionScope: normalizeAutoCompactionScope(
-    process.env.PICLAW_AUTO_COMPACTION_SCOPE ?? envConfig.PICLAW_AUTO_COMPACTION_SCOPE ?? configAutoCompactionScope,
-    "total",
-  ),
-  hardCeilingPercent: typeof configCompactionHardCeilingPercent === "number" && configCompactionHardCeilingPercent > 0 && configCompactionHardCeilingPercent <= 100
-    ? configCompactionHardCeilingPercent : 100,
-  warningThreshold: typeof configCompactionWarningThreshold === "number" && configCompactionWarningThreshold >= 0
-    ? Math.round(configCompactionWarningThreshold) : 3,
-  backoffDecayFactor: typeof configCompactionBackoffDecayFactor === "number" && configCompactionBackoffDecayFactor > 0 && configCompactionBackoffDecayFactor <= 1
-    ? configCompactionBackoffDecayFactor : 0.5,
+  thresholdPercent: INITIAL_COMPACTION_DOMAIN_CONFIG.thresholdPercent,
+  maxThresholdTokens: INITIAL_COMPACTION_DOMAIN_CONFIG.maxThresholdTokens,
+  autoCompactionScope: INITIAL_COMPACTION_DOMAIN_CONFIG.autoCompactionScope,
+  hardCeilingPercent: INITIAL_COMPACTION_DOMAIN_CONFIG.hardCeilingPercent,
+  warningThreshold: INITIAL_COMPACTION_DOMAIN_CONFIG.warningThreshold,
+  backoffDecayFactor: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffDecayFactor,
 });
 
 function parseOptionalBooleanFlag(value: unknown, fallback: boolean): boolean {
@@ -1922,15 +1959,10 @@ export function getProgressWatchdogSafetyWarning(): string | null {
 }
 
 export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> {
+  const domain = getCompactionDomainConfig();
   const resolved: CompactionRuntimeConfig = {
-    autoCompactionEnabled: parseOptionalBooleanFlag(
-      process.env.PICLAW_AUTO_COMPACTION_ENABLED ?? envConfig.PICLAW_AUTO_COMPACTION_ENABLED,
-      COMPACTION_RUNTIME_CONFIG.autoCompactionEnabled,
-    ),
-    smartCompactionMethod: normalizeSmartCompactionMethod(
-      process.env.PICLAW_SMART_COMPACTION_METHOD ?? envConfig.PICLAW_SMART_COMPACTION_METHOD,
-      COMPACTION_RUNTIME_CONFIG.smartCompactionMethod,
-    ),
+    autoCompactionEnabled: domain.autoCompactionEnabled,
+    smartCompactionMethod: domain.smartCompactionMethod,
     remoteCompactionEnabled: parseOptionalBooleanFlag(
       process.env.PICLAW_REMOTE_COMPACTION_ENABLED ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
       COMPACTION_RUNTIME_CONFIG.remoteCompactionEnabled,
@@ -1939,48 +1971,17 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
       COMPACTION_RUNTIME_CONFIG.remoteCompactionTimeoutMs,
     ),
-    timeoutMs: parsePositiveDurationMs(
-      process.env.PICLAW_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_COMPACTION_TIMEOUT_MS,
-      COMPACTION_RUNTIME_CONFIG.timeoutMs,
-    ),
-    backoffBaseMs: parsePositiveDurationMs(
-      process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_BASE_MS,
-      COMPACTION_RUNTIME_CONFIG.backoffBaseMs,
-    ),
-    backoffMaxMs: parsePositiveDurationMs(
-      process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_MAX_MS,
-      COMPACTION_RUNTIME_CONFIG.backoffMaxMs,
-    ),
+    timeoutMs: domain.timeoutMs,
+    backoffBaseMs: domain.backoffBaseMs,
+    backoffMaxMs: domain.backoffMaxMs,
     progressWatchdogEnabled: getProgressWatchdogConfig().enabled,
     progressWatchdogTimeoutMs: getProgressWatchdogConfig().timeoutMs,
-    thresholdPercent: (() => {
-      const parsed = Number(process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT ?? envConfig.PICLAW_COMPACTION_THRESHOLD_PERCENT);
-      return Number.isFinite(parsed) && parsed > 0 && parsed <= 100
-        ? parsed
-        : COMPACTION_RUNTIME_CONFIG.thresholdPercent;
-    })(),
-    maxThresholdTokens: parseOptionalNonNegativeInt(
-      process.env.PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS ?? envConfig.PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS,
-      COMPACTION_RUNTIME_CONFIG.maxThresholdTokens,
-    ),
-    autoCompactionScope: normalizeAutoCompactionScope(
-      process.env.PICLAW_AUTO_COMPACTION_SCOPE ?? envConfig.PICLAW_AUTO_COMPACTION_SCOPE,
-      COMPACTION_RUNTIME_CONFIG.autoCompactionScope,
-    ),
-    hardCeilingPercent: parsePercentWithBounds(
-      process.env.PICLAW_COMPACTION_HARD_CEILING_PERCENT ?? envConfig.PICLAW_COMPACTION_HARD_CEILING_PERCENT,
-      COMPACTION_RUNTIME_CONFIG.hardCeilingPercent,
-    ),
-    warningThreshold: parseOptionalNonNegativeDurationMs(
-      process.env.PICLAW_COMPACTION_WARNING_THRESHOLD ?? envConfig.PICLAW_COMPACTION_WARNING_THRESHOLD,
-      COMPACTION_RUNTIME_CONFIG.warningThreshold,
-    ),
-    backoffDecayFactor: (() => {
-      const parsed = Number(process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR ?? envConfig.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR);
-      return Number.isFinite(parsed) && parsed > 0 && parsed <= 1
-        ? parsed
-        : COMPACTION_RUNTIME_CONFIG.backoffDecayFactor;
-    })(),
+    thresholdPercent: domain.thresholdPercent,
+    maxThresholdTokens: domain.maxThresholdTokens,
+    autoCompactionScope: domain.autoCompactionScope,
+    hardCeilingPercent: domain.hardCeilingPercent,
+    warningThreshold: domain.warningThreshold,
+    backoffDecayFactor: domain.backoffDecayFactor,
   };
   // Preserve the backoff ordering invariant for direct environment/config-file
   // overrides just as the settings setter does. A max below the base would
@@ -2126,36 +2127,47 @@ function applyCompactionRuntimeConfig(
       delete compaction[key];
       delete config[key];
     }
-    compaction.autoCompactionEnabled = next.autoCompactionEnabled;
-    compaction.smartCompactionMethod = next.smartCompactionMethod;
     compaction.remoteCompactionEnabled = next.remoteCompactionEnabled;
     compaction.remoteCompactionTimeoutMs = next.remoteCompactionTimeoutMs;
-    compaction.timeoutMs = next.timeoutMs;
-    compaction.backoffBaseMs = next.backoffBaseMs;
-    compaction.backoffMaxMs = next.backoffMaxMs;
-    compaction.thresholdPercent = next.thresholdPercent;
-    compaction.maxThresholdTokens = next.maxThresholdTokens;
-    compaction.autoCompactionScope = next.autoCompactionScope;
-    compaction.hardCeilingPercent = next.hardCeilingPercent;
-    compaction.warningThreshold = next.warningThreshold;
-    compaction.backoffDecayFactor = next.backoffDecayFactor;
     config.compaction = compaction;
     writeJsonConfig(getConfigPath(), config);
   }
 
-  process.env.PICLAW_AUTO_COMPACTION_ENABLED = next.autoCompactionEnabled ? "1" : "0";
-  process.env.PICLAW_SMART_COMPACTION_METHOD = next.smartCompactionMethod;
   process.env.PICLAW_REMOTE_COMPACTION_ENABLED = next.remoteCompactionEnabled ? "1" : "0";
   process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS = String(next.remoteCompactionTimeoutMs);
-  process.env.PICLAW_COMPACTION_TIMEOUT_MS = String(next.timeoutMs);
-  process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS = String(next.backoffBaseMs);
-  process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS = String(next.backoffMaxMs);
-  process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT = String(next.thresholdPercent);
-  process.env.PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS = String(next.maxThresholdTokens);
-  process.env.PICLAW_AUTO_COMPACTION_SCOPE = next.autoCompactionScope;
-  process.env.PICLAW_COMPACTION_HARD_CEILING_PERCENT = String(next.hardCeilingPercent);
-  process.env.PICLAW_COMPACTION_WARNING_THRESHOLD = String(next.warningThreshold);
-  process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR = String(next.backoffDecayFactor);
+  const compactionDomainPatch: CompactionDomainConfig = {
+    autoCompactionEnabled: next.autoCompactionEnabled,
+    smartCompactionMethod: next.smartCompactionMethod,
+    timeoutMs: next.timeoutMs,
+    backoffBaseMs: next.backoffBaseMs,
+    backoffMaxMs: next.backoffMaxMs,
+    thresholdPercent: next.thresholdPercent,
+    maxThresholdTokens: next.maxThresholdTokens,
+    autoCompactionScope: next.autoCompactionScope,
+    hardCeilingPercent: next.hardCeilingPercent,
+    warningThreshold: next.warningThreshold,
+    backoffDecayFactor: next.backoffDecayFactor,
+  };
+  if (persist) {
+    const resolvedDomain = writeDomainConfig(compactionDomainSchema, getDomainConfigOptions(), compactionDomainPatch);
+    compactionDomainConfigOverride = null;
+    Object.assign(next, getCompactionDomainConfig(), resolvedDomain);
+    if (next.backoffMaxMs < next.backoffBaseMs) next.backoffMaxMs = next.backoffBaseMs;
+  } else if (!persist) {
+    compactionDomainConfigOverride = {
+      autoCompactionEnabled: next.autoCompactionEnabled,
+      smartCompactionMethod: next.smartCompactionMethod,
+      timeoutMs: next.timeoutMs,
+      backoffBaseMs: next.backoffBaseMs,
+      backoffMaxMs: next.backoffMaxMs,
+      thresholdPercent: next.thresholdPercent,
+      maxThresholdTokens: next.maxThresholdTokens,
+      autoCompactionScope: next.autoCompactionScope,
+      hardCeilingPercent: next.hardCeilingPercent,
+      warningThreshold: next.warningThreshold,
+      backoffDecayFactor: next.backoffDecayFactor,
+    };
+  }
 
   if (persist && (patch.progressWatchdogEnabled !== undefined || patch.progressWatchdogTimeoutMs !== undefined)) {
     const resolvedWatchdog = writeDomainConfig(progressWatchdogDomainSchema, getDomainConfigOptions(), {
@@ -2183,6 +2195,14 @@ export function setCompactionRuntimeConfig(
 }
 
 /** Test-only runtime override that cannot rewrite the workspace config file. */
+export function resetCompactionRuntimeConfigForTests(): void {
+  if (process.env.PICLAW_DB_IN_MEMORY !== "1" && process.env.NODE_ENV !== "test") {
+    throw new Error("resetCompactionRuntimeConfigForTests requires a test runtime");
+  }
+  compactionDomainConfigOverride = null;
+  progressWatchdogConfigOverride = null;
+}
+
 export function setCompactionRuntimeConfigForTests(
   patch: CompactionRuntimeConfigPatch,
 ): Readonly<CompactionRuntimeConfig> {
@@ -2190,19 +2210,8 @@ export function setCompactionRuntimeConfigForTests(
     throw new Error("setCompactionRuntimeConfigForTests requires a test runtime");
   }
   const envKeys = [
-    "PICLAW_AUTO_COMPACTION_ENABLED",
-    "PICLAW_SMART_COMPACTION_METHOD",
     "PICLAW_REMOTE_COMPACTION_ENABLED",
     "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
-    "PICLAW_COMPACTION_TIMEOUT_MS",
-    "PICLAW_COMPACTION_BACKOFF_BASE_MS",
-    "PICLAW_COMPACTION_BACKOFF_MAX_MS",
-    "PICLAW_COMPACTION_THRESHOLD_PERCENT",
-    "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
-    "PICLAW_AUTO_COMPACTION_SCOPE",
-    "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
-    "PICLAW_COMPACTION_WARNING_THRESHOLD",
-    "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
   ];
   for (const key of envKeys) delete process.env[key];
   const result = applyCompactionRuntimeConfig(patch, false);
