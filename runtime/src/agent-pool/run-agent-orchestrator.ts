@@ -23,12 +23,11 @@ import {
   type RecoveryClassifier,
   type RecoveryStrategy,
 } from "./automatic-recovery.js";
-import { getAgentRuntimeConfig, getMidTurnToolExecutionHardCeiling, getSessionStorageConfig, getToolUseMessageBudget } from "../core/config.js";
+import { getAgentRuntimeConfig, getMidTurnToolExecutionHardCeiling, getRecoveryPolicyConfig, getSessionStorageConfig, getToolUseMessageBudget } from "../core/config.js";
 import { detectChannel } from "../router.js";
 import { pruneOrphanToolResults } from "./orphan-tool-results.js";
 import { writeAgentLog } from "./logging.js";
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
-import { parsePositiveIntStrict } from "../utils/strict-int.js";
 import { getSessionFileLineCount, getSessionFileSize, isRotationFallbackCompactionError, rotateSession } from "../session-rotation.js";
 import { getCompactionSuccessCount, resetCompactionSuccessCount } from "./compaction.js";
 import { withChatContext } from "../core/chat-context.js";
@@ -97,8 +96,6 @@ const MIN_TOOL_EXECUTION_WATCHDOG_HEARTBEAT_MS = 1_000;
 const MAX_TOOL_EXECUTION_WATCHDOG_HEARTBEAT_MS = 15_000;
 const MID_TURN_CONTEXT_CHECK_MIN_INTERVAL_MS = 1_000;
 const CONTEXT_USAGE_UPDATE_MIN_INTERVAL_MS = 250;
-const DEFAULT_RECOVERY_LOOP_GUARD_MAX_FAILURES = 3;
-const DEFAULT_RECOVERY_LOOP_GUARD_WINDOW_MS = 10 * 60 * 1000;
 const MAX_RECOVERY_LOOP_GUARD_CHATS = 512;
 
 /**
@@ -233,22 +230,6 @@ function normalizeRecoverySignatureText(value: string | null | undefined): strin
     .trim();
 }
 
-function parseRecoveryLoopGuardEnabled(): boolean {
-  const normalized = String(process.env.PICLAW_RECOVERY_LOOP_GUARD_ENABLED || "").trim().toLowerCase();
-  if (!normalized) return true;
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  return true;
-}
-
-function parseRecoveryLoopGuardMaxFailures(): number {
-  return parsePositiveIntStrict(process.env.PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES, DEFAULT_RECOVERY_LOOP_GUARD_MAX_FAILURES);
-}
-
-function parseRecoveryLoopGuardWindowMs(): number {
-  return parsePositiveIntStrict(process.env.PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS, DEFAULT_RECOVERY_LOOP_GUARD_WINDOW_MS);
-}
-
 function shouldSuppressRecoveryLoop(options: {
   chatJid: string;
   modelLabel: string | null;
@@ -256,9 +237,10 @@ function shouldSuppressRecoveryLoop(options: {
   strategy: string | null;
   errorText: string;
 }): { suppress: boolean; attemptsInWindow: number; maxFailures: number; windowMs: number } {
-  const maxFailures = parseRecoveryLoopGuardMaxFailures();
-  const windowMs = parseRecoveryLoopGuardWindowMs();
-  if (!parseRecoveryLoopGuardEnabled()) {
+  const recoveryPolicy = getRecoveryPolicyConfig();
+  const maxFailures = recoveryPolicy.loopGuardMaxFailures;
+  const windowMs = recoveryPolicy.loopGuardWindowMs;
+  if (!recoveryPolicy.loopGuardEnabled) {
     return {
       suppress: false,
       attemptsInWindow: 0,
