@@ -6,18 +6,15 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 77 to 75",
+    "source": "accepted direct-reader reduction from 75 to 68",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
       "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
       "PICLAW_CHAT_JID",
-      "PICLAW_COMPACTION_MAX_WORK_UNITS",
       "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
-      "PICLAW_COMPACTION_SETTLEMENT_GRACE_MS",
       "PICLAW_DATA",
       "PICLAW_DB_IN_MEMORY",
-      "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
       "PICLAW_DREAM_AGENT_TIMEOUT_MS",
       "PICLAW_DREAM_BACKUP_KEEP",
       "PICLAW_DREAM_CRON",
@@ -28,8 +25,6 @@
       "PICLAW_KEYCHAIN_KEY",
       "PICLAW_KEYCHAIN_KEY_FILE",
       "PICLAW_LOG_LEVEL",
-      "PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE",
-      "PICLAW_MANUAL_COMPACTION_FAILSAFE_GRACE_MS",
       "PICLAW_MCP_TOOL_TIMEOUT_MS",
       "PICLAW_PACKAGE_ROOT",
       "PICLAW_PROGRESSIVE_COMPACTION",
@@ -48,8 +43,6 @@
       "PICLAW_SEARCH_MATCH_MODE",
       "PICLAW_SKEL_DIR",
       "PICLAW_SMART_COMPACTION_REASONING",
-      "PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS",
-      "PICLAW_STALE_ACTIVE_COMPACTION_RECOVERY_MS",
       "PICLAW_STORE",
       "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
       "PICLAW_TEST_PLATFORM",
@@ -121,22 +114,22 @@
   },
   "current": {
     "production": {
-      "referencedNames": 186,
-      "directReaderNames": 76,
-      "directReaderOccurrences": 164,
+      "referencedNames": 179,
+      "directReaderNames": 69,
+      "directReaderOccurrences": 158,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 76,
-      "semanticReaderOccurrences": 164
+      "semanticReaderNames": 69,
+      "semanticReaderOccurrences": 158
     },
     "runtimeSrc": {
-      "referencedNames": 183,
-      "directReaderNames": 75,
-      "directReaderOccurrences": 153,
+      "referencedNames": 176,
+      "directReaderNames": 68,
+      "directReaderOccurrences": 147,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 75,
-      "semanticReaderOccurrences": 153
+      "semanticReaderNames": 68,
+      "semanticReaderOccurrences": 147
     },
     "extensions": {
       "referencedNames": 14,
@@ -1060,35 +1053,6 @@
       }
     },
     {
-      "name": "PICLAW_COMPACTION_MAX_WORK_UNITS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/compaction.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/compaction.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/compaction.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/compaction.ts"
-          ]
-        }
-      }
-    },
-    {
       "name": "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
       "scopes": {
         "production": {
@@ -1113,35 +1077,6 @@
           ],
           "readerFiles": [
             "runtime/src/utils/context-window-budget.ts"
-          ]
-        }
-      }
-    },
-    {
-      "name": "PICLAW_COMPACTION_SETTLEMENT_GRACE_MS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/compaction.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/compaction.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/compaction.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/compaction.ts"
           ]
         }
       }
@@ -1385,15 +1320,17 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 5,
+          "directReaders": 6,
           "helperReaders": 0,
-          "semanticReaders": 5,
+          "semanticReaders": 6,
           "files": [
+            "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/runtime/progress-watchdog-supervisor.ts"
           ],
           "readerFiles": [
+            "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/runtime/progress-watchdog-supervisor.ts"
@@ -1401,15 +1338,17 @@
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 5,
+          "directReaders": 6,
           "helperReaders": 0,
-          "semanticReaders": 5,
+          "semanticReaders": 6,
           "files": [
+            "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/runtime/progress-watchdog-supervisor.ts"
           ],
           "readerFiles": [
+            "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/runtime/progress-watchdog-supervisor.ts"
@@ -1476,35 +1415,6 @@
             "runtime/src/workspace-index-process.ts"
           ],
           "readerFiles": []
-        }
-      }
-    },
-    {
-      "name": "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/run-agent-orchestrator.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/run-agent-orchestrator.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/run-agent-orchestrator.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/run-agent-orchestrator.ts"
-          ]
         }
       }
     },
@@ -2741,64 +2651,6 @@
             "runtime/src/core/config.ts"
           ],
           "readerFiles": []
-        }
-      }
-    },
-    {
-      "name": "PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
-        }
-      }
-    },
-    {
-      "name": "PICLAW_MANUAL_COMPACTION_FAILSAFE_GRACE_MS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
         }
       }
     },
@@ -5171,64 +5023,6 @@
             "runtime/src/extensions/ssh-core.ts"
           ],
           "readerFiles": []
-        }
-      }
-    },
-    {
-      "name": "PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ]
-        }
-      }
-    },
-    {
-      "name": "PICLAW_STALE_ACTIVE_COMPACTION_RECOVERY_MS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/runtime/recovery.ts"
-          ]
         }
       }
     },

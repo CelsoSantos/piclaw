@@ -11,6 +11,7 @@ import {
   noteCompactionSuccess,
   runCompactionWithTimeout,
   scheduleIdleAutoCompaction,
+  setCompactionSettlementGraceForTests,
 } from "../../src/agent-pool/compaction.js";
 import { getChatAutoCompactionWindow, getChatCompactionBackoff, initDatabase, setChatCompactionBackoff } from "../../src/db.js";
 import { recordCompactionCancellationReason } from "../../src/agent-pool/compaction-cancel-reason.js";
@@ -598,11 +599,9 @@ test("runCompactionWithTimeout keeps the single-flight lock until timed-out comp
   }
 });
 
-test("compaction timeout grace preserves zero and rejects malformed non-negative env values", async () => {
+test("fixed compaction timeout grace keeps a timed-out compaction quarantined until settlement", async () => {
   const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-  const previousGrace = process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = "5";
-  process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = "0oops";
   try {
     const never = deferred<void>();
     let calls = 0;
@@ -630,16 +629,12 @@ test("compaction timeout grace preserves zero and rejects malformed non-negative
   } finally {
     if (previousTimeout === undefined) delete process.env.PICLAW_COMPACTION_TIMEOUT_MS;
     else process.env.PICLAW_COMPACTION_TIMEOUT_MS = previousTimeout;
-    if (previousGrace === undefined) delete process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
-    else process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = previousGrace;
   }
 });
 
-test("compaction max-work-units env rejects malformed positive suffixes", async () => {
+test("compaction trigger uses the fixed internal max-work-units ceiling", async () => {
   const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-  const previousMaxWorkUnits = process.env.PICLAW_COMPACTION_MAX_WORK_UNITS;
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = "5000";
-  process.env.PICLAW_COMPACTION_MAX_WORK_UNITS = "123oops";
   try {
     const session = makeSession([]);
     let observedMaxWorkUnits: unknown;
@@ -653,8 +648,6 @@ test("compaction max-work-units env rejects malformed positive suffixes", async 
   } finally {
     if (previousTimeout === undefined) delete process.env.PICLAW_COMPACTION_TIMEOUT_MS;
     else process.env.PICLAW_COMPACTION_TIMEOUT_MS = previousTimeout;
-    if (previousMaxWorkUnits === undefined) delete process.env.PICLAW_COMPACTION_MAX_WORK_UNITS;
-    else process.env.PICLAW_COMPACTION_MAX_WORK_UNITS = previousMaxWorkUnits;
   }
 });
 
@@ -694,9 +687,8 @@ test("idle auto-compaction delay env preserves zero and rejects malformed suffix
 
 test("a late timed-out compaction cannot clear a replacement generation's active state", async () => {
   const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-  const previousGrace = process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = "20";
-  process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = "5";
+  const restoreSettlementGrace = setCompactionSettlementGraceForTests(5);
   const chatJid = "web:late-compaction-generation";
 
   try {
@@ -729,18 +721,16 @@ test("a late timed-out compaction cannot clear a replacement generation's active
     expect(await replacement).toEqual({ ok: true, result: "replacement-result" });
     expect(getSessionActivitySnapshot(chatJid)?.isCompacting).toBe(false);
   } finally {
+    restoreSettlementGrace();
     if (previousTimeout === undefined) delete process.env.PICLAW_COMPACTION_TIMEOUT_MS;
     else process.env.PICLAW_COMPACTION_TIMEOUT_MS = previousTimeout;
-    if (previousGrace === undefined) delete process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
-    else process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = previousGrace;
   }
 });
 
 test("late cancellation cleanup cannot consume a replacement generation's reason", async () => {
   const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-  const previousGrace = process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = "50";
-  process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = "0";
+  const restoreSettlementGrace = setCompactionSettlementGraceForTests(0);
   const chatJid = "web:late-cancellation-reason";
 
   try {
@@ -782,10 +772,9 @@ test("late cancellation cleanup cannot consume a replacement generation's reason
 
     expect(await replacement).toEqual({ ok: false, errorMessage: "replacement generation reason" });
   } finally {
+    restoreSettlementGrace();
     if (previousTimeout === undefined) delete process.env.PICLAW_COMPACTION_TIMEOUT_MS;
     else process.env.PICLAW_COMPACTION_TIMEOUT_MS = previousTimeout;
-    if (previousGrace === undefined) delete process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS;
-    else process.env.PICLAW_COMPACTION_SETTLEMENT_GRACE_MS = previousGrace;
   }
 });
 

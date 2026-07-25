@@ -59,7 +59,7 @@ describe("Piclaw env surface audit", () => {
     expect(observations.issueBaseline).toEqual({ distinctNames: 235, literalProductionReaders: 151 });
     expect(observations.scanScopes.production).toEqual(["runtime/src", "runtime/extensions"]);
     expect(observations.current.runtimeSrc.directReaderNames).toBe(observations.runtimeSrcDirectBaseline.names.length);
-    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(75);
+    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(68);
     expect(observations.runtimeSrcDirectBaseline.added).toEqual([]);
     expect(observations.runtimeSrcDirectBaseline.removed).toEqual([]);
     expect(observations.current.runtimeSrc.directReaderNames).toBeLessThan(issueBaseline.literalProductionReaders);
@@ -94,6 +94,27 @@ describe("Piclaw env surface audit", () => {
       } else {
         expect(entry.persistence.includes("json-config"), entry.name).toBe(false);
       }
+    }
+  });
+
+  test("C2b compaction guardrails are fixed internal constants without env persistence", () => {
+    const names = [
+      "PICLAW_COMPACTION_MAX_WORK_UNITS",
+      "PICLAW_COMPACTION_SETTLEMENT_GRACE_MS",
+      "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
+      "PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE",
+      "PICLAW_MANUAL_COMPACTION_FAILSAFE_GRACE_MS",
+      "PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS",
+      "PICLAW_STALE_ACTIVE_COMPACTION_RECOVERY_MS",
+    ];
+    const catalog = buildSupportCatalog();
+    for (const name of names) {
+      const entry = catalog.entries.find((item) => item.name === name);
+      expect(entry, name).toBeDefined();
+      expect(entry?.status, name).toBe("internal");
+      expect(entry?.migrationDisposition, name).toBe("constant");
+      expect(entry?.persistence, name).toEqual([]);
+      expect(entry?.precedence, name).toEqual([]);
     }
   });
 
