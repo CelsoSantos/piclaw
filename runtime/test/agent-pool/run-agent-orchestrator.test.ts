@@ -18,7 +18,12 @@ import {
   scanForStalls,
   setProgressWatchdogTimeoutForTests,
 } from "../../src/runtime/progress-watchdog.js";
-import { getToolUseMessageBudget, setToolUseMessageBudget } from "../../src/core/config.js";
+import {
+  getSessionStorageConfig,
+  getToolUseMessageBudget,
+  setSessionStorageConfig,
+  setToolUseMessageBudget,
+} from "../../src/core/config.js";
 import {
   applyLiveSshConfig,
   hasLiveChatSshConnection,
@@ -1994,9 +1999,11 @@ test("runAgentPrompt prompts the rotated runtime session after auto-rotation swa
     PICLAW_WORKSPACE: workspaceBase,
     PICLAW_STORE: join(workspaceBase, "store"),
     PICLAW_DATA: join(workspaceBase, "data"),
-    PICLAW_SESSION_AUTO_ROTATE: "1",
-    PICLAW_SESSION_MAX_SIZE_MB: "1",
+    PICLAW_SESSION_AUTO_ROTATE: undefined,
+    PICLAW_SESSION_MAX_SIZE_MB: undefined,
   });
+  const previousSessionStorageConfig = getSessionStorageConfig();
+  setSessionStorageConfig({ autoRotate: true, maxSizeMb: 1 });
 
   class SessionBeforeRotate {
     sessionManager: SessionManager;
@@ -2125,6 +2132,12 @@ test("runAgentPrompt prompts the rotated runtime session after auto-rotation swa
     expect(forkStates).toHaveLength(2);
     expect(forkStates.at(-1)).toBe(null);
   } finally {
+    setSessionStorageConfig({
+      maxSizeMb: previousSessionStorageConfig.maxSizeMb,
+      maxLines: previousSessionStorageConfig.maxLines,
+      maxCompactionsBeforeRotation: previousSessionStorageConfig.maxCompactionsBeforeRotation,
+      autoRotate: previousSessionStorageConfig.autoRotate,
+    });
     restoreEnv();
     rmSync(workspaceBase, { recursive: true, force: true });
   }
@@ -2576,7 +2589,7 @@ test("runAgentPrompt stops without compaction after tool-use budget exhaustion",
     PICLAW_TURN_AUTO_RECOVERY_ENABLED: "1",
     PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS: "2",
     PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS: "30000",
-    PICLAW_TURN_MAX_TOOL_USE_MESSAGES: "1",
+    PICLAW_TURN_MAX_TOOL_USE_MESSAGES: undefined,
   });
   const previousToolUseBudget = getToolUseMessageBudget();
   setToolUseMessageBudget(8);

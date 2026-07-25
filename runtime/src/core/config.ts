@@ -34,6 +34,7 @@ import {
   readDomainConfig,
   registerDomainConfig,
   stringField,
+  writeDomainConfig,
   writeDomainConfigField,
   type DomainConfigField,
   type DomainConfigRuntimeOptions,
@@ -413,8 +414,6 @@ function warnDeprecatedEnv(oldName: string, newName: string): void {
 
 warnDeprecatedEnv("ASSISTANT_NAME", "PICLAW_ASSISTANT_NAME");
 warnDeprecatedEnv("ASSISTANT_AVATAR", "PICLAW_ASSISTANT_AVATAR");
-warnDeprecatedEnv("AGENT_TIMEOUT", "PICLAW_AGENT_TIMEOUT");
-warnDeprecatedEnv("AGENT_TIMEOUT_BACKGROUND", "PICLAW_BACKGROUND_AGENT_TIMEOUT");
 warnDeprecatedEnv("LOG_LEVEL", "PICLAW_LOG_LEVEL");
 
 // ---------------------------------------------------------------------------
@@ -509,24 +508,70 @@ export interface AgentRuntimeConfig {
   backgroundTimeoutMs: number;
 }
 
+interface AgentDomainConfig extends AgentRuntimeConfig {
+  toolUseMessageBudget: number;
+}
+
+const legacyTurnMaxToolUseMessages = pickNumber(piclawConfig, [
+  "turnMaxToolUseMessages",
+  "turn_max_tool_use_messages",
+  "toolUseBudget",
+  "tool_use_budget",
+  "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
+]);
+
+const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
+  domain: "agent",
+  fields: {
+    timeoutMs: integerField({
+      key: "timeoutMs",
+      owner: "agent-runtime",
+      defaultValue: 3_600_000,
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [
+        { envKey: "PICLAW_AGENT_TIMEOUT", replacement: "domains.agent.timeoutMs", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true },
+        { envKey: "AGENT_TIMEOUT", replacement: "domains.agent.timeoutMs", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true },
+      ],
+    }),
+    backgroundTimeoutMs: integerField({
+      key: "backgroundTimeoutMs",
+      owner: "agent-runtime",
+      defaultValue: 0,
+      min: 0,
+      bounds: ">=0 ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [
+        { envKey: "PICLAW_BACKGROUND_AGENT_TIMEOUT", replacement: "domains.agent.backgroundTimeoutMs", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true },
+        { envKey: "AGENT_TIMEOUT_BACKGROUND", replacement: "domains.agent.backgroundTimeoutMs", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true },
+      ],
+    }),
+    toolUseMessageBudget: integerField({
+      key: "toolUseMessageBudget",
+      owner: "agent-runtime",
+      defaultValue: legacyTurnMaxToolUseMessages ?? 64,
+      min: 1,
+      max: 512,
+      bounds: "1..512 messages (Settings writes clamp to >=8)",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TURN_MAX_TOOL_USE_MESSAGES", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0" }],
+    }),
+  },
+});
+
+const AGENT_DOMAIN_CONFIG = readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions());
+
 /** Grouped agent turn timeout settings. */
 export const AGENT_RUNTIME_CONFIG = Object.freeze<AgentRuntimeConfig>({
-  timeoutMs: parseInt(
-    process.env.PICLAW_AGENT_TIMEOUT ||
-      envConfig.PICLAW_AGENT_TIMEOUT ||
-      process.env.AGENT_TIMEOUT ||
-      envConfig.AGENT_TIMEOUT ||
-      "3600000",
-    10
-  ),
-  backgroundTimeoutMs: parseInt(
-    process.env.PICLAW_BACKGROUND_AGENT_TIMEOUT ||
-      envConfig.PICLAW_BACKGROUND_AGENT_TIMEOUT ||
-      process.env.AGENT_TIMEOUT_BACKGROUND ||
-      envConfig.AGENT_TIMEOUT_BACKGROUND ||
-      "0",
-    10
-  ),
+  timeoutMs: AGENT_DOMAIN_CONFIG.timeoutMs,
+  backgroundTimeoutMs: AGENT_DOMAIN_CONFIG.backgroundTimeoutMs,
 });
 
 /** Return grouped agent timeout settings for runtime wiring and tests. */
@@ -962,13 +1007,6 @@ const configSessionMaxCompactions = pickNumber(piclawConfig, [
   "max_compactions_before_rotation",
   "PICLAW_SESSION_MAX_COMPACTIONS",
 ]);
-const configTurnMaxToolUseMessages = pickNumber(piclawConfig, [
-  "turnMaxToolUseMessages",
-  "turn_max_tool_use_messages",
-  "toolUseBudget",
-  "tool_use_budget",
-  "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
-]);
 const configMidTurnToolExecutionHardCeiling = pickNumber(piclawConfig, [
   "midTurnToolExecutionHardCeiling",
   "mid_turn_tool_execution_hard_ceiling",
@@ -1153,32 +1191,34 @@ export interface CompactionRuntimeConfig {
   backoffDecayFactor: number;
 }
 
-const sessionMaxSizeMb =
-  pickNumber({ PICLAW_SESSION_MAX_SIZE_MB: process.env.PICLAW_SESSION_MAX_SIZE_MB ?? envConfig.PICLAW_SESSION_MAX_SIZE_MB }, [
-    "PICLAW_SESSION_MAX_SIZE_MB",
-  ]) ?? configSessionMaxSizeMb ?? 32;
+interface SessionDomainConfig {
+  maxSizeMb: number;
+  maxLines: number;
+  maxCompactionsBeforeRotation: number;
+  autoRotate: boolean;
+}
 
-const sessionMaxLines =
-  pickNumber({ PICLAW_SESSION_MAX_LINES: process.env.PICLAW_SESSION_MAX_LINES ?? envConfig.PICLAW_SESSION_MAX_LINES }, [
-    "PICLAW_SESSION_MAX_LINES",
-  ]) ?? configSessionMaxLines ?? 8000;
+const sessionDomainSchema = registerDomainConfig<SessionDomainConfig>({
+  domain: "session",
+  fields: {
+    maxSizeMb: integerField({ key: "maxSizeMb", owner: "session-runtime", defaultValue: configSessionMaxSizeMb ?? 32, min: 1, max: 256, bounds: "1..256 MiB", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_MAX_SIZE_MB", replacement: "domains.session.maxSizeMb", removalVersion: "3.0.0", skipInvalid: true }] }),
+    maxLines: integerField({ key: "maxLines", owner: "session-runtime", defaultValue: configSessionMaxLines ?? 8000, min: 100, max: 50000, bounds: "100..50000 lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_MAX_LINES", replacement: "domains.session.maxLines", removalVersion: "3.0.0", skipInvalid: true }] }),
+    maxCompactionsBeforeRotation: integerField({ key: "maxCompactionsBeforeRotation", owner: "session-runtime", defaultValue: configSessionMaxCompactions ?? 3, min: 1, max: 20, bounds: "1..20 compactions", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_MAX_COMPACTIONS", replacement: "domains.session.maxCompactionsBeforeRotation", removalVersion: "3.0.0", skipInvalid: true }] }),
+    autoRotate: boolField({ key: "autoRotate", owner: "session-runtime", defaultValue: configSessionAutoRotate ?? true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_AUTO_ROTATE", replacement: "domains.session.autoRotate", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
 
-const sessionMaxCompactionsBeforeRotation =
-  pickNumber({ PICLAW_SESSION_MAX_COMPACTIONS: process.env.PICLAW_SESSION_MAX_COMPACTIONS }, [
-    "PICLAW_SESSION_MAX_COMPACTIONS",
-  ]) ?? configSessionMaxCompactions ?? 3;
+function toSessionStorageConfig(config: SessionDomainConfig): SessionStorageConfig {
+  return {
+    ...config,
+    maxSizeBytes: config.maxSizeMb * 1024 * 1024,
+  };
+}
+
+const SESSION_DOMAIN_CONFIG = readDomainConfig(sessionDomainSchema, getDomainConfigOptions());
 
 /** Grouped session-file safeguards. */
-export let SESSION_STORAGE_CONFIG = Object.freeze<SessionStorageConfig>({
-  maxSizeMb: sessionMaxSizeMb,
-  maxSizeBytes: sessionMaxSizeMb * 1024 * 1024,
-  maxLines: sessionMaxLines,
-  maxCompactionsBeforeRotation: sessionMaxCompactionsBeforeRotation,
-  autoRotate:
-    pickBoolean({ PICLAW_SESSION_AUTO_ROTATE: process.env.PICLAW_SESSION_AUTO_ROTATE ?? envConfig.PICLAW_SESSION_AUTO_ROTATE }, [
-      "PICLAW_SESSION_AUTO_ROTATE",
-    ]) ?? configSessionAutoRotate ?? true,
-});
+export let SESSION_STORAGE_CONFIG = Object.freeze<SessionStorageConfig>(toSessionStorageConfig(SESSION_DOMAIN_CONFIG));
 
 /** Return grouped session-file safeguards for runtime wiring and tests. */
 export function getSessionStorageConfig(): Readonly<SessionStorageConfig> {
@@ -1200,54 +1240,19 @@ export function setSessionStorageConfig(patch: { maxSizeMb?: number; maxLines?: 
     ? Math.min(20, Math.max(1, Math.round(Number(patch.maxCompactionsBeforeRotation))))
     : SESSION_STORAGE_CONFIG.maxCompactionsBeforeRotation;
 
-  const config = readJsonConfig(getConfigPath());
-  const clearRootKeys = [
-    "sessionMaxSizeMb",
-    "session_max_size_mb",
-    "PICLAW_SESSION_MAX_SIZE_MB",
-    "sessionAutoRotate",
-    "session_auto_rotate",
-    "PICLAW_SESSION_AUTO_ROTATE",
-    "sessionMaxLines",
-    "session_max_lines",
-    "PICLAW_SESSION_MAX_LINES",
-    "sessionMaxCompactions",
-    "session_max_compactions",
-    "maxCompactionsBeforeRotation",
-    "max_compactions_before_rotation",
-    "PICLAW_SESSION_MAX_COMPACTIONS",
-  ];
-  for (const key of clearRootKeys) {
-    delete config[key];
-  }
-  config.sessionMaxSizeMb = nextMaxSizeMb;
-  config.sessionAutoRotate = nextAutoRotate;
-  config.sessionMaxLines = nextMaxLines;
-  config.sessionMaxCompactions = nextMaxCompactions;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_SESSION_MAX_SIZE_MB = String(nextMaxSizeMb);
-  process.env.PICLAW_SESSION_AUTO_ROTATE = nextAutoRotate ? "1" : "0";
-  process.env.PICLAW_SESSION_MAX_LINES = String(nextMaxLines);
-  process.env.PICLAW_SESSION_MAX_COMPACTIONS = String(nextMaxCompactions);
-
-  SESSION_STORAGE_CONFIG = Object.freeze<SessionStorageConfig>({
-    ...SESSION_STORAGE_CONFIG,
+  const resolved = writeDomainConfig(sessionDomainSchema, getDomainConfigOptions(), {
     maxSizeMb: nextMaxSizeMb,
-    maxSizeBytes: nextMaxSizeMb * 1024 * 1024,
+    autoRotate: nextAutoRotate,
     maxLines: nextMaxLines,
     maxCompactionsBeforeRotation: nextMaxCompactions,
-    autoRotate: nextAutoRotate,
   });
+  Object.assign(SESSION_DOMAIN_CONFIG, resolved);
+  SESSION_STORAGE_CONFIG = Object.freeze<SessionStorageConfig>(toSessionStorageConfig(resolved));
   return SESSION_STORAGE_CONFIG;
 }
 
 /** Current per-turn tool-use budget used by the agent orchestrator. */
-export let TOOL_USE_MESSAGE_BUDGET =
-  pickNumber({
-    PICLAW_TURN_MAX_TOOL_USE_MESSAGES:
-      process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES ?? envConfig.PICLAW_TURN_MAX_TOOL_USE_MESSAGES,
-  }, ["PICLAW_TURN_MAX_TOOL_USE_MESSAGES"]) ?? configTurnMaxToolUseMessages ?? 64;
+export let TOOL_USE_MESSAGE_BUDGET = AGENT_DOMAIN_CONFIG.toolUseMessageBudget;
 
 /** Return the current tool-use budget for a single turn. */
 /** Max tool result chars before auto-externalization. Default 5000. */
@@ -1595,22 +1600,14 @@ export function setToolUseMessageBudget(budget: number): number {
   const nextBudget = Number.isFinite(budget)
     ? Math.min(512, Math.max(8, Math.round(Number(budget))))
     : TOOL_USE_MESSAGE_BUDGET;
-  const config = readJsonConfig(getConfigPath());
-  const clearRootKeys = [
-    "turnMaxToolUseMessages",
-    "turn_max_tool_use_messages",
-    "toolUseBudget",
-    "tool_use_budget",
-    "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
-  ];
-  for (const key of clearRootKeys) {
-    delete config[key];
-  }
-  config.turnMaxToolUseMessages = nextBudget;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES = String(nextBudget);
-  TOOL_USE_MESSAGE_BUDGET = nextBudget;
+  const resolved = writeDomainConfigField(
+    agentRuntimeDomainSchema,
+    getDomainConfigOptions(),
+    "toolUseMessageBudget",
+    nextBudget,
+  );
+  Object.assign(AGENT_DOMAIN_CONFIG, resolved);
+  TOOL_USE_MESSAGE_BUDGET = resolved.toolUseMessageBudget;
   return TOOL_USE_MESSAGE_BUDGET;
 }
 
@@ -2361,20 +2358,42 @@ const DEFAULT_RETENTION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 /** Typed agent-run-log retention settings grouped for runtime startup wiring. */
 export type AgentLogConfig = RetentionCleanupConfig;
 
-/** Grouped agent-run-log retention settings. Defaults/caps retention at 30 days. */
-export const AGENT_LOG_CONFIG = Object.freeze<AgentLogConfig>({
-  retentionMs: clampLogRetentionMs(
-    parseRetentionMs(
-      process.env.PICLAW_AGENT_LOG_RETENTION_MS ?? envConfig.PICLAW_AGENT_LOG_RETENTION_MS,
-      process.env.PICLAW_AGENT_LOG_RETENTION_DAYS ?? envConfig.PICLAW_AGENT_LOG_RETENTION_DAYS,
-    ),
-    DEFAULT_LOG_RETENTION_CAP_MS,
-  ),
-  cleanupIntervalMs: parseCleanupIntervalMs(
-    process.env.PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS ?? envConfig.PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS,
-    DEFAULT_RETENTION_CLEANUP_INTERVAL_MS,
-  ),
+const agentLogDomainSchema = registerDomainConfig<AgentLogConfig>({
+  domain: "logging",
+  fields: {
+    retentionMs: integerField({
+      key: "retentionMs",
+      owner: "agent-runtime",
+      defaultValue: DEFAULT_LOG_RETENTION_CAP_MS,
+      min: 1,
+      max: DEFAULT_LOG_RETENTION_CAP_MS,
+      bounds: `1..${DEFAULT_LOG_RETENTION_CAP_MS} ms`,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [
+        { envKey: "PICLAW_AGENT_LOG_RETENTION_MS", replacement: "domains.logging.retentionMs", removalVersion: "3.0.0", parse: (raw) => { const value = parsePositiveInteger(raw); return value === undefined ? undefined : Math.min(DEFAULT_LOG_RETENTION_CAP_MS, value); }, skipInvalid: true },
+        { envKey: "PICLAW_AGENT_LOG_RETENTION_DAYS", replacement: "domains.logging.retentionMs", removalVersion: "3.0.0", parse: (raw) => { const days = parsePositiveInteger(raw); return days === undefined ? undefined : Math.min(DEFAULT_LOG_RETENTION_CAP_MS, days * DAY_MS); }, skipInvalid: true },
+      ],
+    }),
+    cleanupIntervalMs: integerField({
+      key: "cleanupIntervalMs",
+      owner: "agent-runtime",
+      defaultValue: DEFAULT_RETENTION_CLEANUP_INTERVAL_MS,
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS", replacement: "domains.logging.cleanupIntervalMs", removalVersion: "3.0.0", parse: (raw) => parsePositiveInteger(raw), skipInvalid: true }],
+    }),
+  },
 });
+
+/** Grouped agent-run-log retention settings. Defaults/caps retention at 30 days. */
+export const AGENT_LOG_CONFIG = Object.freeze<AgentLogConfig>(
+  readDomainConfig(agentLogDomainSchema, getDomainConfigOptions()),
+);
 
 /** Return the grouped agent-run-log retention settings for startup wiring and tests. */
 export function getAgentLogConfig(): Readonly<AgentLogConfig> {

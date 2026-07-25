@@ -167,6 +167,85 @@ describe("core config", () => {
     }
   });
 
+  test("agent, session, and logging domains persist across restart with compatibility precedence", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-agent-session-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          agent: { timeoutMs: 1111, backgroundTimeoutMs: 2222, toolUseMessageBudget: 23 },
+          session: { maxSizeMb: 48, maxLines: 9000, maxCompactionsBeforeRotation: 5, autoRotate: false },
+          logging: { retentionMs: 123456, cleanupIntervalMs: 654321 },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, [
+        "call:getAgentRuntimeConfig",
+        "call:getSessionStorageConfig",
+        "call:getToolUseMessageBudget",
+        "call:getAgentLogConfig",
+      ], {
+        env: {
+          PICLAW_AGENT_TIMEOUT: undefined,
+          AGENT_TIMEOUT: undefined,
+          PICLAW_BACKGROUND_AGENT_TIMEOUT: undefined,
+          AGENT_TIMEOUT_BACKGROUND: undefined,
+          PICLAW_TURN_MAX_TOOL_USE_MESSAGES: undefined,
+          PICLAW_SESSION_MAX_SIZE_MB: undefined,
+          PICLAW_SESSION_MAX_LINES: undefined,
+          PICLAW_SESSION_MAX_COMPACTIONS: undefined,
+          PICLAW_SESSION_AUTO_ROTATE: undefined,
+          PICLAW_AGENT_LOG_RETENTION_MS: undefined,
+          PICLAW_AGENT_LOG_RETENTION_DAYS: undefined,
+          PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS: undefined,
+        },
+      }).snapshot;
+      expect(persisted["call:getAgentRuntimeConfig"]).toEqual({ timeoutMs: 1111, backgroundTimeoutMs: 2222 });
+      expect(persisted["call:getSessionStorageConfig"]).toEqual({ maxSizeMb: 48, maxSizeBytes: 48 * 1024 * 1024, maxLines: 9000, maxCompactionsBeforeRotation: 5, autoRotate: false });
+      expect(persisted["call:getToolUseMessageBudget"]).toBe(23);
+      expect(persisted["call:getAgentLogConfig"]).toEqual({ retentionMs: 123456, cleanupIntervalMs: 654321 });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, [
+        "call:getAgentRuntimeConfig",
+        "call:getSessionStorageConfig",
+        "call:getToolUseMessageBudget",
+        "call:getAgentLogConfig",
+      ], {
+        env: {
+          PICLAW_AGENT_TIMEOUT: undefined,
+          AGENT_TIMEOUT: "3333",
+          PICLAW_BACKGROUND_AGENT_TIMEOUT: "4444",
+          AGENT_TIMEOUT_BACKGROUND: "5555",
+          PICLAW_TURN_MAX_TOOL_USE_MESSAGES: "31",
+          PICLAW_SESSION_MAX_SIZE_MB: "64",
+          PICLAW_SESSION_MAX_LINES: "10000",
+          PICLAW_SESSION_MAX_COMPACTIONS: "7",
+          PICLAW_SESSION_AUTO_ROTATE: "1",
+          PICLAW_AGENT_LOG_RETENTION_MS: "malformed",
+          PICLAW_AGENT_LOG_RETENTION_DAYS: "2",
+          PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS: "7000",
+        },
+      });
+      expect(snapshot["call:getAgentRuntimeConfig"]).toEqual({ timeoutMs: 3333, backgroundTimeoutMs: 4444 });
+      expect(snapshot["call:getSessionStorageConfig"]).toEqual({ maxSizeMb: 64, maxSizeBytes: 64 * 1024 * 1024, maxLines: 10000, maxCompactionsBeforeRotation: 7, autoRotate: true });
+      expect(snapshot["call:getToolUseMessageBudget"]).toBe(31);
+      expect(snapshot["call:getAgentLogConfig"]).toEqual({ retentionMs: 2 * 24 * 60 * 60 * 1000, cleanupIntervalMs: 7000 });
+      for (const envKey of [
+        "AGENT_TIMEOUT",
+        "PICLAW_BACKGROUND_AGENT_TIMEOUT",
+        "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
+        "PICLAW_SESSION_MAX_SIZE_MB",
+        "PICLAW_SESSION_MAX_LINES",
+        "PICLAW_SESSION_MAX_COMPACTIONS",
+        "PICLAW_SESSION_AUTO_ROTATE",
+        "PICLAW_AGENT_LOG_RETENTION_DAYS",
+        "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_AGENT_LOG_RETENTION_MS"');
+      expect(stderr).not.toContain('"envKey":"AGENT_TIMEOUT_BACKGROUND"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {
@@ -534,15 +613,23 @@ describe("core config", () => {
         autoRotate: false,
       });
       expect(config.getToolUseMessageBudget()).toBe(21);
-      expect(process.env.PICLAW_SESSION_MAX_SIZE_MB).toBe("48");
-      expect(process.env.PICLAW_SESSION_AUTO_ROTATE).toBe("0");
-      expect(process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES).toBe("21");
+      expect(process.env.PICLAW_SESSION_MAX_SIZE_MB).toBeUndefined();
+      expect(process.env.PICLAW_SESSION_AUTO_ROTATE).toBeUndefined();
+      expect(process.env.PICLAW_SESSION_MAX_LINES).toBeUndefined();
+      expect(process.env.PICLAW_SESSION_MAX_COMPACTIONS).toBeUndefined();
+      expect(process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES).toBeUndefined();
 
       const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
       expect(persisted).toMatchObject({
-        sessionMaxSizeMb: 48,
-        sessionAutoRotate: false,
-        turnMaxToolUseMessages: 21,
+        domains: {
+          agent: { toolUseMessageBudget: 21 },
+          session: {
+            maxSizeMb: 48,
+            autoRotate: false,
+            maxLines: 8000,
+            maxCompactionsBeforeRotation: 3,
+          },
+        },
       });
     });
   });
