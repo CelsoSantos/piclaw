@@ -387,7 +387,10 @@ function toStoredModel(model: ProviderModelConfig): Model<Api> {
   return {
     ...model,
     provider: PROVIDER,
-    baseUrl: model.baseUrl ?? DEFAULT_BASE_URL,
+    // Do not pin dynamic models to the public individual endpoint. GitHub
+    // Copilot derives the correct endpoint from the refreshed OAuth token
+    // (for example api.enterprise.githubcopilot.com). A stale model-level
+    // baseUrl can make otherwise advertised models fail with model_not_supported.
     headers: model.headers ?? { ...COPILOT_HEADERS },
   } as Model<Api>;
 }

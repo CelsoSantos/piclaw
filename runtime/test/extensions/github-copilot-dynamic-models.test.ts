@@ -219,9 +219,25 @@ describe("github-copilot dynamic models overlay", () => {
     expect(typeof after.streamSimple).toBe("function");
     const imported = runtime.getModel("github-copilot", "gpt-5.6");
     expect(imported).toBeDefined();
+    expect(imported?.baseUrl).toBeUndefined();
     const prepared = await runtime.prepareRequest(imported!);
     expect(prepared.options.headers?.["Editor-Version"]).toBe("vscode/1.107.0");
     expect(prepared.options.headers?.["Editor-Plugin-Version"]).toBe("copilot-chat/0.35.0");
+  });
+
+  test("cached dynamic models do not pin a model-level Copilot endpoint", async () => {
+    const baseline = [makeModel({ id: "gpt-5.5" })];
+    const runtime = { getModels: () => baseline, getProvider: () => ({ id: "github-copilot", name: "GitHub Copilot", auth: { oauth: {} }, getModels: () => baseline, stream: () => { throw new Error("unused"); }, streamSimple: () => { throw new Error("unused"); } }) } as any;
+    const overlay = createGitHubCopilotDynamicModelsProvider(runtime)!;
+    const store = createStore();
+    setGitHubCopilotDynamicModelsFetchForTests((async () => new Response(JSON.stringify({ data: [makeLiveModel("gpt-5.6-sol")] }), { status: 200 })) as any);
+
+    await overlay.refreshModels!({ credential: oauth("tid=x;proxy-ep=proxy.enterprise.githubcopilot.com;exp=1"), store, allowNetwork: true } as any);
+
+    const imported = overlay.getModels().find((model) => model.id === "gpt-5.6-sol");
+    const cached = (await store.read())?.models.find((model) => model.id === "gpt-5.6-sol");
+    expect(imported?.baseUrl).toBeUndefined();
+    expect(cached?.baseUrl).toBeUndefined();
   });
 
   test("registers one native provider overlay and leaves OAuth/streams inherited", () => {
