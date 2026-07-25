@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 116 to 107",
+    "source": "accepted direct-reader reduction from 107 to 102",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -51,7 +51,6 @@
       "PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL",
       "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL",
       "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
-      "PICLAW_PROVIDER_USAGE_TTL_MS",
       "PICLAW_RECORDINGS_DIR",
       "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
       "PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES",
@@ -68,10 +67,6 @@
       "PICLAW_RUNTIME_ROOT",
       "PICLAW_SCOPED_MODELS_ONLY",
       "PICLAW_SEARCH_MATCH_MODE",
-      "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
-      "PICLAW_SESSION_ISOLATION",
-      "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
-      "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
       "PICLAW_SKEL_DIR",
       "PICLAW_SMART_COMPACTION_METHOD",
       "PICLAW_SMART_COMPACTION_REASONING",
@@ -153,22 +148,22 @@
   },
   "current": {
     "production": {
-      "referencedNames": 187,
-      "directReaderNames": 108,
-      "directReaderOccurrences": 215,
+      "referencedNames": 186,
+      "directReaderNames": 103,
+      "directReaderOccurrences": 210,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 108,
-      "semanticReaderOccurrences": 215
+      "semanticReaderNames": 103,
+      "semanticReaderOccurrences": 210
     },
     "runtimeSrc": {
-      "referencedNames": 184,
-      "directReaderNames": 107,
-      "directReaderOccurrences": 204,
+      "referencedNames": 183,
+      "directReaderNames": 102,
+      "directReaderOccurrences": 199,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 107,
-      "semanticReaderOccurrences": 204
+      "semanticReaderNames": 102,
+      "semanticReaderOccurrences": 199
     },
     "extensions": {
       "referencedNames": 14,
@@ -3719,35 +3714,6 @@
       }
     },
     {
-      "name": "PICLAW_PROVIDER_USAGE_TTL_MS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/provider-usage.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/provider-usage.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/agent-pool/provider-usage.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/agent-pool/provider-usage.ts"
-          ]
-        }
-      }
-    },
-    {
       "name": "PICLAW_QUEUE_REPLAY_AUDIT_DIR",
       "scopes": {
         "tooling": {
@@ -4596,27 +4562,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -4731,27 +4693,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/extensions/session-status.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/extensions/session-status.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/extensions/session-status.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/extensions/session-status.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -4871,27 +4829,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -4900,27 +4854,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-pool/session.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-pool/session.ts"
-          ]
+          "readerFiles": []
         }
       }
     },

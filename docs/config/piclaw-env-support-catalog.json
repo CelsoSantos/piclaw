@@ -2005,26 +2005,19 @@
       "name": "PICLAW_PROVIDER_USAGE_TTL_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 60000,
+      "bounds": "internal fixed 60-second cache TTL",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal cache policy",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-pool/provider-usage.ts constant (#753A2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_RECORDINGS_DIR",
@@ -2491,26 +2484,28 @@
       "name": "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1048576,
+      "bounds": "positive integer bytes",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPersistence.filePreloadSanitizeMinBytes",
+      "deprecation": "compatibility env alias for domains.sessionPersistence.filePreloadSanitizeMinBytes",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2b)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_IDLE_COMPACTION_MAX_WAIT_MS",
@@ -2591,28 +2586,34 @@
     },
     {
       "name": "PICLAW_SESSION_ISOLATION",
-      "owner": "tools",
-      "type": "string",
-      "default": null,
+      "owner": "session-runtime",
+      "type": "enum",
+      "default": "none",
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "none",
+        "summary",
+        "full"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.session.isolation",
+      "deprecation": "compatibility env alias for domains.session.isolation",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2b)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_MAX_COMPACTIONS",
@@ -2726,51 +2727,55 @@
       "name": "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 262144,
+      "bounds": "positive integer bytes",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPersistence.toolResultMaxPersistBytes",
+      "deprecation": "compatibility env alias for domains.sessionPersistence.toolResultMaxPersistBytes",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2b)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
       "owner": "agent-runtime",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 4096,
+      "bounds": "positive integer characters",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPersistence.toolResultPreviewChars",
+      "deprecation": "compatibility env alias for domains.sessionPersistence.toolResultPreviewChars",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2b)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SIDE_SESSION_IDLE_TTL_MS",
