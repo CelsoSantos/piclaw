@@ -58,8 +58,12 @@ describe("Piclaw env surface audit", () => {
     const observations = buildObservations();
     expect(observations.issueBaseline).toEqual({ distinctNames: 235, literalProductionReaders: 151 });
     expect(observations.scanScopes.production).toEqual(["runtime/src", "runtime/extensions"]);
-    expect(observations.current.runtimeSrc.directReaderNames).toBe(issueBaseline.literalProductionReaders);
-    expect(observations.current.production.directReaderNames).toBeGreaterThanOrEqual(issueBaseline.literalProductionReaders);
+    expect(observations.current.runtimeSrc.directReaderNames).toBe(observations.runtimeSrcDirectBaseline.names.length);
+    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(139);
+    expect(observations.runtimeSrcDirectBaseline.added).toEqual([]);
+    expect(observations.runtimeSrcDirectBaseline.removed).toEqual([]);
+    expect(observations.current.runtimeSrc.directReaderNames).toBeLessThan(issueBaseline.literalProductionReaders);
+    expect(observations.current.production.directReaderNames).toBeGreaterThanOrEqual(observations.current.runtimeSrc.directReaderNames);
     expect(observations.current.production.semanticReaderOccurrences).toBe(
       observations.current.production.directReaderOccurrences + observations.current.production.helperReaderOccurrences,
     );

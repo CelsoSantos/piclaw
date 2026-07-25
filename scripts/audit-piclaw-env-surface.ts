@@ -30,7 +30,7 @@ type ScopeName = keyof typeof scanScopes;
 type CatalogStatus = "supported" | "bootstrap" | "compatibility" | "internal" | "undocumented-runtime";
 type ValueType = "boolean" | "integer" | "number" | "string" | "json" | "path" | "secret" | "enum" | "cron" | null;
 type PersistenceSurface = "env" | "dotenv" | "json-config" | "cli" | "keychain";
-type MigrationDisposition = "move-to-domain-config" | "constant" | "remove" | "investigate" | null;
+type MigrationDisposition = "move-to-domain-config" | "migrated-to-domain-config" | "constant" | "remove" | "investigate" | null;
 
 export interface SupportEntry {
   name: string;
@@ -172,8 +172,27 @@ export function stableJson(value: unknown): string { return `${JSON.stringify(va
 export function isObservationTextCurrent(current: string): boolean { return current === stableJson(buildObservations()); }
 export function isCatalogTextCurrent(current: string): boolean { return current === stableJson(buildSupportCatalog()); }
 
+function currentRuntimeSrcDirectNames(observations: Observations): string[] {
+  return observations.entries.filter((entry) => (entry.scopes.runtimeSrc?.directReaders ?? 0) > 0).map((entry) => entry.name).sort();
+}
+
 function main(): void {
-  const observations = buildObservations();
+  const acceptReduction = process.argv.includes("--accept-reduction");
+  let observations = buildObservations();
+  if (process.argv.includes("--write") && acceptReduction) {
+    if (observations.runtimeSrcDirectBaseline.added.length > 0) {
+      throw new Error(`Cannot accept env reader baseline with additions: ${observations.runtimeSrcDirectBaseline.added.join(",")}`);
+    }
+    if (observations.runtimeSrcDirectBaseline.removed.length > 0) {
+      mkdirSync(dirname(runtimeSrcBaselinePath), { recursive: true });
+      writeFileSync(runtimeSrcBaselinePath, stableJson({
+        version: 1,
+        source: `accepted #752A reduction from ${observations.runtimeSrcDirectBaseline.names.length} to ${currentRuntimeSrcDirectNames(observations).length}`,
+        names: currentRuntimeSrcDirectNames(observations),
+      }));
+      observations = buildObservations();
+    }
+  }
   const catalog = buildSupportCatalog();
   validateSupportCatalog(catalog, observations);
   if (process.argv.includes("--write")) { mkdirSync(dirname(observationsPath), { recursive: true }); writeFileSync(observationsPath, stableJson(observations)); if (!existsSync(runtimeSrcBaselinePath)) writeFileSync(runtimeSrcBaselinePath, stableJson({ version: 1, source: observations.runtimeSrcDirectBaseline.source, names: observations.runtimeSrcDirectBaseline.names })); }

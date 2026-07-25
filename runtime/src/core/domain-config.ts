@@ -44,7 +44,7 @@ export interface DomainConfigField<T> {
   required?: boolean;
 }
 
-export interface DomainConfigSchema<T extends Record<string, unknown>> {
+export interface DomainConfigSchema<T extends object> {
   domain: string;
   fields: { [K in keyof T]: DomainConfigField<T[K]> };
 }
@@ -66,11 +66,11 @@ export interface DomainConfigDeprecationEvent {
   removalVersion: string;
 }
 
-export type DomainConfigWritePatch<T extends Record<string, unknown>> = {
+export type DomainConfigWritePatch<T extends object> = {
   [K in keyof T]?: T[K] | DomainConfigSecretReference;
 };
 
-export interface DomainConfigMigrationResult<T extends Record<string, unknown>> {
+export interface DomainConfigMigrationResult<T extends object> {
   before: T;
   after: T;
   changed: boolean;
@@ -88,11 +88,12 @@ export function resetDomainConfigWarningsForTests(): void {
   warnedCompatibilityKeys.clear();
 }
 
-export function registerDomainConfig<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>): DomainConfigSchema<T> {
+export function registerDomainConfig<T extends object>(schema: DomainConfigSchema<T>): DomainConfigSchema<T> {
   if (!schema.domain.trim()) throw new Error("Domain config schema requires a domain name.");
   if (schemas.has(schema.domain)) throw new Error(`Domain config schema already registered: ${schema.domain}`);
   const fieldKeys = new Set<string>();
-  for (const [fieldName, field] of Object.entries(schema.fields)) {
+  for (const [fieldName, rawField] of Object.entries(schema.fields)) {
+    const field = rawField as DomainConfigField<unknown>;
     if (!field.key || field.key !== fieldName) throw new Error(`Domain config field key mismatch for ${schema.domain}.${fieldName}`);
     if (fieldKeys.has(field.key)) throw new Error(`Duplicate domain config field key: ${schema.domain}.${field.key}`);
     fieldKeys.add(field.key);
@@ -115,13 +116,23 @@ export function getRegisteredDomainConfigSchemas(): readonly DomainConfigSchema<
   return Array.from(schemas.values());
 }
 
-function readDomainBlock(config: Record<string, unknown>, domain: string): Record<string, unknown> {
+function projectSchemaKeys<T extends object>(schema: DomainConfigSchema<T>, value: Record<string, unknown>): Record<string, unknown> {
+  const projected: Record<string, unknown> = {};
+  for (const key of Object.keys(schema.fields)) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) projected[key] = value[key];
+  }
+  return projected;
+}
+
+function readDomainBlock<T extends object>(schema: DomainConfigSchema<T>, config: Record<string, unknown>): { block: Record<string, unknown>; strict: boolean } {
   const domainConfig = config.domains && typeof config.domains === "object"
-    ? (config.domains as Record<string, unknown>)[domain]
+    ? (config.domains as Record<string, unknown>)[schema.domain]
     : undefined;
-  if (domainConfig && typeof domainConfig === "object") return domainConfig as Record<string, unknown>;
-  const legacy = config[domain];
-  return legacy && typeof legacy === "object" ? legacy as Record<string, unknown> : {};
+  if (domainConfig && typeof domainConfig === "object") return { block: domainConfig as Record<string, unknown>, strict: true };
+  const legacy = config[schema.domain];
+  return legacy && typeof legacy === "object"
+    ? { block: projectSchemaKeys(schema, legacy as Record<string, unknown>), strict: false }
+    : { block: {}, strict: false };
 }
 
 function writeDomainBlock(config: Record<string, unknown>, domain: string, block: Record<string, unknown>): Record<string, unknown> {
@@ -132,7 +143,7 @@ function writeDomainBlock(config: Record<string, unknown>, domain: string, block
   return next;
 }
 
-function assertNoUnknownPersistedKeys<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>, persisted: Record<string, unknown>): void {
+function assertNoUnknownPersistedKeys<T extends object>(schema: DomainConfigSchema<T>, persisted: Record<string, unknown>): void {
   const known = new Set(Object.keys(schema.fields));
   for (const key of Object.keys(persisted)) {
     if (!known.has(key)) throw new Error(`Unknown persisted domain config key: ${schema.domain}.${key}`);
@@ -198,25 +209,25 @@ function resolveFieldValue(schema: DomainConfigSchema<Record<string, unknown>>, 
   return field.validate(field.defaultValue);
 }
 
-export function readDomainConfig<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions): T {
+export function readDomainConfig<T extends object>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions): T {
   const config = readJsonConfig(options.configPath);
-  const persisted = readDomainBlock(config, schema.domain);
-  assertNoUnknownPersistedKeys(schema, persisted);
+  const { block: persisted, strict } = readDomainBlock(schema, config);
+  if (strict) assertNoUnknownPersistedKeys(schema, persisted);
   const result: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(schema.fields)) result[key] = resolveFieldValue(schema as unknown as DomainConfigSchema<Record<string, unknown>>, field as DomainConfigField<unknown>, persisted, options);
   return result as T;
 }
 
-function assertKnownPatchKeys<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>, patch: Partial<T>): void {
+function assertKnownPatchKeys<T extends object>(schema: DomainConfigSchema<T>, patch: Partial<T>): void {
   const known = new Set(Object.keys(schema.fields));
   for (const key of Object.keys(patch)) if (!known.has(key)) throw new Error(`Unknown domain config key: ${schema.domain}.${key}`);
 }
 
-export function writeDomainConfig<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions, patch: DomainConfigWritePatch<T>): T {
+export function writeDomainConfig<T extends object>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions, patch: DomainConfigWritePatch<T>): T {
   assertKnownPatchKeys(schema, patch as Partial<T>);
   const config = readJsonConfig(options.configPath);
-  const currentBlock = readDomainBlock(config, schema.domain);
-  assertNoUnknownPersistedKeys(schema, currentBlock);
+  const { block: currentBlock, strict } = readDomainBlock(schema, config);
+  if (strict) assertNoUnknownPersistedKeys(schema, currentBlock);
   const nextBlock = { ...currentBlock };
   for (const [key, value] of Object.entries(patch)) {
     const field = schema.fields[key as keyof T] as DomainConfigField<unknown> | undefined;
@@ -227,7 +238,18 @@ export function writeDomainConfig<T extends Record<string, unknown>>(schema: Dom
   return readDomainConfig(schema, options);
 }
 
-export function migrateDomainConfig<T extends Record<string, unknown>>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions, migrate: (current: T) => DomainConfigWritePatch<T>): DomainConfigMigrationResult<T> {
+export function writeDomainConfigField<T extends object, K extends keyof T>(
+  schema: DomainConfigSchema<T>,
+  options: DomainConfigRuntimeOptions,
+  key: K,
+  value: T[K] | DomainConfigSecretReference,
+): T {
+  const patch: DomainConfigWritePatch<T> = {};
+  patch[key] = value;
+  return writeDomainConfig(schema, options, patch);
+}
+
+export function migrateDomainConfig<T extends object>(schema: DomainConfigSchema<T>, options: DomainConfigRuntimeOptions, migrate: (current: T) => DomainConfigWritePatch<T>): DomainConfigMigrationResult<T> {
   const before = readDomainConfig(schema, options);
   const patch = migrate(before);
   const changed = Object.keys(patch).length > 0;

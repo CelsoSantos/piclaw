@@ -52,11 +52,11 @@ async function withFreshConfig(
   });
 }
 
-function loadConfigInSubprocess(
+function runConfigSubprocess(
   workspace: { workspace: string; store: string; data: string },
   exports: string[],
   options: { args?: string[]; env?: Record<string, string | undefined> } = {},
-): Record<string, any> {
+): { snapshot: Record<string, any>; stderr: string } {
   const proc = Bun.spawnSync({
     cmd: ["bun", CONFIG_SUBPROCESS, ...(options.args || [])],
     cwd: workspace.workspace,
@@ -80,7 +80,15 @@ function loadConfigInSubprocess(
   const stdout = proc.stdout.toString().trim();
   const stderr = proc.stderr.toString().trim();
   expect(proc.exitCode, stderr || stdout).toBe(0);
-  return JSON.parse(stdout || "{}");
+  return { snapshot: JSON.parse(stdout || "{}"), stderr };
+}
+
+function loadConfigInSubprocess(
+  workspace: { workspace: string; store: string; data: string },
+  exports: string[],
+  options: { args?: string[]; env?: Record<string, string | undefined> } = {},
+): Record<string, any> {
+  return runConfigSubprocess(workspace, exports, options).snapshot;
 }
 
 describe("core config", () => {
@@ -146,6 +154,101 @@ describe("core config", () => {
       expect(snapshot["call:getToolActivationConfig"]).toEqual({ additionalDefaultTools: ["search_workspace", "introspect_sql"] });
       expect(snapshot["call:getWorkspaceSearchConfig"]).toEqual({ roots: ["notes", ".pi/skills", "docs"], extraExtensions: [] });
       expect(snapshot["call:getRemoteInteropConfig"]).toEqual({ enabled: true, allowHttp: true, allowPrivateNetwork: false, shortCircuitEnabled: true, instanceName: "relay", decisionModel: "openai/gpt-4o" });
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("identity and ordinary web domain settings survive a fresh process without env aliases", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-restart-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          identity: {
+            assistantName: "Persisted Assistant",
+            assistantAvatar: "/persisted-assistant.png",
+            userName: "Persisted User",
+            userAvatar: "/persisted-user.png",
+            userAvatarBackground: "#123456",
+          },
+          web: {
+            uiMode: "visual",
+            persistThinking: true,
+            persistThinkingMaxChars: 4321,
+            composeUploadLimitMb: 48,
+            workspaceUploadLimitMb: 512,
+            notificationDebugLabels: true,
+            debugCardSubmissions: true,
+          },
+        },
+      });
+      const snapshot = loadConfigInSubprocess(workspace, [
+        "call:getIdentityConfig",
+        "call:getWebRuntimeConfig",
+        "call:isPersistThinkingEnabled",
+        "call:getPersistThinkingMaxChars",
+      ], {
+        env: {
+          PICLAW_ASSISTANT_NAME: undefined,
+          PICLAW_ASSISTANT_AVATAR: undefined,
+          PICLAW_USER_NAME: undefined,
+          PICLAW_USER_AVATAR: undefined,
+          PICLAW_USER_AVATAR_BACKGROUND: undefined,
+          PICLAW_WEB_UI_MODE: undefined,
+          PICLAW_WEB_PERSIST_THINKING: undefined,
+          PICLAW_WEB_PERSIST_THINKING_MAX_CHARS: undefined,
+          PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB: undefined,
+          PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB: undefined,
+          PICLAW_WEB_NOTIFICATION_DEBUG_LABELS: undefined,
+          PICLAW_DEBUG_CARD_SUBMISSIONS: undefined,
+        },
+      });
+      expect(snapshot["call:getIdentityConfig"]).toEqual({
+        assistantName: "Persisted Assistant",
+        assistantAvatar: "/persisted-assistant.png",
+        userName: "Persisted User",
+        userAvatar: "/persisted-user.png",
+        userAvatarBackground: "#123456",
+      });
+      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({
+        uiMode: "visual",
+        composeUploadLimitMb: 48,
+        workspaceUploadLimitMb: 512,
+        notificationDebugLabels: true,
+        debugCardSubmissions: true,
+      });
+      expect(snapshot["call:isPersistThinkingEnabled"]).toBe(true);
+      expect(snapshot["call:getPersistThinkingMaxChars"]).toBe(4321);
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("PICLAW compatibility aliases override persisted domain settings and report the 3.0.0 removal", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-compat-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          identity: { assistantName: "Persisted Assistant" },
+          web: { uiMode: "classic" },
+        },
+      });
+      const { snapshot, stderr } = runConfigSubprocess(workspace, [
+        "call:getIdentityConfig",
+        "call:getWebRuntimeConfig",
+      ], {
+        env: {
+          PICLAW_ASSISTANT_NAME: "Compatibility Assistant",
+          PICLAW_WEB_UI_MODE: "visual",
+        },
+      });
+      expect(snapshot["call:getIdentityConfig"]).toMatchObject({ assistantName: "Compatibility Assistant" });
+      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({ uiMode: "visual" });
+      for (const envKey of ["PICLAW_ASSISTANT_NAME", "PICLAW_WEB_UI_MODE"]) {
+        const warningLines = stderr.split("\n").filter((line) => line.includes('"operation":"domain_config.compat_env"') && line.includes(`"envKey":"${envKey}"`));
+        expect(warningLines, envKey).toHaveLength(1);
+        expect(warningLines[0]).toContain('"removalVersion":"3.0.0"');
+      }
     } finally {
       workspace.cleanup();
     }
