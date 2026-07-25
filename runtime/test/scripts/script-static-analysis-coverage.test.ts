@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import { createRepoDevCommandPlan } from "../../scripts/repo-dev-command.js";
@@ -80,6 +80,7 @@ describe("repository script static-analysis coverage", () => {
   });
 
   test("script coverage guard runs from the repository package", () => {
-    expect(PACKAGE_DIR.endsWith("piclaw")).toBe(true);
+    expect(existsSync(resolve(PACKAGE_DIR, "package.json"))).toBe(true);
+    expect(existsSync(resolve(PACKAGE_DIR, "runtime", "tsconfig.scripts.json"))).toBe(true);
   });
 });
