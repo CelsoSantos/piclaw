@@ -68,9 +68,9 @@ Use `runtime/generated/reports/` for disposable local reports. Use `artifacts/pe
 
 ## Focused integration notes
 
-### Earendil 0.81.1 runtime
+### Earendil 0.82.1 runtime
 
-Piclaw's Pi runtime packages are sourced from `@earendil-works/*` and are pinned together at `0.81.1`. The runtime uses upstream model/auth services, provider composition, model catalogs, pricing, native `max` thinking, compaction estimation, summarization retries, Anthropic signature handling, and configurable `shellPath` behaviour.
+Piclaw's Pi runtime packages are sourced from `@earendil-works/*` and are pinned together at `0.82.1`. The runtime uses upstream model/auth services, provider composition, model catalogs, pricing, native `max` thinking, compaction estimation, summarization retries, Anthropic signature handling, configurable `shellPath` behaviour, remote-catalog revalidation, and Claude Opus 5 support on Anthropic and Amazon Bedrock.
 
 | Piclaw layer | Why Piclaw still owns it | Focused coverage |
 |---|---|---|
