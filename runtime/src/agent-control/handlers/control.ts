@@ -256,17 +256,14 @@ function getActiveCompactionBackoffMessage(chatJid: string, now = Date.now()): s
   return `Compaction is in backoff for this chat until ${backoff.backoffUntil} after ${backoff.failureCount} failed attempt${backoff.failureCount === 1 ? "" : "s"}.${detail}`;
 }
 
-function shouldDisableExternalCompactionFailsafe(): boolean {
-  const raw = String(process.env.PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE || "").trim().toLowerCase();
-  return raw === "0" || raw === "false" || process.env.NODE_ENV === "test";
-}
+const MANUAL_COMPACTION_FAILSAFE_GRACE_MS = 15_000;
 
 function startManualCompactionExternalFailsafe(chatJid: string): (() => void) | null {
-  if (shouldDisableExternalCompactionFailsafe()) return null;
+  if (process.env.NODE_ENV === "test") return null;
   const timeoutMs = getCompactionTimeoutMs();
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return null;
 
-  const graceMs = Math.max(1_000, Math.min(60_000, Number.parseInt(process.env.PICLAW_MANUAL_COMPACTION_FAILSAFE_GRACE_MS || "15000", 10) || 15_000));
+  const graceMs = MANUAL_COMPACTION_FAILSAFE_GRACE_MS;
   const delaySec = Math.max(1, Math.ceil((timeoutMs + graceMs) / 1000));
   const pid = process.pid;
   const marker = `/tmp/piclaw-manual-compact-${pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.watchdog`;
