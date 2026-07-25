@@ -336,6 +336,69 @@ describe("core config", () => {
     }
   });
 
+  test("session persistence and isolation domains preserve restart and compatibility precedence", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-session-persistence-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          session: { isolation: "summary" },
+          sessionPersistence: {
+            filePreloadSanitizeMinBytes: 2000000,
+            toolResultMaxPersistBytes: 300000,
+            toolResultPreviewChars: 5000,
+          },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, ["call:getSessionIsolationLevel", "call:getSessionPersistenceConfig"], {
+        env: {
+          PICLAW_SESSION_ISOLATION: undefined,
+          PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES: undefined,
+          PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES: undefined,
+          PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS: undefined,
+        },
+      }).snapshot;
+      expect(persisted["call:getSessionIsolationLevel"]).toBe("summary");
+      expect(persisted["call:getSessionPersistenceConfig"]).toEqual({
+        filePreloadSanitizeMinBytes: 2000000,
+        toolResultMaxPersistBytes: 300000,
+        toolResultPreviewChars: 5000,
+      });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getSessionIsolationLevel", "call:getSessionPersistenceConfig"], {
+        env: {
+          PICLAW_SESSION_ISOLATION: "FULL",
+          PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES: "invalid",
+          PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES: "400000",
+          PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS: "6000",
+        },
+      });
+      expect(snapshot["call:getSessionIsolationLevel"]).toBe("full");
+      expect(snapshot["call:getSessionPersistenceConfig"]).toEqual({
+        filePreloadSanitizeMinBytes: 2000000,
+        toolResultMaxPersistBytes: 400000,
+        toolResultPreviewChars: 6000,
+      });
+      for (const envKey of [
+        "PICLAW_SESSION_ISOLATION",
+        "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
+        "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("session isolation setter persists without mutating compatibility env", async () => {
+    await withFreshConfig({ env: { PICLAW_SESSION_ISOLATION: "full" } }, async ({ workspace, config }) => {
+      expect(config.setSessionIsolationLevel("summary")).toBe("full");
+      expect(config.getSessionIsolationLevel()).toBe("full");
+      expect(process.env.PICLAW_SESSION_ISOLATION).toBe("full");
+      const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+      expect(persisted).toMatchObject({ domains: { session: { isolation: "summary" } } });
+    });
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {

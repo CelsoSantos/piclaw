@@ -111,6 +111,10 @@ const envConfig = readEnvFile([
   "PICLAW_TRUST_PROXY",
   "PICLAW_SESSION_MAX_SIZE_MB",
   "PICLAW_SESSION_AUTO_ROTATE",
+  "PICLAW_SESSION_ISOLATION",
+  "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
+  "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
+  "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
   "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
   "PICLAW_AUTO_COMPACTION_ENABLED",
@@ -1238,11 +1242,14 @@ export interface CompactionRuntimeConfig {
   backoffDecayFactor: number;
 }
 
+export type SessionIsolationLevel = "none" | "summary" | "full";
+
 interface SessionDomainConfig {
   maxSizeMb: number;
   maxLines: number;
   maxCompactionsBeforeRotation: number;
   autoRotate: boolean;
+  isolation: SessionIsolationLevel;
 }
 
 const sessionDomainSchema = registerDomainConfig<SessionDomainConfig>({
@@ -1252,13 +1259,17 @@ const sessionDomainSchema = registerDomainConfig<SessionDomainConfig>({
     maxLines: integerField({ key: "maxLines", owner: "session-runtime", defaultValue: configSessionMaxLines ?? 8000, min: 100, max: 50000, bounds: "100..50000 lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_MAX_LINES", replacement: "domains.session.maxLines", removalVersion: "3.0.0", skipInvalid: true }] }),
     maxCompactionsBeforeRotation: integerField({ key: "maxCompactionsBeforeRotation", owner: "session-runtime", defaultValue: configSessionMaxCompactions ?? 3, min: 1, max: 20, bounds: "1..20 compactions", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_MAX_COMPACTIONS", replacement: "domains.session.maxCompactionsBeforeRotation", removalVersion: "3.0.0", skipInvalid: true }] }),
     autoRotate: boolField({ key: "autoRotate", owner: "session-runtime", defaultValue: configSessionAutoRotate ?? true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_AUTO_ROTATE", replacement: "domains.session.autoRotate", removalVersion: "3.0.0", skipInvalid: true }] }),
+    isolation: stringField({ key: "isolation", owner: "session-runtime", defaultValue: "none", allowedValues: ["none", "summary", "full"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_ISOLATION", replacement: "domains.session.isolation", removalVersion: "3.0.0", parse: (raw) => raw.trim().toLowerCase(), skipInvalid: true }] }) as DomainConfigField<SessionIsolationLevel>,
   },
 });
 
 function toSessionStorageConfig(config: SessionDomainConfig): SessionStorageConfig {
   return {
-    ...config,
+    maxSizeMb: config.maxSizeMb,
     maxSizeBytes: config.maxSizeMb * 1024 * 1024,
+    maxLines: config.maxLines,
+    maxCompactionsBeforeRotation: config.maxCompactionsBeforeRotation,
+    autoRotate: config.autoRotate,
   };
 }
 
@@ -1296,6 +1307,42 @@ export function setSessionStorageConfig(patch: { maxSizeMb?: number; maxLines?: 
   Object.assign(SESSION_DOMAIN_CONFIG, resolved);
   SESSION_STORAGE_CONFIG = Object.freeze<SessionStorageConfig>(toSessionStorageConfig(resolved));
   return SESSION_STORAGE_CONFIG;
+}
+
+/** Return the effective cross-session isolation policy. */
+export function getSessionIsolationLevel(): SessionIsolationLevel {
+  return SESSION_DOMAIN_CONFIG.isolation;
+}
+
+/** Persist and apply cross-session isolation without mutating compatibility env aliases. */
+export function setSessionIsolationLevel(level: SessionIsolationLevel): SessionIsolationLevel {
+  const resolved = writeDomainConfigField(sessionDomainSchema, getDomainConfigOptions(), "isolation", level);
+  Object.assign(SESSION_DOMAIN_CONFIG, resolved);
+  return resolved.isolation;
+}
+
+export interface SessionPersistenceConfig {
+  filePreloadSanitizeMinBytes: number;
+  toolResultMaxPersistBytes: number;
+  toolResultPreviewChars: number;
+}
+
+const sessionPersistenceDomainSchema = registerDomainConfig<SessionPersistenceConfig>({
+  domain: "sessionPersistence",
+  fields: {
+    filePreloadSanitizeMinBytes: integerField({ key: "filePreloadSanitizeMinBytes", owner: "session-runtime", defaultValue: 1024 * 1024, min: 1, bounds: "positive integer bytes", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES", replacement: "domains.sessionPersistence.filePreloadSanitizeMinBytes", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolResultMaxPersistBytes: integerField({ key: "toolResultMaxPersistBytes", owner: "session-runtime", defaultValue: 256 * 1024, min: 1, bounds: "positive integer bytes", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES", replacement: "domains.sessionPersistence.toolResultMaxPersistBytes", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolResultPreviewChars: integerField({ key: "toolResultPreviewChars", owner: "session-runtime", defaultValue: 4096, min: 1, bounds: "positive integer characters", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS", replacement: "domains.sessionPersistence.toolResultPreviewChars", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+const SESSION_PERSISTENCE_CONFIG = Object.freeze<SessionPersistenceConfig>(
+  readDomainConfig(sessionPersistenceDomainSchema, getDomainConfigOptions()),
+);
+
+/** Return session persistence sanitization limits captured at module startup. */
+export function getSessionPersistenceConfig(): Readonly<SessionPersistenceConfig> {
+  return SESSION_PERSISTENCE_CONFIG;
 }
 
 /** Current per-turn tool-use budget used by the agent orchestrator. */

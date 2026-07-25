@@ -32,14 +32,13 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { getPiclawAgentDir } from "../core/agent-dir.js";
-import { SESSIONS_DIR, WORKSPACE_DIR } from "../core/config.js";
+import { SESSIONS_DIR, WORKSPACE_DIR, getSessionPersistenceConfig } from "../core/config.js";
 import { buildChannelSystemPromptAppendix } from "../channels/formatting.js";
 import { detectChannel } from "../router.js";
 import { createBuiltinExtensionFactories } from "../extensions/index.js";
 import { freezeExtensionRoutes } from "../channels/web/http/extension-routes.js";
 import { ensureExtensionNodeModulesLink } from "./session-node-modules-link.js";
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
-import { parsePositiveIntStrict } from "../utils/strict-int.js";
 import type { CompactionStreamFn } from "../extensions/smart-compaction/stream-complete.js";
 import { normalizeLlmContext } from "./llm-context-normalizer.js";
 import { writeMergedSessionArchive } from "../session-archive.js";
@@ -48,26 +47,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_DIR = getPiclawAgentDir();
 const EMPTY_STRING_ARRAY: string[] = [];
 const BUNDLED_EXTENSION_PATHS_CACHE = new Map<string, string[]>();
-const SESSION_TOOL_RESULT_MAX_PERSIST_BYTES = parsePositiveInt(
-  process.env.PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES,
-  256 * 1024,
-);
-const SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES = parsePositiveInt(
-  process.env.PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES,
-  1024 * 1024,
-);
-const SESSION_TOOL_RESULT_PREVIEW_CHARS = parsePositiveInt(
-  process.env.PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS,
-  4096,
-);
+const SESSION_PERSISTENCE_CONFIG = getSessionPersistenceConfig();
+const SESSION_TOOL_RESULT_MAX_PERSIST_BYTES = SESSION_PERSISTENCE_CONFIG.toolResultMaxPersistBytes;
+const SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES = SESSION_PERSISTENCE_CONFIG.filePreloadSanitizeMinBytes;
+const SESSION_TOOL_RESULT_PREVIEW_CHARS = SESSION_PERSISTENCE_CONFIG.toolResultPreviewChars;
 const CHANNEL_SYSTEM_PROMPT_APPENDIX_CACHE = new Map<string, string>();
 const APPEND_SYSTEM_PROMPT_OVERRIDE_CACHE = new Map<string, (base: string[]) => string[]>();
 let cachedExtensionNodeModulesDir: string | null | undefined;
 let ensuredExtensionNodeModulesLinkTarget: string | null | undefined;
-
-function parsePositiveInt(value: string | undefined, fallback: number): number {
-  return parsePositiveIntStrict(value, fallback);
-}
 
 function getWorkspaceDir(): string {
   return process.env.PICLAW_WORKSPACE || WORKSPACE_DIR;
