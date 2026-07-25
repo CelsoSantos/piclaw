@@ -85,10 +85,14 @@ test('saveGeneralSettings persists and applies general settings immediately', as
           composeUploadLimitMb: 24,
           workspaceUploadLimitMb: 256,
         },
+        agent: {
+          toolUseMessageBudget: 23,
+        },
+        session: {
+          autoRotate: false,
+          maxSizeMb: 48,
+        },
       },
-      sessionAutoRotate: false,
-      sessionMaxSizeMb: 48,
-      turnMaxToolUseMessages: 23,
       ui: {
         theme: 'dracula',
         tint: '#7c3aed',
@@ -107,6 +111,11 @@ test('saveGeneralSettings persists and applies general settings immediately', as
       'PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB',
       'PICLAW_WEB_NOTIFICATION_DEBUG_LABELS',
       'PICLAW_WEB_TERMINAL_ENABLED',
+      'PICLAW_SESSION_AUTO_ROTATE',
+      'PICLAW_SESSION_MAX_SIZE_MB',
+      'PICLAW_SESSION_MAX_LINES',
+      'PICLAW_SESSION_MAX_COMPACTIONS',
+      'PICLAW_TURN_MAX_TOOL_USE_MESSAGES',
       'PICLAW_DEBUG_CARD_SUBMISSIONS',
     ]) {
       expect(process.env[name], name).toBeUndefined();

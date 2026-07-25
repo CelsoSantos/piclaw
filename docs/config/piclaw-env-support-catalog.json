@@ -125,103 +125,112 @@
     },
     {
       "name": "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS",
-      "owner": "core",
+      "owner": "logging",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 3600000,
+      "bounds": "positive milliseconds",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.logging.cleanupIntervalMs",
+      "deprecation": "compatibility env alias for domains.logging.cleanupIntervalMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AGENT_LOG_RETENTION_DAYS",
-      "owner": "core",
+      "owner": "logging",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 30,
+      "bounds": "positive days, capped by retention max",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
+        "process.env(PICLAW_AGENT_LOG_RETENTION_MS)",
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.logging.retentionMs",
+      "deprecation": "compatibility env alias for domains.logging.retentionMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AGENT_LOG_RETENTION_MS",
-      "owner": "core",
+      "owner": "logging",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 2592000000,
+      "bounds": "positive milliseconds, capped by retention max",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.logging.retentionMs",
+      "deprecation": "compatibility env alias for domains.logging.retentionMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AGENT_TIMEOUT",
-      "owner": "core",
+      "owner": "agent",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 3600000,
+      "bounds": "positive milliseconds",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.agent.timeoutMs",
+      "deprecation": "compatibility env alias for domains.agent.timeoutMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AGGRESSIVE_WORKSPACE_INDEX_MEMORY",
@@ -379,28 +388,30 @@
     },
     {
       "name": "PICLAW_BACKGROUND_AGENT_TIMEOUT",
-      "owner": "core",
+      "owner": "agent",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 0,
+      "bounds": "non-negative milliseconds",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.agent.backgroundTimeoutMs",
+      "deprecation": "compatibility env alias for domains.agent.backgroundTimeoutMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_BASE",
@@ -2405,28 +2416,39 @@
     },
     {
       "name": "PICLAW_SESSION_AUTO_ROTATE",
-      "owner": "agent-runtime",
+      "owner": "session",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.session.autoRotate",
+      "deprecation": "compatibility env alias for domains.session.autoRotate",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_CLEANUP_INTERVAL_MS",
@@ -2580,78 +2602,84 @@
     },
     {
       "name": "PICLAW_SESSION_MAX_COMPACTIONS",
-      "owner": "core",
+      "owner": "session",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 3,
+      "bounds": "1..20 compactions",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.session.maxCompactionsBeforeRotation",
+      "deprecation": "compatibility env alias for domains.session.maxCompactionsBeforeRotation",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_MAX_LINES",
-      "owner": "core",
+      "owner": "session",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 8000,
+      "bounds": "100..50000 lines",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.session.maxLines",
+      "deprecation": "compatibility env alias for domains.session.maxLines",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_MAX_SIZE_MB",
-      "owner": "agent-runtime",
+      "owner": "session",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 32,
+      "bounds": "1..256 MiB",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.session.maxSizeMb",
+      "deprecation": "compatibility env alias for domains.session.maxSizeMb",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_POOL_MAX_SIZE",
@@ -3820,28 +3848,30 @@
     },
     {
       "name": "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
-      "owner": "core",
+      "owner": "agent",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 64,
+      "bounds": "1..512 messages (Settings writes clamp to >=8)",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.agent.toolUseMessageBudget",
+      "deprecation": "compatibility env alias for domains.agent.toolUseMessageBudget",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",

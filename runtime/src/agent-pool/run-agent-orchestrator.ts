@@ -412,14 +412,9 @@ async function maybeAutoRotateSession(
   options: Pick<RunAgentOrchestratorOptions, "onInfo" | "onWarn">,
 ): Promise<AgentSession> {
   const sessionStorageConfig = getSessionStorageConfig();
-  const autoRotateEnabled = sessionStorageConfig.autoRotate
-    || ["1", "true", "yes", "on"].includes((process.env.PICLAW_SESSION_AUTO_ROTATE || "").trim().toLowerCase());
-  if (!autoRotateEnabled) return session;
+  if (!sessionStorageConfig.autoRotate) return session;
 
-  const envThresholdMb = parsePositiveIntStrict(process.env.PICLAW_SESSION_MAX_SIZE_MB, 0);
-  const thresholdBytes = envThresholdMb > 0
-    ? envThresholdMb * 1024 * 1024
-    : sessionStorageConfig.maxSizeBytes;
+  const thresholdBytes = sessionStorageConfig.maxSizeBytes;
 
   const sessionFileSize = getSessionFileSize(session.sessionFile);
   const sessionFileLines = getSessionFileLineCount(session.sessionFile);

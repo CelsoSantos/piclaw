@@ -77,6 +77,38 @@ describe("domain config framework", () => {
     } finally { temp.cleanup(); }
   });
 
+  test("skips invalid compatibility aliases only when explicitly configured", () => {
+    clearDomainConfigRegistryForTests(); resetDomainConfigWarningsForTests();
+    const schema = registerDomainConfig<{ retentionMs: number }>({
+      domain: "retention-demo",
+      fields: {
+        retentionMs: integerField({
+          key: "retentionMs",
+          owner: "test",
+          defaultValue: 30,
+          min: 1,
+          persistence: "json-config",
+          precedence: ["compat-env", "persisted", "default"],
+          secretClass: "none",
+          compatibilityEnv: [
+            { envKey: "PICLAW_RETENTION_MS", replacement: "domains.retention-demo.retentionMs", removalVersion: "1.0.0", skipInvalid: true },
+            { envKey: "PICLAW_RETENTION_DAYS", replacement: "domains.retention-demo.retentionMs", removalVersion: "1.0.0", parse: (raw) => Number(raw) * 24 },
+          ],
+        }),
+      },
+    });
+    const temp = tempConfigPath(); const warnings: DomainConfigDeprecationEvent[] = [];
+    try {
+      const value = readDomainConfig(schema, {
+        configPath: temp.path,
+        env: { PICLAW_RETENTION_MS: "bad", PICLAW_RETENTION_DAYS: "2" },
+        emitWarning: (event) => warnings.push(event),
+      });
+      expect(value.retentionMs).toBe(48);
+      expect(warnings.map((event) => event.envKey)).toEqual(["PICLAW_RETENTION_DAYS"]);
+    } finally { temp.cleanup(); }
+  });
+
   test("emits compatibility warning once with replacement and removal metadata", () => {
     clearDomainConfigRegistryForTests(); resetDomainConfigWarningsForTests();
     const schema = createSchema(); const temp = tempConfigPath(); const warnings: DomainConfigDeprecationEvent[] = [];

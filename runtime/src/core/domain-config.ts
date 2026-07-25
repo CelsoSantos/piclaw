@@ -25,6 +25,8 @@ export interface DomainConfigCompatibilityEnv {
   replacement: string;
   removalVersion: string;
   parse?: (value: string) => unknown;
+  /** Continue to the next compatibility alias when parsing or validation fails. */
+  skipInvalid?: boolean;
 }
 
 export interface DomainConfigField<T> {
@@ -195,8 +197,14 @@ function resolveFieldValue(schema: DomainConfigSchema<Record<string, unknown>>, 
       for (const alias of field.compatibilityEnv ?? []) {
         const raw = env[alias.envKey];
         if (raw === undefined) continue;
-        emitCompatibilityWarning(schema, field.key, alias, options.emitWarning);
-        return field.validate(alias.parse ? alias.parse(raw) : raw);
+        try {
+          const value = field.validate(alias.parse ? alias.parse(raw) : raw);
+          emitCompatibilityWarning(schema, field.key, alias, options.emitWarning);
+          return value;
+        } catch (error) {
+          if (alias.skipInvalid) continue;
+          throw error;
+        }
       }
       continue;
     }
