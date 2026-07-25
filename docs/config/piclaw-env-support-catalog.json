@@ -298,7 +298,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_ASSISTANT_NAME",
@@ -325,7 +325,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_AUTO_COMPACTION_ENABLED",
@@ -835,7 +835,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_DISABLE_BACKGROUND_WORKSPACE_INDEX",
@@ -3880,7 +3880,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_USER_AVATAR_BACKGROUND",
@@ -3907,7 +3907,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_USER_NAME",
@@ -3934,7 +3934,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_VNC_ALLOW_DIRECT",
@@ -4026,7 +4026,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_EXTERNAL_URL",
@@ -4190,7 +4190,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_PASSKEY_MODE",
@@ -4251,7 +4251,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS",
@@ -4278,7 +4278,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_PORT",
@@ -4588,7 +4588,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_VNC_ALLOW_DIRECT",
@@ -4690,7 +4690,7 @@
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
       "source": "runtime/src/core/config.ts domain schema (#752A)",
-      "migrationDisposition": "move-to-domain-config"
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WORKSPACE",
