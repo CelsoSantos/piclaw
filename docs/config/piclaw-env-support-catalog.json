@@ -618,26 +618,19 @@
       "name": "PICLAW_COMPACTION_MAX_WORK_UNITS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1000000,
+      "bounds": "internal fixed 1,000,000 work-unit ceiling",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-pool/compaction.ts constant (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
@@ -668,26 +661,19 @@
       "name": "PICLAW_COMPACTION_SETTLEMENT_GRACE_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 5000,
+      "bounds": "internal fixed 5-second timeout-settlement grace",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-pool/compaction.ts constant (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_COMPACTION_THRESHOLD_PERCENT",
@@ -909,26 +895,19 @@
       "name": "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
       "owner": "agent-runtime",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": true,
+      "bounds": "internal upstream auto-compaction suppressor always enabled",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-pool/run-agent-orchestrator.ts fixed behavior (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_DISABLE_RUNTIME_LOCK",
@@ -1551,52 +1530,38 @@
     {
       "name": "PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE",
       "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": true,
+      "bounds": "internal external watchdog enabled outside test runtimes",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-control/handlers/control.ts fixed behavior (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_MANUAL_COMPACTION_FAILSAFE_GRACE_MS",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 15000,
+      "bounds": "internal fixed 15-second external-watchdog grace",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/agent-control/handlers/control.ts constant (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_MCP_TOOL_TIMEOUT_MS",
@@ -3169,51 +3134,37 @@
       "name": "PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS",
       "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 14400000,
+      "bounds": "internal fixed 4-hour stale-compaction backoff",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/channels/web/runtime/recovery.ts constant (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_STALE_ACTIVE_COMPACTION_RECOVERY_MS",
       "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 240000,
+      "bounds": "internal fixed 4-minute stale-compaction age",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "deprecation": "removed environment support; fixed internal compaction guardrail",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/channels/web/runtime/recovery.ts constant (#753C2b)",
+      "migrationDisposition": "constant"
     },
     {
       "name": "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",

@@ -9,6 +9,7 @@ import type { AgentSessionRuntime } from "@earendil-works/pi-coding-agent";
 
 import { ensureSessionDir } from "../../src/agent-pool/session.js";
 import { getAttachmentRegistry } from "../../src/agent-pool/attachments.js";
+import { setCompactionSettlementGraceForTests } from "../../src/agent-pool/compaction.js";
 import { AgentTurnCoordinator } from "../../src/agent-pool/turn-coordinator.js";
 import { createToolExecutionWatchdogHeartbeatController, runAgentPrompt } from "../../src/agent-pool/run-agent-orchestrator.js";
 import { RECOVERY_CONTINUATION_PROMPT } from "../../src/agent-pool/context-pressure-retry.js";
@@ -1135,9 +1136,9 @@ test("runAgentPrompt refuses to prompt a session when pre-prompt timeout emergen
   initDatabase();
   const restoreEnv = setEnv({
     PICLAW_COMPACTION_TIMEOUT_MS: "1",
-    PICLAW_COMPACTION_SETTLEMENT_GRACE_MS: "0",
     PICLAW_COMPACTION_THRESHOLD_PERCENT: "1",
   });
+  const restoreSettlementGrace = setCompactionSettlementGraceForTests(0);
   const calls: string[] = [];
 
   class StuckSession {
@@ -1190,6 +1191,7 @@ test("runAgentPrompt refuses to prompt a session when pre-prompt timeout emergen
     expect(result.error).toContain("Refusing to prompt a session that may still be physically compacting");
     expect(calls).toEqual(["compact", "abortCompaction"]);
   } finally {
+    restoreSettlementGrace();
     restoreEnv();
   }
 }, 10_000);

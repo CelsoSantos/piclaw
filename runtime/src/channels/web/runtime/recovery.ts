@@ -32,7 +32,6 @@ import {
 import { createUuid } from "../../../utils/ids.js";
 import { createLogger } from "../../../utils/logger.js";
 import { getWebRecoveryConfig } from "../../../core/config.js";
-import { parsePositiveIntStrict } from "../../../utils/strict-int.js";
 
 const log = createLogger("web.recovery");
 
@@ -209,12 +208,8 @@ const defaultStore: WebRecoveryStore = {
  */
 const MAX_INFLIGHT_AGE_MS = 30 * 60 * 1000;
 const RUNTIME_STALE_INFLIGHT_GRACE_MS = 15_000;
-const DEFAULT_STALE_ACTIVE_COMPACTION_AGE_MS = 4 * 60 * 1000;
-const DEFAULT_STALE_ACTIVE_COMPACTION_BACKOFF_MS = 4 * 60 * 60 * 1000;
-
-function parsePositiveDurationMs(value: string | undefined, fallback: number): number {
-  return parsePositiveIntStrict(value, fallback);
-}
+const STALE_ACTIVE_COMPACTION_AGE_MS = 4 * 60 * 1000;
+const STALE_ACTIVE_COMPACTION_BACKOFF_MS = 4 * 60 * 60 * 1000;
 
 function getStalePreflightAgeMs(): number {
   return getWebRecoveryConfig().stalePreflightRecoveryMs;
@@ -222,14 +217,6 @@ function getStalePreflightAgeMs(): number {
 
 function getStalePreflightBackoffMs(): number {
   return getWebRecoveryConfig().stalePreflightBackoffMs;
-}
-
-function getStaleActiveCompactionAgeMs(): number {
-  return parsePositiveDurationMs(process.env.PICLAW_STALE_ACTIVE_COMPACTION_RECOVERY_MS, DEFAULT_STALE_ACTIVE_COMPACTION_AGE_MS);
-}
-
-function getStaleActiveCompactionBackoffMs(): number {
-  return parsePositiveDurationMs(process.env.PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS, DEFAULT_STALE_ACTIVE_COMPACTION_BACKOFF_MS);
 }
 
 function getRunAgeMs(startedAt: string, nowMs: number): number {
@@ -387,8 +374,8 @@ export function recoverInflightRuns(
   const now = typeof ctx.now === "function" ? ctx.now() : Date.now();
   const activeCompactions = store.getActiveChatCompactions?.() ?? [];
   if (activeCompactions.length > 0) {
-    const staleAgeMs = getStaleActiveCompactionAgeMs();
-    const backoffMs = getStaleActiveCompactionBackoffMs();
+    const staleAgeMs = STALE_ACTIVE_COMPACTION_AGE_MS;
+    const backoffMs = STALE_ACTIVE_COMPACTION_BACKOFF_MS;
     const recoveredAt = new Date(now).toISOString();
     try {
       store.transaction(() => {

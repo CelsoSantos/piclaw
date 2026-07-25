@@ -123,13 +123,6 @@ type UpstreamAutoCompactionSession = Record<string, unknown> & {
 const recentRecoveryFailuresByChat = new Map<string, RecoveryFailureSignatureRecord[]>();
 let warnedMissingUpstreamAutoCompactionSuppressorMethods = false;
 
-function isPrivateUpstreamAutoCompactionSuppressorEnabled(): boolean {
-  // Future experiment flag: keep the public upstream auto-compaction switch disabled at session creation,
-  // but run prompts without patching upstream private methods. This lets us canary whether public controls
-  // are sufficient before removing Piclaw-managed compaction boundaries and telemetry.
-  return process.env.PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR !== "1";
-}
-
 function suppressUpstreamAutoCompactionDuringPrompt(
   session: AgentSession,
   chatJid: string,
@@ -142,8 +135,6 @@ function suppressUpstreamAutoCompactionDuringPrompt(
   const originalRunAutoCompaction = typeof upstream._runAutoCompaction === "function"
     ? upstream._runAutoCompaction
     : null;
-
-  if (!isPrivateUpstreamAutoCompactionSuppressorEnabled()) return () => {};
 
   if (!originalCheckCompaction && !originalRunAutoCompaction) {
     if (!warnedMissingUpstreamAutoCompactionSuppressorMethods) {
