@@ -246,6 +246,96 @@ describe("core config", () => {
     }
   });
 
+  test("session-pool domain persists across restart and preserves ordered generic aliases", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-session-pool-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          sessionPool: {
+            mainIdleTtlMs: 111000,
+            sideIdleTtlMs: 222000,
+            cleanupIntervalMs: 333000,
+            mainSessionPoolMaxSize: 4,
+            memoryPressureRssBytes: 500000000,
+            memoryPressureMainIdleTtlMs: 444000,
+            memoryPressureMainSessionPoolMaxSize: 2,
+          },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, ["call:getSessionPoolConfig"], {
+        env: {
+          PICLAW_MAIN_SESSION_IDLE_TTL_MS: undefined,
+          PICLAW_SIDE_SESSION_IDLE_TTL_MS: undefined,
+          PICLAW_SESSION_IDLE_TTL_MS: undefined,
+          PICLAW_SESSION_CLEANUP_INTERVAL_MS: undefined,
+          PICLAW_MAIN_SESSION_POOL_MAX_SIZE: undefined,
+          PICLAW_SESSION_POOL_MAX_SIZE: undefined,
+          PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES: undefined,
+          PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS: undefined,
+          PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE: undefined,
+        },
+      }).snapshot;
+      expect(persisted["call:getSessionPoolConfig"]).toEqual({
+        mainIdleTtlMs: 111000,
+        sideIdleTtlMs: 222000,
+        cleanupIntervalMs: 333000,
+        mainSessionPoolMaxSize: 4,
+        memoryPressureRssBytes: 500000000,
+        memoryPressureMainIdleTtlMs: 444000,
+        memoryPressureMainSessionPoolMaxSize: 2,
+      });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getSessionPoolConfig"], {
+        env: {
+          PICLAW_MAIN_SESSION_IDLE_TTL_MS: "invalid",
+          PICLAW_SIDE_SESSION_IDLE_TTL_MS: "90000",
+          PICLAW_SESSION_IDLE_TTL_MS: "70000",
+          PICLAW_SESSION_CLEANUP_INTERVAL_MS: "45000",
+          PICLAW_MAIN_SESSION_POOL_MAX_SIZE: "invalid",
+          PICLAW_SESSION_POOL_MAX_SIZE: "3",
+          PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES: "600000000",
+          PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS: "80000",
+          PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE: "2",
+        },
+      });
+      expect(snapshot["call:getSessionPoolConfig"]).toEqual({
+        mainIdleTtlMs: 70000,
+        sideIdleTtlMs: 90000,
+        cleanupIntervalMs: 45000,
+        mainSessionPoolMaxSize: 3,
+        memoryPressureRssBytes: 600000000,
+        memoryPressureMainIdleTtlMs: 80000,
+        memoryPressureMainSessionPoolMaxSize: 2,
+      });
+      for (const envKey of [
+        "PICLAW_SESSION_IDLE_TTL_MS",
+        "PICLAW_SIDE_SESSION_IDLE_TTL_MS",
+        "PICLAW_SESSION_CLEANUP_INTERVAL_MS",
+        "PICLAW_SESSION_POOL_MAX_SIZE",
+        "PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES",
+        "PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS",
+        "PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_MAIN_SESSION_IDLE_TTL_MS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_MAIN_SESSION_POOL_MAX_SIZE"');
+
+      const genericOnly = runConfigSubprocess(workspace, ["call:getSessionPoolConfig"], {
+        env: {
+          PICLAW_MAIN_SESSION_IDLE_TTL_MS: undefined,
+          PICLAW_SIDE_SESSION_IDLE_TTL_MS: undefined,
+          PICLAW_SESSION_IDLE_TTL_MS: "75000",
+        },
+      });
+      expect(genericOnly.snapshot["call:getSessionPoolConfig"]).toMatchObject({
+        mainIdleTtlMs: 75000,
+        sideIdleTtlMs: 75000,
+      });
+      expectCompatWarningOnce(genericOnly.stderr, "PICLAW_SESSION_IDLE_TTL_MS");
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {

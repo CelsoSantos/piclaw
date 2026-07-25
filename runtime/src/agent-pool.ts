@@ -34,8 +34,7 @@ import type { Provider } from "@earendil-works/pi-ai";
 
 import { type AgentControlCommand, type AgentControlResult } from "./agent-control/index.js";
 import { getPiclawAgentDir } from "./core/agent-dir.js";
-import { SESSIONS_DIR, WORKSPACE_DIR, getAgentLogConfig } from "./core/config.js";
-import { parseNonNegativeIntStrict, parsePositiveIntStrict } from "./utils/strict-int.js";
+import { SESSIONS_DIR, WORKSPACE_DIR, getAgentLogConfig, getSessionPoolConfig } from "./core/config.js";
 import { getChatChannel, getChatJid } from "./core/chat-context.js";
 import { registerChannelDetector } from "./router.js";
 import { createTrackedBashOperations } from "./tools/tracked-bash.js";
@@ -129,65 +128,7 @@ export interface AgentPoolMemoryInstrumentationSnapshot {
   recovery: AgentPoolRecoveryInstrumentationSnapshot;
 }
 
-/** How long (ms) an idle main session stays cached before being disposed. */
-const DEFAULT_MAIN_IDLE_TTL = 3 * 60 * 1000; // 3 minutes
-/** How long (ms) an idle side session stays cached before being disposed. */
-const DEFAULT_SIDE_IDLE_TTL = 60 * 1000; // 1 minute
-const DEFAULT_CLEANUP_INTERVAL = 30 * 1000; // check every 30 seconds
-const DEFAULT_MAIN_SESSION_POOL_MAX_SIZE = 1;
-// 384 MB: with mmap, pool=1, and explicit disposal clearing, normal RSS should
-// be well below this. Trigger pressure mode for genuine memory stress.
-const DEFAULT_MEMORY_PRESSURE_RSS_BYTES = 384 * 1024 * 1024;
-// 60 s under genuine pressure: 30 s was too short — sessions were killed and
-// immediately recreated, causing high churn with no net memory benefit.
-const DEFAULT_MEMORY_PRESSURE_MAIN_IDLE_TTL = 60 * 1000;
-const DEFAULT_MEMORY_PRESSURE_MAIN_SESSION_POOL_MAX_SIZE = 1;
 
-function parsePositiveMs(value: string | undefined, fallback: number): number {
-  return parsePositiveIntStrict(value, fallback);
-}
-
-function parseNonNegativeInt(value: string | undefined, fallback: number): number {
-  return parseNonNegativeIntStrict(value, fallback);
-}
-
-function loadAgentPoolConfig() {
-  const mainIdleTtlMs = parsePositiveMs(
-    process.env.PICLAW_MAIN_SESSION_IDLE_TTL_MS ?? process.env.PICLAW_SESSION_IDLE_TTL_MS,
-    DEFAULT_MAIN_IDLE_TTL,
-  );
-  const sideIdleTtlMs = parsePositiveMs(
-    process.env.PICLAW_SIDE_SESSION_IDLE_TTL_MS ?? process.env.PICLAW_SESSION_IDLE_TTL_MS,
-    DEFAULT_SIDE_IDLE_TTL,
-  );
-  const cleanupIntervalMs = parsePositiveMs(process.env.PICLAW_SESSION_CLEANUP_INTERVAL_MS, DEFAULT_CLEANUP_INTERVAL);
-  const mainSessionPoolMaxSize = parseNonNegativeInt(
-    process.env.PICLAW_MAIN_SESSION_POOL_MAX_SIZE ?? process.env.PICLAW_SESSION_POOL_MAX_SIZE,
-    DEFAULT_MAIN_SESSION_POOL_MAX_SIZE,
-  );
-  const memoryPressureRssBytes = parseNonNegativeInt(
-    process.env.PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES,
-    DEFAULT_MEMORY_PRESSURE_RSS_BYTES,
-  );
-  const memoryPressureMainIdleTtlMs = parsePositiveMs(
-    process.env.PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS,
-    DEFAULT_MEMORY_PRESSURE_MAIN_IDLE_TTL,
-  );
-  const memoryPressureMainSessionPoolMaxSize = parseNonNegativeInt(
-    process.env.PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE,
-    DEFAULT_MEMORY_PRESSURE_MAIN_SESSION_POOL_MAX_SIZE,
-  );
-
-  return {
-    mainIdleTtlMs,
-    sideIdleTtlMs,
-    cleanupIntervalMs,
-    mainSessionPoolMaxSize,
-    memoryPressureRssBytes,
-    memoryPressureMainIdleTtlMs,
-    memoryPressureMainSessionPoolMaxSize,
-  };
-}
 const DEFAULT_PROVIDER_RATE_LIMIT_MAX_RETRIES = 5;
 const DEFAULT_PROVIDER_RATE_LIMIT_BASE_DELAY_MS = 5000;
 
@@ -230,7 +171,7 @@ export class AgentPool {
   private branchManager: AgentPoolServices["branchManager"];
   private runtimeFacade: AgentPoolServices["runtimeFacade"];
   private sideStreamSimple?: NonNullable<AgentPoolOptions["sideStreamSimple"]>;
-  private readonly config = loadAgentPoolConfig();
+  private readonly config = getSessionPoolConfig();
 
   constructor(options: AgentPoolOptions) {
     this.createSession = options.createSession;

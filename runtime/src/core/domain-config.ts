@@ -153,7 +153,7 @@ function assertNoUnknownPersistedKeys<T extends object>(schema: DomainConfigSche
 }
 
 function emitCompatibilityWarning(schema: DomainConfigSchema<Record<string, unknown>>, key: string, alias: DomainConfigCompatibilityEnv, emitWarning?: (event: DomainConfigDeprecationEvent) => void): void {
-  const id = `${schema.domain}.${key}.${alias.envKey}`;
+  const id = `${schema.domain}.${alias.envKey}`;
   if (warnedCompatibilityKeys.has(id)) return;
   warnedCompatibilityKeys.add(id);
   const event: DomainConfigDeprecationEvent = { domain: schema.domain, key, envKey: alias.envKey, replacement: alias.replacement, removalVersion: alias.removalVersion };

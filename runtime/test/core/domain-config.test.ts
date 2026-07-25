@@ -109,6 +109,24 @@ describe("domain config framework", () => {
     } finally { temp.cleanup(); }
   });
 
+  test("deduplicates one compatibility env warning shared by multiple fields", () => {
+    clearDomainConfigRegistryForTests(); resetDomainConfigWarningsForTests();
+    const shared = { envKey: "PICLAW_SHARED_LIMIT", replacement: "domains.shared.first and second", removalVersion: "1.0.0" };
+    const schema = registerDomainConfig<{ first: number; second: number }>({
+      domain: "shared",
+      fields: {
+        first: integerField({ key: "first", owner: "test", defaultValue: 1, min: 1, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [shared] }),
+        second: integerField({ key: "second", owner: "test", defaultValue: 2, min: 1, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [shared] }),
+      },
+    });
+    const temp = tempConfigPath(); const warnings: DomainConfigDeprecationEvent[] = [];
+    try {
+      expect(readDomainConfig(schema, { configPath: temp.path, env: { PICLAW_SHARED_LIMIT: "7" }, emitWarning: (event) => warnings.push(event) })).toEqual({ first: 7, second: 7 });
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.envKey).toBe("PICLAW_SHARED_LIMIT");
+    } finally { temp.cleanup(); }
+  });
+
   test("emits compatibility warning once with replacement and removal metadata", () => {
     clearDomainConfigRegistryForTests(); resetDomainConfigWarningsForTests();
     const schema = createSchema(); const temp = tempConfigPath(); const warnings: DomainConfigDeprecationEvent[] = [];
