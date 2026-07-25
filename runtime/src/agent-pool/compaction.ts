@@ -4,7 +4,7 @@
 
 import { type AgentSession, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
-import { getCompactionRuntimeConfig } from "../core/config.js";
+import { getCompactionRuntimeConfig, getIdleAutoCompactionDelayMs } from "../core/config.js";
 import {
   clearChatCompactionActive,
   clearChatCompactionBackoff,
@@ -32,7 +32,6 @@ export interface CompactionLifecycleOptions {
   onWarn?: (message: string, details: Record<string, unknown>) => void;
 }
 
-const DEFAULT_IDLE_AUTO_COMPACTION_DELAY_MS = 5_000;
 const idleAutoCompactionTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 type BaseCompactionOutcome<T> = { ok: true; result: T } | { ok: false; errorMessage: string };
@@ -419,10 +418,6 @@ export function getModelContextWindow(session: AgentSession): number | null {
 
 function parseNonNegativeInt(value: string | undefined, fallback: number): number {
   return parseNonNegativeIntStrict(value, fallback);
-}
-
-function getIdleAutoCompactionDelayMs(): number {
-  return parseNonNegativeInt(process.env.PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS, DEFAULT_IDLE_AUTO_COMPACTION_DELAY_MS);
 }
 
 function getCompactionBackoffBaseMs(): number {

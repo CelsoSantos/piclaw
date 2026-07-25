@@ -13,6 +13,7 @@ import {
   getAgentRuntimeConfig,
   getIdentityConfig,
   getPersistThinkingMaxChars,
+  getPrePromptCompactionForegroundMs,
   getRoutingConfig,
   isPersistThinkingEnabled,
 } from "../../../core/config.js";
@@ -70,7 +71,6 @@ import {
 } from "../../../runtime/progress-watchdog.js";
 
 const log = createLogger("web.handlers.agent");
-const DEFAULT_PREPROMPT_COMPACTION_FOREGROUND_MS = 250;
 
 type BrowserObservabilityContext = {
   userId?: string;
@@ -112,11 +112,6 @@ function withObservabilityMetadata(details: Record<string, unknown>, turnId: str
     ...(browserContext?.sessionId ? { sessionId: browserContext.sessionId } : {}),
     ...(browserContext?.clientId ? { clientId: browserContext.clientId } : {}),
   };
-}
-
-function getPrePromptCompactionForegroundMs(): number {
-  const parsed = Number.parseInt(String(process.env.PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS || "").trim(), 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_PREPROMPT_COMPACTION_FOREGROUND_MS;
 }
 
 function sleepMs(ms: number): Promise<void> {
