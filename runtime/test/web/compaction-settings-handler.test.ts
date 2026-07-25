@@ -79,7 +79,8 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     expect(process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS).toBe('45000');
     expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('240000');
     expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('720000');
-    expect(process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED).toBe('1');
+    expect(process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED).toBeUndefined();
+    expect(process.env.PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS).toBeUndefined();
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
@@ -93,14 +94,18 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
         backoffMaxMs: 10800000,
         thresholdPercent: 75,
         backoffDecayFactor: 0.25,
-        progressWatchdogEnabled: true,
-        progressWatchdogTimeoutMs: 75000,
         toolResultCompactionEnabled: false,
         toolResultCompactionTools: ['bash', 'exec_batch'],
         toolResultSemanticSummaryEnabled: true,
         toolResultSemanticSummaryMaxInputChars: 24000,
         toolResultSemanticSummaryMaxTokens: 640,
         toolResultSemanticSummaryTimeoutMs: 30000,
+      },
+      domains: {
+        watchdog: {
+          enabled: true,
+          timeoutMs: 75000,
+        },
       },
     });
 
@@ -235,9 +240,11 @@ test('saveCompactionSettings can disable watchdog without clearing its timeout',
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
-      compaction: {
-        progressWatchdogEnabled: false,
-        progressWatchdogTimeoutMs: 120000,
+      domains: {
+        watchdog: {
+          enabled: false,
+          timeoutMs: 120000,
+        },
       },
     });
   });

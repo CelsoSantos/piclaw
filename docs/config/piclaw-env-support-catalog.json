@@ -1151,27 +1151,38 @@
     {
       "name": "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
       "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
-      "allowedValues": [],
+      "type": "boolean",
+      "default": true,
+      "bounds": "false-like values disable external monitor",
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.watchdog.externalMonitorEnabled",
+      "deprecation": "compatibility env alias for domains.watchdog.externalMonitorEnabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
@@ -1705,101 +1716,140 @@
       "name": "PICLAW_PROGRESS_WATCHDOG_ENABLED",
       "owner": "core",
       "type": "boolean",
-      "default": null,
+      "default": false,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.watchdog.enabled",
+      "deprecation": "compatibility env alias for domains.watchdog.enabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL",
       "owner": "core",
-      "type": "string",
-      "default": null,
+      "type": "boolean",
+      "default": false,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off",
+        "restart",
+        "exit"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.watchdog.escalateOnStall",
+      "deprecation": "compatibility env alias for domains.watchdog.escalateOnStall",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL",
       "owner": "core",
-      "type": "string",
-      "default": null,
+      "type": "boolean",
+      "default": false,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off",
+        "restart",
+        "exit"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.watchdog.escalateOnStall",
+      "deprecation": "compatibility env alias for domains.watchdog.escalateOnStall",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 300000,
+      "bounds": "non-negative integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.watchdog.timeoutMs",
+      "deprecation": "compatibility env alias for domains.watchdog.timeoutMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PROGRESSIVE_CHUNK_REASONING",
