@@ -596,6 +596,33 @@ describe("core config", () => {
     }
   });
 
+  test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-compaction-delays-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: { compaction: { idleAutoCompactionDelayMs: 7000, prePromptForegroundMs: 350 } },
+      });
+      const names = ["call:getIdleAutoCompactionDelayMs", "call:getPrePromptCompactionForegroundMs"];
+      const persisted = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: undefined,
+        PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS: undefined,
+      } }).snapshot;
+      expect(persisted["call:getIdleAutoCompactionDelayMs"]).toBe(7000);
+      expect(persisted["call:getPrePromptCompactionForegroundMs"]).toBe(350);
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS: "0",
+        PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS: "invalid",
+      } });
+      expect(snapshot["call:getIdleAutoCompactionDelayMs"]).toBe(0);
+      expect(snapshot["call:getPrePromptCompactionForegroundMs"]).toBe(350);
+      expectCompatWarningOnce(stderr, "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS");
+      expect(stderr).not.toContain('"envKey":"PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {

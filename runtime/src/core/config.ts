@@ -130,6 +130,8 @@ const envConfig = readEnvFile([
   "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
   "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
+  "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS",
+  "PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS",
   "PICLAW_AUTO_COMPACTION_ENABLED",
   "PICLAW_SMART_COMPACTION_METHOD",
   "PICLAW_REMOTE_COMPACTION_ENABLED",
@@ -1277,6 +1279,8 @@ interface CompactionDomainConfig {
   hardCeilingPercent: number;
   warningThreshold: number;
   backoffDecayFactor: number;
+  idleAutoCompactionDelayMs: number;
+  prePromptForegroundMs: number;
 }
 
 function boundedNumberField(options: Omit<DomainConfigField<number>, "type" | "validate"> & { minExclusive?: number; minInclusive?: number; maxInclusive?: number }): DomainConfigField<number> {
@@ -1328,6 +1332,8 @@ const compactionDomainSchema = registerDomainConfig<CompactionDomainConfig>({
     hardCeilingPercent: boundedNumberField({ key: "hardCeilingPercent", owner: "core", defaultValue: typeof configCompactionHardCeilingPercent === "number" && configCompactionHardCeilingPercent > 0 && configCompactionHardCeilingPercent <= 100 ? configCompactionHardCeilingPercent : 100, minExclusive: 0, maxInclusive: 100, bounds: ">0..100 percent", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_HARD_CEILING_PERCENT", replacement: "domains.compaction.hardCeilingPercent", removalVersion: "3.0.0", skipInvalid: true }] }),
     warningThreshold: integerField({ key: "warningThreshold", owner: "core", defaultValue: typeof configCompactionWarningThreshold === "number" && configCompactionWarningThreshold >= 0 ? Math.round(configCompactionWarningThreshold) : 3, min: 0, bounds: "non-negative integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_WARNING_THRESHOLD", replacement: "domains.compaction.warningThreshold", removalVersion: "3.0.0", skipInvalid: true }] }),
     backoffDecayFactor: boundedNumberField({ key: "backoffDecayFactor", owner: "core", defaultValue: typeof configCompactionBackoffDecayFactor === "number" && configCompactionBackoffDecayFactor > 0 && configCompactionBackoffDecayFactor <= 1 ? configCompactionBackoffDecayFactor : 0.5, minExclusive: 0, maxInclusive: 1, bounds: ">0..1", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", replacement: "domains.compaction.backoffDecayFactor", removalVersion: "3.0.0", skipInvalid: true }] }),
+    idleAutoCompactionDelayMs: integerField({ key: "idleAutoCompactionDelayMs", owner: "agent-runtime", defaultValue: 5_000, min: 0, bounds: "non-negative integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS", replacement: "domains.compaction.idleAutoCompactionDelayMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    prePromptForegroundMs: integerField({ key: "prePromptForegroundMs", owner: "web", defaultValue: 250, min: 0, bounds: "non-negative integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS", replacement: "domains.compaction.prePromptForegroundMs", removalVersion: "3.0.0", skipInvalid: true }] }),
   },
 });
 
@@ -1338,6 +1344,16 @@ function getCompactionDomainConfig(): CompactionDomainConfig {
   return resolved.backoffMaxMs < resolved.backoffBaseMs
     ? { ...resolved, backoffMaxMs: resolved.backoffBaseMs }
     : { ...resolved };
+}
+
+/** Return idle auto-compaction delay resolved for this scheduling decision. */
+export function getIdleAutoCompactionDelayMs(): number {
+  return getCompactionDomainConfig().idleAutoCompactionDelayMs;
+}
+
+/** Return foreground pre-prompt compaction wait resolved for this web request. */
+export function getPrePromptCompactionForegroundMs(): number {
+  return getCompactionDomainConfig().prePromptForegroundMs;
 }
 
 export type SessionIsolationLevel = "none" | "summary" | "full";
@@ -2147,6 +2163,8 @@ function applyCompactionRuntimeConfig(
     hardCeilingPercent: next.hardCeilingPercent,
     warningThreshold: next.warningThreshold,
     backoffDecayFactor: next.backoffDecayFactor,
+    idleAutoCompactionDelayMs: getCompactionDomainConfig().idleAutoCompactionDelayMs,
+    prePromptForegroundMs: getCompactionDomainConfig().prePromptForegroundMs,
   };
   if (persist) {
     const resolvedDomain = writeDomainConfig(compactionDomainSchema, getDomainConfigOptions(), compactionDomainPatch);
@@ -2166,6 +2184,8 @@ function applyCompactionRuntimeConfig(
       hardCeilingPercent: next.hardCeilingPercent,
       warningThreshold: next.warningThreshold,
       backoffDecayFactor: next.backoffDecayFactor,
+      idleAutoCompactionDelayMs: getCompactionDomainConfig().idleAutoCompactionDelayMs,
+      prePromptForegroundMs: getCompactionDomainConfig().prePromptForegroundMs,
     };
   }
 

@@ -1270,26 +1270,28 @@
       "name": "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 5000,
+      "bounds": "non-negative integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.idleAutoCompactionDelayMs",
+      "deprecation": "compatibility env alias for domains.compaction.idleAutoCompactionDelayMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_INTERNAL_SECRET",
@@ -1725,26 +1727,28 @@
       "name": "PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS",
       "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 250,
+      "bounds": "non-negative integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.compaction.prePromptForegroundMs",
+      "deprecation": "compatibility env alias for domains.compaction.prePromptForegroundMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753C2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PROGRESS_WATCHDOG_ENABLED",
