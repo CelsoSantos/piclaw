@@ -476,6 +476,48 @@ describe("core config", () => {
     }
   });
 
+  test("watchdog domain persists across restart with ordered compatibility aliases", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-watchdog-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          watchdog: { enabled: true, timeoutMs: 120000, escalateOnStall: false, externalMonitorEnabled: true },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, ["call:getProgressWatchdogConfig", "call:getCompactionRuntimeConfig"], {
+        env: {
+          PICLAW_PROGRESS_WATCHDOG_ENABLED: undefined,
+          PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: undefined,
+          PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL: undefined,
+          PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL: undefined,
+          PICLAW_EXTERNAL_PROGRESS_WATCHDOG: undefined,
+        },
+      }).snapshot;
+      expect(persisted["call:getProgressWatchdogConfig"]).toEqual({ enabled: true, timeoutMs: 120000, escalateOnStall: false, externalMonitorEnabled: true });
+      expect(persisted["call:getCompactionRuntimeConfig"]).toMatchObject({ progressWatchdogEnabled: true, progressWatchdogTimeoutMs: 120000 });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getProgressWatchdogConfig"], {
+        env: {
+          PICLAW_PROGRESS_WATCHDOG_ENABLED: "0",
+          PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS: "invalid",
+          PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL: "restart",
+          PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL: "0",
+          PICLAW_EXTERNAL_PROGRESS_WATCHDOG: "disabled",
+        },
+      });
+      expect(snapshot["call:getProgressWatchdogConfig"]).toEqual({ enabled: false, timeoutMs: 120000, escalateOnStall: true, externalMonitorEnabled: false });
+      for (const envKey of [
+        "PICLAW_PROGRESS_WATCHDOG_ENABLED",
+        "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL",
+        "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {

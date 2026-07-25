@@ -123,6 +123,11 @@ const envConfig = readEnvFile([
   "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
   "PICLAW_STALE_PREFLIGHT_RECOVERY_MS",
   "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",
+  "PICLAW_PROGRESS_WATCHDOG_ENABLED",
+  "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
+  "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL",
+  "PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL",
+  "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
   "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
   "PICLAW_AUTO_COMPACTION_ENABLED",
@@ -1134,9 +1139,6 @@ const configToolResultCompactionEnabled = pickBoolean(compactionConfig, [
   "tool_result_compaction_enabled",
   "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
 ]);
-const envProgressWatchdogEnabled = pickBoolean({
-  PICLAW_PROGRESS_WATCHDOG_ENABLED: process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED ?? envConfig.PICLAW_PROGRESS_WATCHDOG_ENABLED,
-}, ["PICLAW_PROGRESS_WATCHDOG_ENABLED"]);
 const envToolResultCompactionEnabled = pickBoolean({
   PICLAW_TOOL_RESULT_COMPACTION_ENABLED: process.env.PICLAW_TOOL_RESULT_COMPACTION_ENABLED ?? envConfig.PICLAW_TOOL_RESULT_COMPACTION_ENABLED,
 }, ["PICLAW_TOOL_RESULT_COMPACTION_ENABLED"]);
@@ -1396,6 +1398,36 @@ const webRecoveryDomainSchema = registerDomainConfig<WebRecoveryConfig>({
 /** Return stale-preflight recovery timing policy resolved for this scan. */
 export function getWebRecoveryConfig(): Readonly<WebRecoveryConfig> {
   return readDomainConfig(webRecoveryDomainSchema, getDomainConfigOptions());
+}
+
+export interface ProgressWatchdogConfig {
+  enabled: boolean;
+  timeoutMs: number;
+  escalateOnStall: boolean;
+  externalMonitorEnabled: boolean;
+}
+
+const progressWatchdogDomainSchema = registerDomainConfig<ProgressWatchdogConfig>({
+  domain: "watchdog",
+  fields: {
+    enabled: boolField({ key: "enabled", owner: "core", defaultValue: configProgressWatchdogEnabled ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_PROGRESS_WATCHDOG_ENABLED", replacement: "domains.watchdog.enabled", removalVersion: "3.0.0", skipInvalid: true }] }),
+    timeoutMs: integerField({ key: "timeoutMs", owner: "core", defaultValue: Number.isFinite(configProgressWatchdogTimeoutMs) ? Math.max(0, Math.round(Number(configProgressWatchdogTimeoutMs))) : 300_000, min: 0, bounds: "non-negative integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS", replacement: "domains.watchdog.timeoutMs", removalVersion: "3.0.0", parse: (raw) => { const normalized = raw.trim().toLowerCase(); if (["off", "false", "disabled", "no"].includes(normalized)) return 0; return Number(raw); }, skipInvalid: true }] }),
+    escalateOnStall: boolField({ key: "escalateOnStall", owner: "core", defaultValue: false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL", replacement: "domains.watchdog.escalateOnStall", removalVersion: "3.0.0", parse: (raw) => ["1", "true", "yes", "on", "restart", "exit"].includes(raw.trim().toLowerCase()), skipInvalid: true },
+      { envKey: "PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL", replacement: "domains.watchdog.escalateOnStall", removalVersion: "3.0.0", parse: (raw) => ["1", "true", "yes", "on", "restart", "exit"].includes(raw.trim().toLowerCase()), skipInvalid: true },
+    ] }),
+    externalMonitorEnabled: boolField({ key: "externalMonitorEnabled", owner: "core", defaultValue: true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_EXTERNAL_PROGRESS_WATCHDOG", replacement: "domains.watchdog.externalMonitorEnabled", removalVersion: "3.0.0", parse: (raw) => !["0", "false", "off", "disabled", "no"].includes(raw.trim().toLowerCase()), skipInvalid: true }] }),
+  },
+});
+
+let progressWatchdogConfigOverride: Partial<Pick<ProgressWatchdogConfig, "enabled" | "timeoutMs">> | null = null;
+
+/** Return progress-watchdog policy resolved for the current operation. */
+export function getProgressWatchdogConfig(): Readonly<ProgressWatchdogConfig> {
+  return Object.freeze({
+    ...readDomainConfig(progressWatchdogDomainSchema, getDomainConfigOptions()),
+    ...(progressWatchdogConfigOverride ?? {}),
+  });
 }
 
 /** Current per-turn tool-use budget used by the agent orchestrator. */
@@ -1762,7 +1794,6 @@ const DEFAULT_COMPACTION_TIMEOUT_MS = 300_000;
 const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 5 * 60_000;
 const DEFAULT_COMPACTION_BACKOFF_BASE_MS = 15 * 60_000;
 const DEFAULT_COMPACTION_BACKOFF_MAX_MS = 6 * 60 * 60_000;
-const DEFAULT_PROGRESS_WATCHDOG_TIMEOUT_MS = 300_000;
 // Context-window percentages already scale across models. A fixed default cap
 // made 1M-token models compact at only 24% utilization, so caps are opt-in.
 const DEFAULT_COMPACTION_MAX_THRESHOLD_TOKENS = 0;
@@ -1772,14 +1803,6 @@ function parseOptionalNonNegativeInt(value: unknown, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return Math.max(0, Math.round(parsed));
-}
-
-function resolveDefaultProgressWatchdogEnabled(): boolean {
-  if (envProgressWatchdogEnabled !== undefined) return envProgressWatchdogEnabled;
-  if (configProgressWatchdogEnabled !== undefined) return configProgressWatchdogEnabled;
-  // A timeout value configures an explicitly enabled watchdog; it must not
-  // silently enable process supervision on its own.
-  return false;
 }
 
 let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
@@ -1823,10 +1846,8 @@ let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
       ? Math.round(Number(configCompactionBackoffMaxMs))
       : DEFAULT_COMPACTION_BACKOFF_MAX_MS,
   ),
-  progressWatchdogEnabled: resolveDefaultProgressWatchdogEnabled(),
-  progressWatchdogTimeoutMs: Number.isFinite(configProgressWatchdogTimeoutMs)
-    ? Math.max(0, Math.round(Number(configProgressWatchdogTimeoutMs)))
-    : DEFAULT_PROGRESS_WATCHDOG_TIMEOUT_MS,
+  progressWatchdogEnabled: getProgressWatchdogConfig().enabled,
+  progressWatchdogTimeoutMs: getProgressWatchdogConfig().timeoutMs,
   thresholdPercent: typeof configCompactionThresholdPercent === "number" && configCompactionThresholdPercent > 0 && configCompactionThresholdPercent <= 100
     ? configCompactionThresholdPercent : 80,
   maxThresholdTokens: parseOptionalNonNegativeInt(configCompactionMaxThresholdTokens, DEFAULT_COMPACTION_MAX_THRESHOLD_TOKENS),
@@ -1930,14 +1951,8 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
       process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS ?? envConfig.PICLAW_COMPACTION_BACKOFF_MAX_MS,
       COMPACTION_RUNTIME_CONFIG.backoffMaxMs,
     ),
-    progressWatchdogEnabled: parseOptionalBooleanFlag(
-      process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED,
-      COMPACTION_RUNTIME_CONFIG.progressWatchdogEnabled,
-    ),
-    progressWatchdogTimeoutMs: parseOptionalNonNegativeDurationMs(
-      process.env.PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS,
-      COMPACTION_RUNTIME_CONFIG.progressWatchdogTimeoutMs,
-    ),
+    progressWatchdogEnabled: getProgressWatchdogConfig().enabled,
+    progressWatchdogTimeoutMs: getProgressWatchdogConfig().timeoutMs,
     thresholdPercent: (() => {
       const parsed = Number(process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT ?? envConfig.PICLAW_COMPACTION_THRESHOLD_PERCENT);
       return Number.isFinite(parsed) && parsed > 0 && parsed <= 100
@@ -2079,6 +2094,8 @@ function applyCompactionRuntimeConfig(
       "progressWatchdogTimeoutMs",
       "progress_watchdog_timeout_ms",
       "watchdogTimeoutMs",
+      "PICLAW_PROGRESS_WATCHDOG_ENABLED",
+      "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
       "thresholdPercent",
       "threshold_percent",
       "PICLAW_COMPACTION_THRESHOLD_PERCENT",
@@ -2104,8 +2121,6 @@ function applyCompactionRuntimeConfig(
       "PICLAW_COMPACTION_TIMEOUT_MS",
       "PICLAW_COMPACTION_BACKOFF_BASE_MS",
       "PICLAW_COMPACTION_BACKOFF_MAX_MS",
-      "PICLAW_PROGRESS_WATCHDOG_ENABLED",
-      "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
     ];
     for (const key of clearKeys) {
       delete compaction[key];
@@ -2118,8 +2133,6 @@ function applyCompactionRuntimeConfig(
     compaction.timeoutMs = next.timeoutMs;
     compaction.backoffBaseMs = next.backoffBaseMs;
     compaction.backoffMaxMs = next.backoffMaxMs;
-    compaction.progressWatchdogEnabled = next.progressWatchdogEnabled;
-    compaction.progressWatchdogTimeoutMs = next.progressWatchdogTimeoutMs;
     compaction.thresholdPercent = next.thresholdPercent;
     compaction.maxThresholdTokens = next.maxThresholdTokens;
     compaction.autoCompactionScope = next.autoCompactionScope;
@@ -2137,14 +2150,27 @@ function applyCompactionRuntimeConfig(
   process.env.PICLAW_COMPACTION_TIMEOUT_MS = String(next.timeoutMs);
   process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS = String(next.backoffBaseMs);
   process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS = String(next.backoffMaxMs);
-  process.env.PICLAW_PROGRESS_WATCHDOG_ENABLED = next.progressWatchdogEnabled ? "1" : "0";
-  process.env.PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS = String(next.progressWatchdogTimeoutMs);
   process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT = String(next.thresholdPercent);
   process.env.PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS = String(next.maxThresholdTokens);
   process.env.PICLAW_AUTO_COMPACTION_SCOPE = next.autoCompactionScope;
   process.env.PICLAW_COMPACTION_HARD_CEILING_PERCENT = String(next.hardCeilingPercent);
   process.env.PICLAW_COMPACTION_WARNING_THRESHOLD = String(next.warningThreshold);
   process.env.PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR = String(next.backoffDecayFactor);
+
+  if (persist && (patch.progressWatchdogEnabled !== undefined || patch.progressWatchdogTimeoutMs !== undefined)) {
+    const resolvedWatchdog = writeDomainConfig(progressWatchdogDomainSchema, getDomainConfigOptions(), {
+      ...(patch.progressWatchdogEnabled !== undefined ? { enabled: next.progressWatchdogEnabled } : {}),
+      ...(patch.progressWatchdogTimeoutMs !== undefined ? { timeoutMs: next.progressWatchdogTimeoutMs } : {}),
+    });
+    progressWatchdogConfigOverride = null;
+    next.progressWatchdogEnabled = resolvedWatchdog.enabled;
+    next.progressWatchdogTimeoutMs = resolvedWatchdog.timeoutMs;
+  } else if (!persist) {
+    progressWatchdogConfigOverride = {
+      enabled: next.progressWatchdogEnabled,
+      timeoutMs: next.progressWatchdogTimeoutMs,
+    };
+  }
 
   COMPACTION_RUNTIME_CONFIG = Object.seal(next);
   return getCompactionRuntimeConfig();
@@ -2171,8 +2197,6 @@ export function setCompactionRuntimeConfigForTests(
     "PICLAW_COMPACTION_TIMEOUT_MS",
     "PICLAW_COMPACTION_BACKOFF_BASE_MS",
     "PICLAW_COMPACTION_BACKOFF_MAX_MS",
-    "PICLAW_PROGRESS_WATCHDOG_ENABLED",
-    "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
     "PICLAW_COMPACTION_THRESHOLD_PERCENT",
     "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
     "PICLAW_AUTO_COMPACTION_SCOPE",
