@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "initial #747 tranche-1 snapshot from cddc4d3e9",
+    "source": "accepted #752A reduction from 151 to 139",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -15,8 +15,6 @@
       "PICLAW_AGENT_LOG_RETENTION_MS",
       "PICLAW_AGENT_TIMEOUT",
       "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
-      "PICLAW_ASSISTANT_AVATAR",
-      "PICLAW_ASSISTANT_NAME",
       "PICLAW_AUTO_COMPACTION_ENABLED",
       "PICLAW_AUTO_COMPACTION_SCOPE",
       "PICLAW_BACKGROUND_AGENT_TIMEOUT",
@@ -34,7 +32,6 @@
       "PICLAW_COMPACTION_WARNING_THRESHOLD",
       "PICLAW_DATA",
       "PICLAW_DB_IN_MEMORY",
-      "PICLAW_DEBUG_CARD_SUBMISSIONS",
       "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
       "PICLAW_DREAM_AGENT_TIMEOUT_MS",
       "PICLAW_DREAM_BACKUP_KEEP",
@@ -125,21 +122,14 @@
       "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
       "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
       "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
-      "PICLAW_USER_AVATAR",
-      "PICLAW_USER_AVATAR_BACKGROUND",
-      "PICLAW_USER_NAME",
       "PICLAW_VNC_ALLOW_DIRECT",
       "PICLAW_VNC_TARGETS",
-      "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
       "PICLAW_WEB_EXTERNAL_URL",
       "PICLAW_WEB_HOST",
       "PICLAW_WEB_IDLE_TIMEOUT",
       "PICLAW_WEB_INTERNAL_SECRET",
       "PICLAW_WEB_MAX_CONTENT_CHARS",
-      "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS",
       "PICLAW_WEB_PASSKEY_MODE",
-      "PICLAW_WEB_PERSIST_THINKING",
-      "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS",
       "PICLAW_WEB_PORT",
       "PICLAW_WEB_PREVIEW_CHARS",
       "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
@@ -151,11 +141,9 @@
       "PICLAW_WEB_TLS_KEY",
       "PICLAW_WEB_TOTP_SECRET",
       "PICLAW_WEB_TOTP_WINDOW",
-      "PICLAW_WEB_UI_MODE",
       "PICLAW_WEB_VNC_ALLOW_DIRECT",
       "PICLAW_WEB_VNC_TARGETS",
       "PICLAW_WEB_WIDGET_TOKEN",
-      "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",
       "PICLAW_WORKSPACE",
       "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
       "PICLAW_WORKSPACE_SEARCH_ROOTS"
@@ -198,21 +186,21 @@
   "current": {
     "production": {
       "referencedNames": 187,
-      "directReaderNames": 152,
-      "directReaderOccurrences": 280,
+      "directReaderNames": 140,
+      "directReaderOccurrences": 261,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 152,
-      "semanticReaderOccurrences": 280
+      "semanticReaderNames": 140,
+      "semanticReaderOccurrences": 261
     },
     "runtimeSrc": {
       "referencedNames": 184,
-      "directReaderNames": 151,
-      "directReaderOccurrences": 269,
+      "directReaderNames": 139,
+      "directReaderOccurrences": 250,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 151,
-      "semanticReaderOccurrences": 269
+      "semanticReaderNames": 139,
+      "semanticReaderOccurrences": 250
     },
     "extensions": {
       "referencedNames": 14,
@@ -558,35 +546,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -606,35 +582,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/agent.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -1582,27 +1546,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -6933,33 +6893,25 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -6978,33 +6930,25 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -7023,33 +6967,25 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/agent-control/agent-control-helpers.ts",
-            "runtime/src/channels/web/handlers/general-settings.ts",
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/general-settings.ts",
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -7168,27 +7104,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -7474,27 +7406,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -7553,27 +7481,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -7593,27 +7517,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -8073,27 +7993,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -8213,27 +8129,23 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },

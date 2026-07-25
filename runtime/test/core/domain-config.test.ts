@@ -101,6 +101,20 @@ describe("domain config framework", () => {
     } finally { temp.cleanup(); }
   });
 
+  test("legacy top-level blocks project schema keys while current domain blocks stay strict", () => {
+    clearDomainConfigRegistryForTests(); const schema = createSchema(); const temp = tempConfigPath();
+    try {
+      writeRawConfig(temp.path, { demo: { limit: 6, unrelated: true } });
+      expect(readDomainConfig(schema, { configPath: temp.path, env: {} }).limit).toBe(6);
+      const result = migrateDomainConfig(schema, { configPath: temp.path, env: {} }, (current) => current.mode === "safe" ? { mode: "fast" } : {});
+      expect(result.changed).toBe(true);
+      expect(JSON.parse(readFileSync(temp.path, "utf8")).domains.demo).toEqual({ limit: 6, mode: "fast" });
+
+      writeRawConfig(temp.path, { domains: { demo: { limit: 6, unrelated: true } } });
+      expect(() => readDomainConfig(schema, { configPath: temp.path, env: {} })).toThrow(/Unknown persisted domain config key/);
+    } finally { temp.cleanup(); }
+  });
+
   test("migrates legacy top-level blocks into domains", () => {
     clearDomainConfigRegistryForTests(); const schema = createSchema(); const temp = tempConfigPath();
     try {

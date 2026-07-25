@@ -28,6 +28,16 @@ import { createLogger } from "../utils/logger.js";
 import { getConfiguredLogLevel, parseLogLevel } from "../utils/log-level.js";
 import { DAY_MS, DEFAULT_LOG_RETENTION_CAP_MS, clampLogRetentionMs } from "../utils/log-layout.js";
 import { parsePositiveIntStrict } from "../utils/strict-int.js";
+import {
+  boolField,
+  integerField,
+  readDomainConfig,
+  registerDomainConfig,
+  stringField,
+  writeDomainConfigField,
+  type DomainConfigField,
+  type DomainConfigRuntimeOptions,
+} from "./domain-config.js";
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing helpers.
@@ -343,6 +353,13 @@ const configTrustProxy = pickBoolean(webConfig, [
   "PICLAW_TRUST_PROXY",
 ]);
 
+function getDomainConfigOptions(): DomainConfigRuntimeOptions {
+  return {
+    configPath: getConfigPath(),
+    env: { ...envConfig, ...process.env },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Deprecation warnings for renamed environment variables.
 // ---------------------------------------------------------------------------
@@ -402,37 +419,32 @@ export interface IdentityConfig {
   userAvatarBackground: string;
 }
 
+const identityDomainSchema = registerDomainConfig<IdentityConfig>({
+  domain: "identity",
+  fields: {
+    assistantName: stringField({ key: "assistantName", owner: "identity", defaultValue: configAssistantName || "PiClaw", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_ASSISTANT_NAME", replacement: "domains.identity.assistantName", removalVersion: "3.0.0" },
+      { envKey: "ASSISTANT_NAME", replacement: "domains.identity.assistantName", removalVersion: "3.0.0" },
+    ] }),
+    assistantAvatar: stringField({ key: "assistantAvatar", owner: "identity", defaultValue: configAssistantAvatar || "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_ASSISTANT_AVATAR", replacement: "domains.identity.assistantAvatar", removalVersion: "3.0.0" },
+      { envKey: "ASSISTANT_AVATAR", replacement: "domains.identity.assistantAvatar", removalVersion: "3.0.0" },
+    ] }),
+    userName: stringField({ key: "userName", owner: "identity", defaultValue: configUserName || "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_USER_NAME", replacement: "domains.identity.userName", removalVersion: "3.0.0" }] }),
+    userAvatar: stringField({ key: "userAvatar", owner: "identity", defaultValue: configUserAvatar || "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_USER_AVATAR", replacement: "domains.identity.userAvatar", removalVersion: "3.0.0" }] }),
+    userAvatarBackground: stringField({ key: "userAvatarBackground", owner: "identity", defaultValue: configUserAvatarBackground || "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_USER_AVATAR_BACKGROUND", replacement: "domains.identity.userAvatarBackground", removalVersion: "3.0.0" }] }),
+  },
+});
+
+const IDENTITY_DOMAIN_CONFIG = readDomainConfig(identityDomainSchema, getDomainConfigOptions());
+
 /** Grouped mutable identity settings. Legacy flat exports below stay in sync for compatibility. */
 export const IDENTITY_CONFIG: IdentityConfig = Object.seal({
-  assistantName:
-    process.env.PICLAW_ASSISTANT_NAME ||
-    envConfig.PICLAW_ASSISTANT_NAME ||
-    process.env.ASSISTANT_NAME ||
-    envConfig.ASSISTANT_NAME ||
-    configAssistantName ||
-    "PiClaw",
-  assistantAvatar:
-    process.env.PICLAW_ASSISTANT_AVATAR ||
-    envConfig.PICLAW_ASSISTANT_AVATAR ||
-    process.env.ASSISTANT_AVATAR ||
-    envConfig.ASSISTANT_AVATAR ||
-    configAssistantAvatar ||
-    "",
-  userName:
-    process.env.PICLAW_USER_NAME ||
-    envConfig.PICLAW_USER_NAME ||
-    configUserName ||
-    "",
-  userAvatar:
-    process.env.PICLAW_USER_AVATAR ||
-    envConfig.PICLAW_USER_AVATAR ||
-    configUserAvatar ||
-    "",
-  userAvatarBackground:
-    process.env.PICLAW_USER_AVATAR_BACKGROUND ||
-    envConfig.PICLAW_USER_AVATAR_BACKGROUND ||
-    configUserAvatarBackground ||
-    "",
+  assistantName: IDENTITY_DOMAIN_CONFIG.assistantName || process.env.ASSISTANT_NAME || envConfig.ASSISTANT_NAME || "PiClaw",
+  assistantAvatar: IDENTITY_DOMAIN_CONFIG.assistantAvatar || process.env.ASSISTANT_AVATAR || envConfig.ASSISTANT_AVATAR || "",
+  userName: IDENTITY_DOMAIN_CONFIG.userName || "",
+  userAvatar: IDENTITY_DOMAIN_CONFIG.userAvatar || "",
+  userAvatarBackground: IDENTITY_DOMAIN_CONFIG.userAvatarBackground || "",
 });
 
 /** Return grouped mutable identity settings for runtime wiring and tests. */
@@ -586,7 +598,6 @@ const legacyWebTerminalEnabled = pickBoolean(piclawConfig, ["webTerminalEnabled"
 const envWebTerminalEnabled = pickBoolean({ PICLAW_WEB_TERMINAL_ENABLED: process.env.PICLAW_WEB_TERMINAL_ENABLED ?? envConfig.PICLAW_WEB_TERMINAL_ENABLED }, ["PICLAW_WEB_TERMINAL_ENABLED"]);
 const nestedWebNotificationDebugLabels = pickBoolean(webConfig, ["notificationDebugLabels", "notification_debug_labels", "webNotificationDebugLabels", "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS"]);
 const legacyWebNotificationDebugLabels = pickBoolean(piclawConfig, ["webNotificationDebugLabels"]);
-const envWebNotificationDebugLabels = pickBoolean({ PICLAW_WEB_NOTIFICATION_DEBUG_LABELS: process.env.PICLAW_WEB_NOTIFICATION_DEBUG_LABELS ?? envConfig.PICLAW_WEB_NOTIFICATION_DEBUG_LABELS }, ["PICLAW_WEB_NOTIFICATION_DEBUG_LABELS"]);
 const nestedWebVncAllowDirect = pickBoolean(webConfig, ["vncAllowDirect", "vnc_allow_direct", "webVncAllowDirect", "PICLAW_WEB_VNC_ALLOW_DIRECT", "PICLAW_VNC_ALLOW_DIRECT"]);
 const legacyWebVncAllowDirect = pickBoolean(piclawConfig, ["webVncAllowDirect"]);
 const envWebVncAllowDirect = pickBoolean({ PICLAW_WEB_VNC_ALLOW_DIRECT: process.env.PICLAW_WEB_VNC_ALLOW_DIRECT ?? envConfig.PICLAW_WEB_VNC_ALLOW_DIRECT ?? process.env.PICLAW_VNC_ALLOW_DIRECT ?? envConfig.PICLAW_VNC_ALLOW_DIRECT }, ["PICLAW_WEB_VNC_ALLOW_DIRECT"]);
@@ -594,16 +605,33 @@ const nestedWebVncTargets = pickString(webConfig, ["vncTargets", "vnc_targets", 
 const legacyWebVncTargets = pickString(piclawConfig, ["webVncTargets"]);
 const legacyWebComposeUploadLimitMb = pickNumber(piclawConfig, ["webComposeUploadLimitMb", "composeUploadLimitMb"]);
 const legacyWebWorkspaceUploadLimitMb = pickNumber(piclawConfig, ["webWorkspaceUploadLimitMb", "workspaceUploadLimitMb"]);
-const envWebComposeUploadLimitMb = pickNumber({ PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB: process.env.PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB ?? envConfig.PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB }, ["PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB"]);
-const envWebWorkspaceUploadLimitMb = pickNumber({ PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB: process.env.PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB ?? envConfig.PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB }, ["PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB"]);
 const debugCards = pickBoolean(piclawConfig, ["debugCardSubmissions", "PICLAW_DEBUG_CARD_SUBMISSIONS"]);
-const envDebugCards = pickBoolean({ PICLAW_DEBUG_CARD_SUBMISSIONS: process.env.PICLAW_DEBUG_CARD_SUBMISSIONS ?? envConfig.PICLAW_DEBUG_CARD_SUBMISSIONS }, ["PICLAW_DEBUG_CARD_SUBMISSIONS"]);
 const envTrustProxyRaw = process.env.PICLAW_TRUST_PROXY ?? envConfig.PICLAW_TRUST_PROXY;
 const envTrustProxy = pickBoolean({ PICLAW_TRUST_PROXY: envTrustProxyRaw }, ["PICLAW_TRUST_PROXY"]);
 
+type WebOrdinaryDomainConfig = Pick<WebRuntimeConfig, "uiMode" | "composeUploadLimitMb" | "workspaceUploadLimitMb" | "notificationDebugLabels" | "debugCardSubmissions"> & {
+  persistThinking: boolean;
+  persistThinkingMaxChars: number;
+};
+
+const webOrdinaryDomainSchema = registerDomainConfig<WebOrdinaryDomainConfig>({
+  domain: "web",
+  fields: {
+    uiMode: stringField({ key: "uiMode", owner: "web", defaultValue: "classic", allowedValues: ["classic", "visual"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_UI_MODE", replacement: "domains.web.uiMode", removalVersion: "3.0.0" }] }) as DomainConfigField<WebUiMode>,
+    persistThinking: boolField({ key: "persistThinking", owner: "web", defaultValue: false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PERSIST_THINKING", replacement: "domains.web.persistThinking", removalVersion: "3.0.0" }] }),
+    persistThinkingMaxChars: integerField({ key: "persistThinkingMaxChars", owner: "web", defaultValue: 100000, min: 1, bounds: "positive integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS", replacement: "domains.web.persistThinkingMaxChars", removalVersion: "3.0.0", parse: (raw) => { const parsed = Number(raw); return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 100000; } }] }),
+    composeUploadLimitMb: integerField({ key: "composeUploadLimitMb", owner: "web", defaultValue: configWebComposeUploadLimitMb ?? legacyWebComposeUploadLimitMb ?? 32, min: 1, max: 512, bounds: "1..512", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB", replacement: "domains.web.composeUploadLimitMb", removalVersion: "3.0.0" }] }),
+    workspaceUploadLimitMb: integerField({ key: "workspaceUploadLimitMb", owner: "web", defaultValue: configWebWorkspaceUploadLimitMb ?? legacyWebWorkspaceUploadLimitMb ?? 256, min: 1, max: 1024, bounds: "1..1024", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB", replacement: "domains.web.workspaceUploadLimitMb", removalVersion: "3.0.0" }] }),
+    notificationDebugLabels: boolField({ key: "notificationDebugLabels", owner: "web", defaultValue: nestedWebNotificationDebugLabels ?? legacyWebNotificationDebugLabels ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS", replacement: "domains.web.notificationDebugLabels", removalVersion: "3.0.0" }] }),
+    debugCardSubmissions: boolField({ key: "debugCardSubmissions", owner: "web", defaultValue: debugCards ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_DEBUG_CARD_SUBMISSIONS", replacement: "domains.web.debugCardSubmissions", removalVersion: "3.0.0" }] }),
+  },
+});
+
+const WEB_ORDINARY_DOMAIN_CONFIG = readDomainConfig(webOrdinaryDomainSchema, getDomainConfigOptions());
+
 /** Grouped web auth/session/runtime settings. `totpSecret` stays mutable for runtime resets. */
 export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
-  uiMode: (process.env.PICLAW_WEB_UI_MODE?.trim().toLowerCase() === 'visual' ? 'visual' : 'classic') as WebUiMode,
+  uiMode: WEB_ORDINARY_DOMAIN_CONFIG.uiMode,
   totpSecret:
     process.env.PICLAW_WEB_TOTP_SECRET ||
     envConfig.PICLAW_WEB_TOTP_SECRET ||
@@ -640,15 +668,9 @@ export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
     "totp-fallback"
   ).toLowerCase(),
   terminalEnabled: envWebTerminalEnabled ?? nestedWebTerminalEnabled ?? legacyWebTerminalEnabled ?? isDefaultWebTerminalEnabled(),
-  composeUploadLimitMb: clampComposeUploadLimitMb(
-    envWebComposeUploadLimitMb ?? configWebComposeUploadLimitMb ?? legacyWebComposeUploadLimitMb,
-    32,
-  ),
-  workspaceUploadLimitMb: clampWorkspaceUploadLimitMb(
-    envWebWorkspaceUploadLimitMb ?? configWebWorkspaceUploadLimitMb ?? legacyWebWorkspaceUploadLimitMb,
-    256,
-  ),
-  notificationDebugLabels: envWebNotificationDebugLabels ?? nestedWebNotificationDebugLabels ?? legacyWebNotificationDebugLabels ?? false,
+  composeUploadLimitMb: WEB_ORDINARY_DOMAIN_CONFIG.composeUploadLimitMb,
+  workspaceUploadLimitMb: WEB_ORDINARY_DOMAIN_CONFIG.workspaceUploadLimitMb,
+  notificationDebugLabels: WEB_ORDINARY_DOMAIN_CONFIG.notificationDebugLabels,
   vncAllowDirect: envWebVncAllowDirect ?? nestedWebVncAllowDirect ?? legacyWebVncAllowDirect ?? isDefaultWebVncDirectEnabled(),
   vncTargetsRaw:
     process.env.PICLAW_WEB_VNC_TARGETS ||
@@ -658,7 +680,7 @@ export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
     nestedWebVncTargets ||
     legacyWebVncTargets ||
     "",
-  debugCardSubmissions: envDebugCards ?? debugCards ?? false,
+  debugCardSubmissions: WEB_ORDINARY_DOMAIN_CONFIG.debugCardSubmissions,
   trustProxy: envTrustProxy ?? configTrustProxy ?? false,
 });
 
@@ -667,28 +689,16 @@ export function getWebRuntimeConfig(): Readonly<WebRuntimeConfig> {
   return WEB_RUNTIME_CONFIG;
 }
 
+function readWebOrdinaryDomainConfig(): WebOrdinaryDomainConfig {
+  return readDomainConfig(webOrdinaryDomainSchema, getDomainConfigOptions());
+}
+
 export function isPersistThinkingEnabled(): boolean {
-  const envOverride = pickBoolean({
-    PICLAW_WEB_PERSIST_THINKING: process.env.PICLAW_WEB_PERSIST_THINKING
-      ?? envConfig.PICLAW_WEB_PERSIST_THINKING,
-  }, ["PICLAW_WEB_PERSIST_THINKING"]);
-  const configValue =
-    pickBoolean(webConfig, ["persistThinking", "persist_thinking", "PICLAW_WEB_PERSIST_THINKING"])
-    ?? pickBoolean(piclawConfig, ["webPersistThinking"]);
-  return envOverride ?? configValue ?? false;
+  return readWebOrdinaryDomainConfig().persistThinking;
 }
 
 export function getPersistThinkingMaxChars(): number {
-  const envOverride = pickNumber({
-    PICLAW_WEB_PERSIST_THINKING_MAX_CHARS:
-      process.env.PICLAW_WEB_PERSIST_THINKING_MAX_CHARS
-      ?? envConfig.PICLAW_WEB_PERSIST_THINKING_MAX_CHARS,
-  }, ["PICLAW_WEB_PERSIST_THINKING_MAX_CHARS"]);
-  const configValue =
-    pickNumber(webConfig, ["persistThinkingMaxChars", "persist_thinking_max_chars", "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS"])
-    ?? pickNumber(piclawConfig, ["webPersistThinkingMaxChars"]);
-  const value = envOverride ?? configValue ?? 100000;
-  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 100000;
+  return readWebOrdinaryDomainConfig().persistThinkingMaxChars;
 }
 
 /** Persist and apply the web terminal toggle so new requests see it immediately. */
@@ -736,39 +746,27 @@ export function setWebVncAllowDirect(enabled: boolean): boolean {
   return WEB_RUNTIME_CONFIG.vncAllowDirect;
 }
 
+function persistWebOrdinarySetting<K extends keyof WebOrdinaryDomainConfig>(key: K, value: WebOrdinaryDomainConfig[K]): WebOrdinaryDomainConfig[K] {
+  writeDomainConfigField(webOrdinaryDomainSchema, getDomainConfigOptions(), key, value);
+  WEB_ORDINARY_DOMAIN_CONFIG[key] = value;
+  if (key in WEB_RUNTIME_CONFIG) {
+    (WEB_RUNTIME_CONFIG as unknown as Record<string, unknown>)[key as string] = value;
+  }
+  return value;
+}
+
 function persistWebNumberSetting(options: {
-  keys: string[];
   value: number;
-  envKey: string;
   runtimeKey: "composeUploadLimitMb" | "workspaceUploadLimitMb";
   clamp: (value: unknown, fallback: number) => number;
 }): number {
   const nextValue = options.clamp(options.value, WEB_RUNTIME_CONFIG[options.runtimeKey]);
-  const config = readJsonConfig(getConfigPath());
-  const web =
-    config.web && typeof config.web === "object"
-      ? { ...(config.web as Record<string, unknown>) }
-      : {};
-
-  for (const key of options.keys) {
-    delete web[key];
-    delete config[key];
-  }
-
-  web[options.keys[0]] = nextValue;
-  config.web = web;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env[options.envKey] = String(nextValue);
-  WEB_RUNTIME_CONFIG[options.runtimeKey] = nextValue;
-  return WEB_RUNTIME_CONFIG[options.runtimeKey];
+  return persistWebOrdinarySetting(options.runtimeKey, nextValue);
 }
 
 export function setWebComposeUploadLimitMb(limitMb: number): number {
   return persistWebNumberSetting({
-    keys: ["composeUploadLimitMb", "webComposeUploadLimitMb", "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB"],
     value: limitMb,
-    envKey: "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
     runtimeKey: "composeUploadLimitMb",
     clamp: clampComposeUploadLimitMb,
   });
@@ -776,9 +774,7 @@ export function setWebComposeUploadLimitMb(limitMb: number): number {
 
 export function setWebWorkspaceUploadLimitMb(limitMb: number): number {
   return persistWebNumberSetting({
-    keys: ["workspaceUploadLimitMb", "webWorkspaceUploadLimitMb", "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB"],
     value: limitMb,
-    envKey: "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",
     runtimeKey: "workspaceUploadLimitMb",
     clamp: clampWorkspaceUploadLimitMb,
   });
@@ -2191,35 +2187,42 @@ export function getRoutingConfig(): Readonly<RoutingConfig> {
 // Runtime setters – called by agent-control handlers to update identity.
 // ---------------------------------------------------------------------------
 
+function persistIdentitySetting<K extends keyof IdentityConfig>(key: K, value: IdentityConfig[K]): IdentityConfig[K] {
+  writeDomainConfigField(identityDomainSchema, getDomainConfigOptions(), key, value);
+  IDENTITY_DOMAIN_CONFIG[key] = value;
+  IDENTITY_CONFIG[key] = value;
+  ASSISTANT_NAME = IDENTITY_CONFIG.assistantName;
+  ASSISTANT_AVATAR = IDENTITY_CONFIG.assistantAvatar;
+  USER_NAME = IDENTITY_CONFIG.userName;
+  USER_AVATAR = IDENTITY_CONFIG.userAvatar;
+  USER_AVATAR_BACKGROUND = IDENTITY_CONFIG.userAvatarBackground;
+  ROUTING_CONFIG.triggerPattern = new RegExp(`(?:^|\\s)@${escapeRegex(IDENTITY_CONFIG.assistantName)}\\b`, "i");
+  return value;
+}
+
 /** Update the assistant's display name and re-derive the trigger pattern. */
 export function setAssistantName(name: string): void {
-  IDENTITY_CONFIG.assistantName = name.trim() || "PiClaw";
-  ASSISTANT_NAME = IDENTITY_CONFIG.assistantName;
-  ROUTING_CONFIG.triggerPattern = new RegExp(`(?:^|\\s)@${escapeRegex(IDENTITY_CONFIG.assistantName)}\\b`, "i");
+  persistIdentitySetting("assistantName", name.trim() || "PiClaw");
 }
 
 /** Update the assistant's avatar URL/path. */
 export function setAssistantAvatar(avatar: string): void {
-  IDENTITY_CONFIG.assistantAvatar = avatar.trim();
-  ASSISTANT_AVATAR = IDENTITY_CONFIG.assistantAvatar;
+  persistIdentitySetting("assistantAvatar", avatar.trim());
 }
 
 /** Update the human user's display name. */
 export function setUserName(name: string): void {
-  IDENTITY_CONFIG.userName = name.trim();
-  USER_NAME = IDENTITY_CONFIG.userName;
+  persistIdentitySetting("userName", name.trim());
 }
 
 /** Update the human user's avatar URL/path. */
 export function setUserAvatar(avatar: string): void {
-  IDENTITY_CONFIG.userAvatar = avatar.trim();
-  USER_AVATAR = IDENTITY_CONFIG.userAvatar;
+  persistIdentitySetting("userAvatar", avatar.trim());
 }
 
 /** Update the human user's avatar background colour. */
 export function setUserAvatarBackground(background: string): void {
-  IDENTITY_CONFIG.userAvatarBackground = background.trim();
-  USER_AVATAR_BACKGROUND = IDENTITY_CONFIG.userAvatarBackground;
+  persistIdentitySetting("userAvatarBackground", background.trim());
 }
 
 /**
