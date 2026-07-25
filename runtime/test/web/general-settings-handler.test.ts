@@ -18,6 +18,7 @@ test('saveGeneralSettings persists and applies general settings immediately', as
     PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB: undefined,
     PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB: undefined,
     PICLAW_WEB_NOTIFICATION_DEBUG_LABELS: undefined,
+    PICLAW_WEB_TERMINAL_ENABLED: undefined,
     PICLAW_DEBUG_CARD_SUBMISSIONS: undefined,
   }, async (workspace) => {
     const handler = await importFresh<typeof import('../../src/channels/web/handlers/general-settings.js')>(
@@ -80,6 +81,7 @@ test('saveGeneralSettings persists and applies general settings immediately', as
           userAvatar: 'https://example.test/user.png',
         },
         web: {
+          terminalEnabled: false,
           composeUploadLimitMb: 24,
           workspaceUploadLimitMb: 256,
         },
@@ -87,9 +89,6 @@ test('saveGeneralSettings persists and applies general settings immediately', as
       sessionAutoRotate: false,
       sessionMaxSizeMb: 48,
       turnMaxToolUseMessages: 23,
-      web: {
-        terminalEnabled: false,
-      },
       ui: {
         theme: 'dracula',
         tint: '#7c3aed',
@@ -107,6 +106,7 @@ test('saveGeneralSettings persists and applies general settings immediately', as
       'PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB',
       'PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB',
       'PICLAW_WEB_NOTIFICATION_DEBUG_LABELS',
+      'PICLAW_WEB_TERMINAL_ENABLED',
       'PICLAW_DEBUG_CARD_SUBMISSIONS',
     ]) {
       expect(process.env[name], name).toBeUndefined();
