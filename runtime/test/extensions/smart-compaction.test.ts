@@ -4,7 +4,7 @@
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as actualCodingAgent from "../../../node_modules/@earendil-works/pi-coding-agent/dist/index.js";
-import { getCompactionRuntimeConfig, setCompactionRuntimeConfigForTests, type CompactionRuntimeConfig } from "../../src/core/config.js";
+import { resetCompactionRuntimeConfigForTests, setCompactionRuntimeConfigForTests } from "../../src/core/config.js";
 
 // We test the module by importing its factory and invoking it with a
 // mock ExtensionAPI, then firing the session_before_compact handler.
@@ -374,11 +374,9 @@ describe("smart-compaction output validation", () => {
 
 describe("smart-compaction", () => {
   let handler: ((event: any, ctx: any) => Promise<any>) | null = null;
-  let runtimeConfigBefore: Readonly<CompactionRuntimeConfig>;
 
   beforeEach(() => {
     handler = null;
-    runtimeConfigBefore = getCompactionRuntimeConfig();
     // Method selection is mutable process state. Keep default-method tests
     // isolated from earlier parametrized or cross-file cases.
     delete process.env.PICLAW_SMART_COMPACTION_METHOD;
@@ -397,7 +395,7 @@ describe("smart-compaction", () => {
   });
 
   afterEach(() => {
-    setCompactionRuntimeConfigForTests({ ...runtimeConfigBefore });
+    resetCompactionRuntimeConfigForTests();
     clearRemoteCompactionBackoffForTests();
   });
 
@@ -1009,7 +1007,7 @@ describe("smart-compaction", () => {
   it.each(["selective", "pipelined"])("cancels %s compaction on provider input overflow rather than retrying with omitted source", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     const previousProgressiveBudget = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = method;
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: method as "selective" | "pipelined" });
     process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "100000";
     (completeSimple as any).mockRejectedValueOnce(new Error("input context length exceeded"));
 
@@ -1264,7 +1262,7 @@ describe("smart-compaction", () => {
 
   it("dispatches Pipelined through the shared single-pass lifecycle", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: "pipelined" });
     const summaryText = "## Goal\nPipelined goal\n\n## Current Active Topic\n- audited pipeline\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- do not deploy\n\n## Progress\n### Done\n- [x] source projected\n\n### In Progress\n- [ ] continue\n\n### Blocked\n- none\n\n## Key Decisions\n- **Coverage**: validate every source event.\n\n## Next Steps\n1. Continue.\n\n## Critical Context\n- pipeline context";
     (completeSimple as any).mockResolvedValueOnce({
       content: [{ type: "text", text: summaryText }],
@@ -1298,7 +1296,7 @@ describe("smart-compaction", () => {
 
   it.each(["selective", "pipelined"])("preserves previous summary, split-turn source, retained context, tool failure, and terminal shape with %s", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = method;
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: method as "selective" | "pipelined" });
     const summaryText = "## Goal\nCross-method continuity\n\n## Current Active Topic\n- preserve current split-turn work\n\n## Historical / Background Context\n- previous summary retained\n\n## Constraints & Preferences\n- never deploy\n\n## Progress\n### Done\n- [x] source projected\n### In Progress\n- [ ] resolve failed command\n### Blocked\n- command failed\n\n## Key Decisions\n- **Coverage**: retain every source class\n\n## Next Steps\n1. resolve failure\n\n## Critical Context\n- retained context survives";
     (completeSimple as any).mockResolvedValueOnce({
       content: [{ type: "text", text: summaryText }],
@@ -1372,7 +1370,7 @@ describe("smart-compaction", () => {
 
   it.each(["selective", "pipelined"])("cancels %s before dispatch without making a model call", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = method;
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: method as "selective" | "pipelined" });
     const controller = new AbortController();
     controller.abort();
     try {
@@ -1391,7 +1389,7 @@ describe("smart-compaction", () => {
 
   it("captures the configured method once per generation while applying changes to the next compaction", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = "selective";
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: "selective" });
     const summaryText = "## Goal\nCaptured method\n\n## Current Active Topic\n- stable generation dispatch\n\n## Historical / Background Context\n- none\n\n## Constraints & Preferences\n- do not switch in flight\n\n## Progress\n### Done\n- [x] method captured\n### In Progress\n- [ ] continue\n### Blocked\n- none\n\n## Key Decisions\n- **Dispatch**: one method per generation\n\n## Next Steps\n1. continue\n\n## Critical Context\n- setting changes affect only the next compaction";
     (completeSimple as any).mockResolvedValue({
       content: [{ type: "text", text: summaryText }],
@@ -1404,7 +1402,7 @@ describe("smart-compaction", () => {
         branchEntries: [],
         signal: new AbortController().signal,
       }, makeCtx());
-      process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
+      setCompactionRuntimeConfigForTests({ smartCompactionMethod: "pipelined" });
       await firstPromise;
       await handler!({
         preparation: makePreparation(18),
@@ -1427,7 +1425,7 @@ describe("smart-compaction", () => {
   it("routes Pipelined oversized source through shared complete progressive coverage", async () => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     const previousPromptChars = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = "pipelined";
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: "pipelined" });
     process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "3000";
     const messages = Array.from({ length: 20 }, (_, index) => userMsg(`PIPELINED_FACT_${index} ${"x".repeat(1_200)}`));
     const prompts: string[] = [];
@@ -1489,7 +1487,7 @@ describe("smart-compaction", () => {
 
   it.each(["selective", "pipelined"])("keeps a malformed %s request on the selected method for its one repair retry", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-    process.env.PICLAW_SMART_COMPACTION_METHOD = method;
+    setCompactionRuntimeConfigForTests({ smartCompactionMethod: method as "selective" | "pipelined" });
     (completeSimple as any).mockResolvedValue({
       content: [{ type: "text", text: "## Goal\ntruncated" }],
       stopReason: "length",
@@ -2399,7 +2397,7 @@ describe("smart-compaction", () => {
       const previousForced = process.env.PICLAW_PROGRESSIVE_COMPACTION;
       const previousPromptChars = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
       const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-      process.env.PICLAW_SMART_COMPACTION_METHOD = "selective";
+      setCompactionRuntimeConfigForTests({ smartCompactionMethod: "selective" });
       process.env.PICLAW_PROGRESSIVE_COMPACTION = "1";
       process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "4000";
       process.env.PICLAW_COMPACTION_TIMEOUT_MS = "300000";
@@ -5428,7 +5426,7 @@ describe("smart-compaction", () => {
 
     it.each(["selective", "pipelined"])("compacts the complete split-turn prefix when ordinary history is empty with %s", async (method) => {
       const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-      process.env.PICLAW_SMART_COMPACTION_METHOD = method;
+      setCompactionRuntimeConfigForTests({ smartCompactionMethod: method as "selective" | "pipelined" });
       let capturedPrompt = "";
       (completeSimple as any).mockImplementationOnce((_model: any, opts: any) => {
         capturedPrompt = opts.messages[0].content[0].text;

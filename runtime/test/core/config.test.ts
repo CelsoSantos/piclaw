@@ -518,6 +518,84 @@ describe("core config", () => {
     }
   });
 
+  test("compaction and agent ceiling domains preserve restart and compatibility precedence", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-compaction-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          agent: { midTurnToolExecutionHardCeiling: 72 },
+          compaction: {
+            autoCompactionEnabled: false,
+            smartCompactionMethod: "pipelined",
+            timeoutMs: 400000,
+            backoffBaseMs: 120000,
+            backoffMaxMs: 600000,
+            thresholdPercent: 70,
+            maxThresholdTokens: 123456,
+            autoCompactionScope: "body_after_prefix",
+            hardCeilingPercent: 98,
+            warningThreshold: 4,
+            backoffDecayFactor: 0.25,
+          },
+        },
+      });
+      const names = ["call:getCompactionRuntimeConfig", "call:getMidTurnToolExecutionHardCeiling"];
+      const persisted = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_AUTO_COMPACTION_ENABLED: undefined,
+        PICLAW_SMART_COMPACTION_METHOD: undefined,
+        PICLAW_COMPACTION_TIMEOUT_MS: undefined,
+        PICLAW_COMPACTION_BACKOFF_BASE_MS: undefined,
+        PICLAW_COMPACTION_BACKOFF_MAX_MS: undefined,
+        PICLAW_COMPACTION_THRESHOLD_PERCENT: undefined,
+        PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS: undefined,
+        PICLAW_AUTO_COMPACTION_SCOPE: undefined,
+        PICLAW_COMPACTION_HARD_CEILING_PERCENT: undefined,
+        PICLAW_COMPACTION_WARNING_THRESHOLD: undefined,
+        PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: undefined,
+        PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: undefined,
+      } }).snapshot;
+      expect(persisted["call:getCompactionRuntimeConfig"]).toMatchObject({
+        autoCompactionEnabled: false, smartCompactionMethod: "pipelined", timeoutMs: 400000,
+        backoffBaseMs: 120000, backoffMaxMs: 600000, thresholdPercent: 70,
+        maxThresholdTokens: 123456, autoCompactionScope: "body_after_prefix",
+        hardCeilingPercent: 98, warningThreshold: 4, backoffDecayFactor: 0.25,
+      });
+      expect(persisted["call:getMidTurnToolExecutionHardCeiling"]).toBe(72);
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_AUTO_COMPACTION_ENABLED: "1",
+        PICLAW_SMART_COMPACTION_METHOD: "traditional pipelined",
+        PICLAW_COMPACTION_TIMEOUT_MS: "450000",
+        PICLAW_COMPACTION_BACKOFF_BASE_MS: "900000",
+        PICLAW_COMPACTION_BACKOFF_MAX_MS: "100000",
+        PICLAW_COMPACTION_THRESHOLD_PERCENT: "invalid",
+        PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS: "0",
+        PICLAW_AUTO_COMPACTION_SCOPE: "total",
+        PICLAW_COMPACTION_HARD_CEILING_PERCENT: "100",
+        PICLAW_COMPACTION_WARNING_THRESHOLD: "5",
+        PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: "0.5",
+        PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "9999",
+      } });
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+        autoCompactionEnabled: true, smartCompactionMethod: "pipelined", timeoutMs: 450000,
+        backoffBaseMs: 900000, backoffMaxMs: 900000, thresholdPercent: 70,
+        maxThresholdTokens: 0, autoCompactionScope: "total", hardCeilingPercent: 100,
+        warningThreshold: 5, backoffDecayFactor: 0.5,
+      });
+      expect(snapshot["call:getMidTurnToolExecutionHardCeiling"]).toBe(512);
+      for (const envKey of [
+        "PICLAW_AUTO_COMPACTION_ENABLED", "PICLAW_SMART_COMPACTION_METHOD", "PICLAW_COMPACTION_TIMEOUT_MS",
+        "PICLAW_COMPACTION_BACKOFF_BASE_MS", "PICLAW_COMPACTION_BACKOFF_MAX_MS",
+        "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS", "PICLAW_AUTO_COMPACTION_SCOPE",
+        "PICLAW_COMPACTION_HARD_CEILING_PERCENT", "PICLAW_COMPACTION_WARNING_THRESHOLD",
+        "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_COMPACTION_THRESHOLD_PERCENT"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {
