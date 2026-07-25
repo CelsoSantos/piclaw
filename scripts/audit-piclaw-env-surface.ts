@@ -187,7 +187,7 @@ function main(): void {
       mkdirSync(dirname(runtimeSrcBaselinePath), { recursive: true });
       writeFileSync(runtimeSrcBaselinePath, stableJson({
         version: 1,
-        source: `accepted #752A reduction from ${observations.runtimeSrcDirectBaseline.names.length} to ${currentRuntimeSrcDirectNames(observations).length}`,
+        source: `accepted direct-reader reduction from ${observations.runtimeSrcDirectBaseline.names.length} to ${currentRuntimeSrcDirectNames(observations).length}`,
         names: currentRuntimeSrcDirectNames(observations),
       }));
       observations = buildObservations();

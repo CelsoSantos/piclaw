@@ -3255,27 +3255,29 @@
     {
       "name": "PICLAW_TERMINAL_IMAGE_PROTOCOL",
       "owner": "web",
-      "type": "integer",
-      "default": null,
-      "bounds": null,
+      "type": "string",
+      "default": "iterm2",
+      "bounds": "non-empty string",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.terminalImageProtocol",
+      "deprecation": "compatibility env alias for domains.web.terminalImageProtocol",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TEST_PLATFORM",
@@ -3707,28 +3709,39 @@
     },
     {
       "name": "PICLAW_TRUST_PROXY",
-      "owner": "core",
+      "owner": "web",
       "type": "boolean",
-      "default": null,
+      "default": false,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.trustProxy",
+      "deprecation": "compatibility env alias for domains.web.trustProxy",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TURN_AUTO_RECOVERY_ENABLED",
@@ -3938,9 +3951,9 @@
     },
     {
       "name": "PICLAW_VNC_ALLOW_DIRECT",
-      "owner": "tools",
+      "owner": "web",
       "type": "boolean",
-      "default": null,
+      "default": "platform-dependent (true on Linux/macOS/Windows)",
       "bounds": null,
       "allowedValues": [
         "1",
@@ -3959,26 +3972,25 @@
         "json-config"
       ],
       "precedence": [
-        "CLI flags",
         "process.env",
         ".env",
-        ".piclaw/config.json",
+        "json-config",
         "defaults"
       ],
       "status": "compatibility",
-      "compatibilityAliasFor": "PICLAW_WEB_VNC_ALLOW_DIRECT",
-      "deprecation": "compatibility alias",
-      "removalVersion": null,
+      "compatibilityAliasFor": "domains.web.vncAllowDirect",
+      "deprecation": "compatibility env alias for domains.web.vncAllowDirect",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_VNC_TARGETS",
-      "owner": "tools",
+      "owner": "web",
       "type": "json",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "JSON array or object encoded as a string",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -3987,19 +3999,18 @@
         "json-config"
       ],
       "precedence": [
-        "CLI flags",
         "process.env",
         ".env",
-        ".piclaw/config.json",
+        "json-config",
         "defaults"
       ],
       "status": "compatibility",
-      "compatibilityAliasFor": "PICLAW_WEB_VNC_TARGETS",
-      "deprecation": "compatibility alias",
-      "removalVersion": null,
+      "compatibilityAliasFor": "domains.web.vncTargets",
+      "deprecation": "compatibility env alias for domains.web.vncTargets",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
@@ -4082,28 +4093,31 @@
     },
     {
       "name": "PICLAW_WEB_IDLE_TIMEOUT",
-      "owner": "core",
+      "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 0,
+      "bounds": ">= 0 seconds",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
+        "CLI flags",
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.idleTimeout",
+      "deprecation": "compatibility env alias for domains.web.idleTimeout",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_INTERNAL_SECRET",
@@ -4194,28 +4208,34 @@
     },
     {
       "name": "PICLAW_WEB_PASSKEY_MODE",
-      "owner": "core",
-      "type": "secret",
-      "default": null,
+      "owner": "web",
+      "type": "enum",
+      "default": "totp-fallback",
       "bounds": null,
-      "allowedValues": [],
-      "secret": true,
+      "allowedValues": [
+        "totp-fallback",
+        "totp-only",
+        "passkey-only"
+      ],
+      "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.passkeyMode",
+      "deprecation": "compatibility env alias for domains.web.passkeyMode",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_PERSIST_THINKING",
@@ -4333,77 +4353,83 @@
     {
       "name": "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
       "owner": "web",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 32,
+      "bounds": ">= 1",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.pushSubscriptionCap",
+      "deprecation": "compatibility env alias for domains.web.pushSubscriptionCap",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_PUSH_VAPID_SUBJECT",
       "owner": "web",
       "type": "string",
-      "default": null,
-      "bounds": null,
+      "default": "mailto:notifications@localhost.invalid",
+      "bounds": "non-empty string",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.pushVapidSubject",
+      "deprecation": "compatibility env alias for domains.web.pushVapidSubject",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_SESSION_TTL",
-      "owner": "core",
+      "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 604800,
+      "bounds": ">= 1 second",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.sessionTtl",
+      "deprecation": "compatibility env alias for domains.web.sessionTtl",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_STATIC_DIR",
@@ -4432,28 +4458,39 @@
     },
     {
       "name": "PICLAW_WEB_TERMINAL_ENABLED",
-      "owner": "tools",
+      "owner": "web",
       "type": "boolean",
-      "default": null,
+      "default": "platform-dependent (true on Linux/macOS)",
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.terminalEnabled",
+      "deprecation": "compatibility env alias for domains.web.terminalEnabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_TLS_CERT",
@@ -4537,28 +4574,30 @@
     },
     {
       "name": "PICLAW_WEB_TOTP_WINDOW",
-      "owner": "core",
+      "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1,
+      "bounds": ">= 0",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.totpWindow",
+      "deprecation": "compatibility env alias for domains.web.totpWindow",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_UI_MODE",
@@ -4592,53 +4631,66 @@
     },
     {
       "name": "PICLAW_WEB_VNC_ALLOW_DIRECT",
-      "owner": "tools",
+      "owner": "web",
       "type": "boolean",
-      "default": null,
+      "default": "platform-dependent (true on Linux/macOS/Windows)",
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.vncAllowDirect",
+      "deprecation": "compatibility env alias for domains.web.vncAllowDirect",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_VNC_TARGETS",
-      "owner": "tools",
+      "owner": "web",
       "type": "json",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "JSON array or object encoded as a string",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.web.vncTargets",
+      "deprecation": "compatibility env alias for domains.web.vncTargets",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#752B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WEB_WIDGET_TOKEN",

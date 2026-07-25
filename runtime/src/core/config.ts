@@ -89,10 +89,14 @@ const envConfig = readEnvFile([
   "PICLAW_WEB_TOTP_SECRET",
   "PICLAW_WEB_TOTP_WINDOW",
   "PICLAW_WEB_SESSION_TTL",
+  "PICLAW_WEB_IDLE_TIMEOUT",
   "PICLAW_WEB_INTERNAL_SECRET",
   "PICLAW_WEB_WIDGET_TOKEN",
   "PICLAW_WEB_PASSKEY_MODE",
+  "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
+  "PICLAW_WEB_PUSH_VAPID_SUBJECT",
   "PICLAW_WEB_TERMINAL_ENABLED",
+  "PICLAW_TERMINAL_IMAGE_PROTOCOL",
   "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
   "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",
   "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS",
@@ -333,6 +337,34 @@ const configWebPasskeyMode = pickString(webConfig, [
   "web_passkey_mode",
   "PICLAW_WEB_PASSKEY_MODE",
 ]);
+const configWebIdleTimeout = pickNumber(webConfig, [
+  "idleTimeout",
+  "idle_timeout",
+  "webIdleTimeout",
+  "web_idle_timeout",
+  "PICLAW_WEB_IDLE_TIMEOUT",
+]);
+const configWebPushSubscriptionCap = pickNumber(webConfig, [
+  "pushSubscriptionCap",
+  "push_subscription_cap",
+  "webPushSubscriptionCap",
+  "web_push_subscription_cap",
+  "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
+]);
+const configWebPushVapidSubject = pickString(webConfig, [
+  "pushVapidSubject",
+  "push_vapid_subject",
+  "webPushVapidSubject",
+  "web_push_vapid_subject",
+  "PICLAW_WEB_PUSH_VAPID_SUBJECT",
+]);
+const configWebTerminalImageProtocol = pickString(webConfig, [
+  "terminalImageProtocol",
+  "terminal_image_protocol",
+  "webTerminalImageProtocol",
+  "web_terminal_image_protocol",
+  "PICLAW_TERMINAL_IMAGE_PROTOCOL",
+]);
 const configWebComposeUploadLimitMb = pickNumber(webConfig, [
   "composeUploadLimitMb",
   "compose_upload_limit_mb",
@@ -509,6 +541,21 @@ function parsePort(value: string | undefined, fallback: number): number {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+function parseOptionalIntegerArg(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function parseLegacyPushSubscriptionCap(value: string): number {
+  const parsed = Number.parseInt(value || "32", 10);
+  return Number.isFinite(parsed) ? Math.max(1, parsed) : 32;
+}
+
+function parseLegacyNonEmptyString(value: string, fallback: string): string {
+  return value.trim() || fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Web channel configuration (HTTP server, TLS, auth).
 // ---------------------------------------------------------------------------
@@ -516,8 +563,8 @@ function parsePort(value: string | undefined, fallback: number): number {
 const ENV_WEB_PORT = parseInt(process.env.PICLAW_WEB_PORT || "8080", 10);
 const CLI_WEB_PORT = readCliArg("--port", "-p");
 const CLI_WEB_HOST = readCliArg("--host");
-const ENV_WEB_IDLE_TIMEOUT = parseInt(process.env.PICLAW_WEB_IDLE_TIMEOUT || "0", 10);
 const CLI_WEB_IDLE_TIMEOUT = readCliArg("--idle-timeout");
+const CLI_WEB_IDLE_TIMEOUT_VALUE = parseOptionalIntegerArg(CLI_WEB_IDLE_TIMEOUT);
 const CLI_WEB_TLS_CERT = readCliArg("--tls-cert");
 const CLI_WEB_TLS_KEY = readCliArg("--tls-key");
 
@@ -530,30 +577,17 @@ export interface WebServerConfig {
   tlsKey: string;
 }
 
-/** Grouped web server network/TLS settings. */
-export const WEB_SERVER_CONFIG = Object.freeze<WebServerConfig>({
-  port: parsePort(CLI_WEB_PORT, ENV_WEB_PORT),
-  host: CLI_WEB_HOST || process.env.PICLAW_WEB_HOST || "0.0.0.0",
-  idleTimeout: parsePort(CLI_WEB_IDLE_TIMEOUT, ENV_WEB_IDLE_TIMEOUT),
-  tlsCert:
-    CLI_WEB_TLS_CERT ||
-    process.env.PICLAW_WEB_TLS_CERT ||
-    envConfig.PICLAW_WEB_TLS_CERT ||
-    (HAS_DEFAULT_TLS ? DEFAULT_TLS_CERT_PATH : ""),
-  tlsKey:
-    CLI_WEB_TLS_KEY ||
-    process.env.PICLAW_WEB_TLS_KEY ||
-    envConfig.PICLAW_WEB_TLS_KEY ||
-    (HAS_DEFAULT_TLS ? DEFAULT_TLS_KEY_PATH : ""),
-});
-
-/** Return grouped web server settings for WebChannel wiring and tests. */
-export function getWebServerConfig(): Readonly<WebServerConfig> {
-  return WEB_SERVER_CONFIG;
-}
-
 /** Mutable web auth/session/runtime settings grouped for auth and UI wiring. */
-export type WebUiMode = 'classic' | 'visual';
+export type WebUiMode = "classic" | "visual";
+const WEB_PASSKEY_MODES = ["totp-fallback", "totp-only", "passkey-only"] as const;
+export type WebPasskeyMode = (typeof WEB_PASSKEY_MODES)[number];
+
+function parseWebPasskeyMode(value: unknown): WebPasskeyMode {
+  if (typeof value !== "string") throw new Error("Invalid string domain config value for passkeyMode");
+  const normalized = value.trim().toLowerCase();
+  if ((WEB_PASSKEY_MODES as readonly string[]).includes(normalized)) return normalized as WebPasskeyMode;
+  throw new Error("Domain config value is not allowed for passkeyMode");
+}
 
 export interface WebRuntimeConfig {
   uiMode: WebUiMode;
@@ -562,8 +596,11 @@ export interface WebRuntimeConfig {
   sessionTtl: number;
   internalSecret: string;
   widgetToken: string;
-  passkeyMode: string;
+  passkeyMode: WebPasskeyMode;
   terminalEnabled: boolean;
+  terminalImageProtocol: string;
+  pushSubscriptionCap: number;
+  pushVapidSubject: string;
   composeUploadLimitMb: number;
   workspaceUploadLimitMb: number;
   notificationDebugLabels: boolean;
@@ -593,41 +630,114 @@ function clampWorkspaceUploadLimitMb(value: unknown, fallback: number): number {
   return Math.min(1024, Math.max(1, Math.round(parsed)));
 }
 
+const legacyWebTotpWindow = pickNumber(piclawConfig, ["webTotpWindow", "totpWindow"]);
+const legacyWebSessionTtl = pickNumber(piclawConfig, ["webSessionTtl", "sessionTtl"]);
+const legacyWebPasskeyMode = pickString(piclawConfig, ["webPasskeyMode", "passkeyMode"]);
+const legacyWebIdleTimeout = pickNumber(piclawConfig, ["webIdleTimeout", "idleTimeout"]);
+const legacyWebPushSubscriptionCap = pickNumber(piclawConfig, ["webPushSubscriptionCap", "pushSubscriptionCap"]);
+const legacyWebPushVapidSubject = pickString(piclawConfig, ["webPushVapidSubject", "pushVapidSubject"]);
+const legacyWebTerminalImageProtocol = pickString(piclawConfig, ["webTerminalImageProtocol", "terminalImageProtocol"]);
 const nestedWebTerminalEnabled = pickBoolean(webConfig, ["terminalEnabled", "webTerminalEnabled", "PICLAW_WEB_TERMINAL_ENABLED"]);
 const legacyWebTerminalEnabled = pickBoolean(piclawConfig, ["webTerminalEnabled"]);
-const envWebTerminalEnabled = pickBoolean({ PICLAW_WEB_TERMINAL_ENABLED: process.env.PICLAW_WEB_TERMINAL_ENABLED ?? envConfig.PICLAW_WEB_TERMINAL_ENABLED }, ["PICLAW_WEB_TERMINAL_ENABLED"]);
 const nestedWebNotificationDebugLabels = pickBoolean(webConfig, ["notificationDebugLabels", "notification_debug_labels", "webNotificationDebugLabels", "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS"]);
 const legacyWebNotificationDebugLabels = pickBoolean(piclawConfig, ["webNotificationDebugLabels"]);
 const nestedWebVncAllowDirect = pickBoolean(webConfig, ["vncAllowDirect", "vnc_allow_direct", "webVncAllowDirect", "PICLAW_WEB_VNC_ALLOW_DIRECT", "PICLAW_VNC_ALLOW_DIRECT"]);
 const legacyWebVncAllowDirect = pickBoolean(piclawConfig, ["webVncAllowDirect"]);
-const envWebVncAllowDirect = pickBoolean({ PICLAW_WEB_VNC_ALLOW_DIRECT: process.env.PICLAW_WEB_VNC_ALLOW_DIRECT ?? envConfig.PICLAW_WEB_VNC_ALLOW_DIRECT ?? process.env.PICLAW_VNC_ALLOW_DIRECT ?? envConfig.PICLAW_VNC_ALLOW_DIRECT }, ["PICLAW_WEB_VNC_ALLOW_DIRECT"]);
 const nestedWebVncTargets = pickString(webConfig, ["vncTargets", "vnc_targets", "webVncTargets", "PICLAW_WEB_VNC_TARGETS", "PICLAW_VNC_TARGETS"]);
 const legacyWebVncTargets = pickString(piclawConfig, ["webVncTargets"]);
 const legacyWebComposeUploadLimitMb = pickNumber(piclawConfig, ["webComposeUploadLimitMb", "composeUploadLimitMb"]);
 const legacyWebWorkspaceUploadLimitMb = pickNumber(piclawConfig, ["webWorkspaceUploadLimitMb", "workspaceUploadLimitMb"]);
+const legacyWebTrustProxy = pickBoolean(piclawConfig, ["trustProxy", "PICLAW_TRUST_PROXY"]);
 const debugCards = pickBoolean(piclawConfig, ["debugCardSubmissions", "PICLAW_DEBUG_CARD_SUBMISSIONS"]);
-const envTrustProxyRaw = process.env.PICLAW_TRUST_PROXY ?? envConfig.PICLAW_TRUST_PROXY;
-const envTrustProxy = pickBoolean({ PICLAW_TRUST_PROXY: envTrustProxyRaw }, ["PICLAW_TRUST_PROXY"]);
 
-type WebOrdinaryDomainConfig = Pick<WebRuntimeConfig, "uiMode" | "composeUploadLimitMb" | "workspaceUploadLimitMb" | "notificationDebugLabels" | "debugCardSubmissions"> & {
+function getWebOrdinaryDomainConfigOptions(): DomainConfigRuntimeOptions {
+  const options = getDomainConfigOptions();
+  if (CLI_WEB_IDLE_TIMEOUT_VALUE === undefined) return options;
+  return {
+    ...options,
+    bootstrapValues: { idleTimeout: CLI_WEB_IDLE_TIMEOUT_VALUE },
+  };
+}
+
+type WebOrdinaryDomainConfig = Pick<
+  WebRuntimeConfig,
+  | "uiMode"
+  | "totpWindow"
+  | "sessionTtl"
+  | "passkeyMode"
+  | "terminalEnabled"
+  | "terminalImageProtocol"
+  | "pushSubscriptionCap"
+  | "pushVapidSubject"
+  | "composeUploadLimitMb"
+  | "workspaceUploadLimitMb"
+  | "notificationDebugLabels"
+  | "vncAllowDirect"
+  | "debugCardSubmissions"
+  | "trustProxy"
+> & {
+  idleTimeout: number;
   persistThinking: boolean;
   persistThinkingMaxChars: number;
+  vncTargets: string;
 };
 
 const webOrdinaryDomainSchema = registerDomainConfig<WebOrdinaryDomainConfig>({
   domain: "web",
   fields: {
     uiMode: stringField({ key: "uiMode", owner: "web", defaultValue: "classic", allowedValues: ["classic", "visual"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_UI_MODE", replacement: "domains.web.uiMode", removalVersion: "3.0.0" }] }) as DomainConfigField<WebUiMode>,
+    idleTimeout: integerField({ key: "idleTimeout", owner: "web", defaultValue: configWebIdleTimeout ?? legacyWebIdleTimeout ?? 0, min: 0, bounds: ">=0", persistence: "json-config", precedence: ["bootstrap-cli-env", "compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_IDLE_TIMEOUT", replacement: "domains.web.idleTimeout", removalVersion: "3.0.0" }] }),
     persistThinking: boolField({ key: "persistThinking", owner: "web", defaultValue: false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PERSIST_THINKING", replacement: "domains.web.persistThinking", removalVersion: "3.0.0" }] }),
     persistThinkingMaxChars: integerField({ key: "persistThinkingMaxChars", owner: "web", defaultValue: 100000, min: 1, bounds: "positive integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS", replacement: "domains.web.persistThinkingMaxChars", removalVersion: "3.0.0", parse: (raw) => { const parsed = Number(raw); return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 100000; } }] }),
+    totpWindow: integerField({ key: "totpWindow", owner: "web", defaultValue: configWebTotpWindow ?? legacyWebTotpWindow ?? 1, min: 0, bounds: ">=0", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_TOTP_WINDOW", replacement: "domains.web.totpWindow", removalVersion: "3.0.0" }] }),
+    sessionTtl: integerField({ key: "sessionTtl", owner: "web", defaultValue: configWebSessionTtl ?? legacyWebSessionTtl ?? (7 * 24 * 60 * 60), min: 1, bounds: "positive integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_SESSION_TTL", replacement: "domains.web.sessionTtl", removalVersion: "3.0.0" }] }),
+    passkeyMode: {
+      ...stringField({ key: "passkeyMode", owner: "web", defaultValue: configWebPasskeyMode ?? legacyWebPasskeyMode ?? "totp-fallback", allowedValues: WEB_PASSKEY_MODES, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PASSKEY_MODE", replacement: "domains.web.passkeyMode", removalVersion: "3.0.0" }] }),
+      validate: parseWebPasskeyMode,
+    } as DomainConfigField<WebPasskeyMode>,
+    pushSubscriptionCap: integerField({ key: "pushSubscriptionCap", owner: "web", defaultValue: configWebPushSubscriptionCap ?? legacyWebPushSubscriptionCap ?? 32, min: 1, bounds: "positive integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP", replacement: "domains.web.pushSubscriptionCap", removalVersion: "3.0.0", parse: parseLegacyPushSubscriptionCap }] }),
+    pushVapidSubject: stringField({ key: "pushVapidSubject", owner: "web", defaultValue: configWebPushVapidSubject ?? legacyWebPushVapidSubject ?? "mailto:notifications@localhost.invalid", nonEmpty: true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PUSH_VAPID_SUBJECT", replacement: "domains.web.pushVapidSubject", removalVersion: "3.0.0", parse: (raw) => parseLegacyNonEmptyString(raw, "mailto:notifications@localhost.invalid") }] }),
+    terminalEnabled: boolField({ key: "terminalEnabled", owner: "web", defaultValue: nestedWebTerminalEnabled ?? legacyWebTerminalEnabled ?? isDefaultWebTerminalEnabled(), persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_TERMINAL_ENABLED", replacement: "domains.web.terminalEnabled", removalVersion: "3.0.0" }] }),
+    terminalImageProtocol: stringField({ key: "terminalImageProtocol", owner: "web", defaultValue: configWebTerminalImageProtocol ?? legacyWebTerminalImageProtocol ?? "iterm2", nonEmpty: true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TERMINAL_IMAGE_PROTOCOL", replacement: "domains.web.terminalImageProtocol", removalVersion: "3.0.0", parse: (raw) => parseLegacyNonEmptyString(raw, "iterm2") }] }),
     composeUploadLimitMb: integerField({ key: "composeUploadLimitMb", owner: "web", defaultValue: configWebComposeUploadLimitMb ?? legacyWebComposeUploadLimitMb ?? 32, min: 1, max: 512, bounds: "1..512", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB", replacement: "domains.web.composeUploadLimitMb", removalVersion: "3.0.0" }] }),
     workspaceUploadLimitMb: integerField({ key: "workspaceUploadLimitMb", owner: "web", defaultValue: configWebWorkspaceUploadLimitMb ?? legacyWebWorkspaceUploadLimitMb ?? 256, min: 1, max: 1024, bounds: "1..1024", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB", replacement: "domains.web.workspaceUploadLimitMb", removalVersion: "3.0.0" }] }),
     notificationDebugLabels: boolField({ key: "notificationDebugLabels", owner: "web", defaultValue: nestedWebNotificationDebugLabels ?? legacyWebNotificationDebugLabels ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS", replacement: "domains.web.notificationDebugLabels", removalVersion: "3.0.0" }] }),
+    vncAllowDirect: boolField({ key: "vncAllowDirect", owner: "web", defaultValue: nestedWebVncAllowDirect ?? legacyWebVncAllowDirect ?? isDefaultWebVncDirectEnabled(), persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_WEB_VNC_ALLOW_DIRECT", replacement: "domains.web.vncAllowDirect", removalVersion: "3.0.0" },
+      { envKey: "PICLAW_VNC_ALLOW_DIRECT", replacement: "domains.web.vncAllowDirect", removalVersion: "3.0.0" },
+    ] }),
+    vncTargets: stringField({ key: "vncTargets", owner: "web", defaultValue: nestedWebVncTargets ?? legacyWebVncTargets ?? "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_WEB_VNC_TARGETS", replacement: "domains.web.vncTargets", removalVersion: "3.0.0" },
+      { envKey: "PICLAW_VNC_TARGETS", replacement: "domains.web.vncTargets", removalVersion: "3.0.0" },
+    ] }),
     debugCardSubmissions: boolField({ key: "debugCardSubmissions", owner: "web", defaultValue: debugCards ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_DEBUG_CARD_SUBMISSIONS", replacement: "domains.web.debugCardSubmissions", removalVersion: "3.0.0" }] }),
+    trustProxy: boolField({ key: "trustProxy", owner: "web", defaultValue: configTrustProxy ?? legacyWebTrustProxy ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TRUST_PROXY", replacement: "domains.web.trustProxy", removalVersion: "3.0.0" }] }),
   },
 });
 
-const WEB_ORDINARY_DOMAIN_CONFIG = readDomainConfig(webOrdinaryDomainSchema, getDomainConfigOptions());
+const WEB_ORDINARY_DOMAIN_CONFIG = readDomainConfig(webOrdinaryDomainSchema, getWebOrdinaryDomainConfigOptions());
+
+/** Grouped web server network/TLS settings. */
+export const WEB_SERVER_CONFIG = Object.freeze<WebServerConfig>({
+  port: parsePort(CLI_WEB_PORT, ENV_WEB_PORT),
+  host: CLI_WEB_HOST || process.env.PICLAW_WEB_HOST || "0.0.0.0",
+  idleTimeout: WEB_ORDINARY_DOMAIN_CONFIG.idleTimeout,
+  tlsCert:
+    CLI_WEB_TLS_CERT ||
+    process.env.PICLAW_WEB_TLS_CERT ||
+    envConfig.PICLAW_WEB_TLS_CERT ||
+    (HAS_DEFAULT_TLS ? DEFAULT_TLS_CERT_PATH : ""),
+  tlsKey:
+    CLI_WEB_TLS_KEY ||
+    process.env.PICLAW_WEB_TLS_KEY ||
+    envConfig.PICLAW_WEB_TLS_KEY ||
+    (HAS_DEFAULT_TLS ? DEFAULT_TLS_KEY_PATH : ""),
+});
+
+/** Return grouped web server settings for WebChannel wiring and tests. */
+export function getWebServerConfig(): Readonly<WebServerConfig> {
+  return WEB_SERVER_CONFIG;
+}
 
 /** Grouped web auth/session/runtime settings. `totpSecret` stays mutable for runtime resets. */
 export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
@@ -637,18 +747,8 @@ export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
     envConfig.PICLAW_WEB_TOTP_SECRET ||
     configWebTotpSecret ||
     "",
-  totpWindow: parseInt(
-    process.env.PICLAW_WEB_TOTP_WINDOW ||
-      envConfig.PICLAW_WEB_TOTP_WINDOW ||
-      (configWebTotpWindow !== undefined ? String(configWebTotpWindow) : "1"),
-    10
-  ),
-  sessionTtl: parseInt(
-    process.env.PICLAW_WEB_SESSION_TTL ||
-      envConfig.PICLAW_WEB_SESSION_TTL ||
-      (configWebSessionTtl !== undefined ? String(configWebSessionTtl) : String(7 * 24 * 60 * 60)),
-    10
-  ),
+  totpWindow: WEB_ORDINARY_DOMAIN_CONFIG.totpWindow,
+  sessionTtl: WEB_ORDINARY_DOMAIN_CONFIG.sessionTtl,
   internalSecret:
     process.env.PICLAW_INTERNAL_SECRET ||
     process.env.PICLAW_WEB_INTERNAL_SECRET ||
@@ -661,27 +761,18 @@ export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
     envConfig.PICLAW_WEB_WIDGET_TOKEN ||
     configWebWidgetToken ||
     "",
-  passkeyMode: (
-    process.env.PICLAW_WEB_PASSKEY_MODE ||
-    envConfig.PICLAW_WEB_PASSKEY_MODE ||
-    configWebPasskeyMode ||
-    "totp-fallback"
-  ).toLowerCase(),
-  terminalEnabled: envWebTerminalEnabled ?? nestedWebTerminalEnabled ?? legacyWebTerminalEnabled ?? isDefaultWebTerminalEnabled(),
+  passkeyMode: WEB_ORDINARY_DOMAIN_CONFIG.passkeyMode,
+  terminalEnabled: WEB_ORDINARY_DOMAIN_CONFIG.terminalEnabled,
+  terminalImageProtocol: WEB_ORDINARY_DOMAIN_CONFIG.terminalImageProtocol,
+  pushSubscriptionCap: WEB_ORDINARY_DOMAIN_CONFIG.pushSubscriptionCap,
+  pushVapidSubject: WEB_ORDINARY_DOMAIN_CONFIG.pushVapidSubject,
   composeUploadLimitMb: WEB_ORDINARY_DOMAIN_CONFIG.composeUploadLimitMb,
   workspaceUploadLimitMb: WEB_ORDINARY_DOMAIN_CONFIG.workspaceUploadLimitMb,
   notificationDebugLabels: WEB_ORDINARY_DOMAIN_CONFIG.notificationDebugLabels,
-  vncAllowDirect: envWebVncAllowDirect ?? nestedWebVncAllowDirect ?? legacyWebVncAllowDirect ?? isDefaultWebVncDirectEnabled(),
-  vncTargetsRaw:
-    process.env.PICLAW_WEB_VNC_TARGETS ||
-    envConfig.PICLAW_WEB_VNC_TARGETS ||
-    process.env.PICLAW_VNC_TARGETS ||
-    envConfig.PICLAW_VNC_TARGETS ||
-    nestedWebVncTargets ||
-    legacyWebVncTargets ||
-    "",
+  vncAllowDirect: WEB_ORDINARY_DOMAIN_CONFIG.vncAllowDirect,
+  vncTargetsRaw: WEB_ORDINARY_DOMAIN_CONFIG.vncTargets,
   debugCardSubmissions: WEB_ORDINARY_DOMAIN_CONFIG.debugCardSubmissions,
-  trustProxy: envTrustProxy ?? configTrustProxy ?? false,
+  trustProxy: WEB_ORDINARY_DOMAIN_CONFIG.trustProxy,
 });
 
 /** Return grouped web auth/session/runtime settings for handlers and tests. */
@@ -690,7 +781,7 @@ export function getWebRuntimeConfig(): Readonly<WebRuntimeConfig> {
 }
 
 function readWebOrdinaryDomainConfig(): WebOrdinaryDomainConfig {
-  return readDomainConfig(webOrdinaryDomainSchema, getDomainConfigOptions());
+  return readDomainConfig(webOrdinaryDomainSchema, getWebOrdinaryDomainConfigOptions());
 }
 
 export function isPersistThinkingEnabled(): boolean {
@@ -703,56 +794,21 @@ export function getPersistThinkingMaxChars(): number {
 
 /** Persist and apply the web terminal toggle so new requests see it immediately. */
 export function setWebTerminalEnabled(enabled: boolean): boolean {
-  const nextEnabled = Boolean(enabled);
-  const config = readJsonConfig(getConfigPath());
-  const web =
-    config.web && typeof config.web === "object"
-      ? { ...(config.web as Record<string, unknown>) }
-      : {};
-  const webKeys = ["terminalEnabled", "webTerminalEnabled", "PICLAW_WEB_TERMINAL_ENABLED"];
-  for (const key of webKeys) {
-    delete web[key];
-  }
-  web.terminalEnabled = nextEnabled;
-  config.web = web;
-  delete config.webTerminalEnabled;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_WEB_TERMINAL_ENABLED = nextEnabled ? "1" : "0";
-  WEB_RUNTIME_CONFIG.terminalEnabled = nextEnabled;
-  return WEB_RUNTIME_CONFIG.terminalEnabled;
+  return persistWebOrdinarySetting("terminalEnabled", Boolean(enabled));
 }
 
 export function setWebVncAllowDirect(enabled: boolean): boolean {
-  const nextEnabled = Boolean(enabled);
-  const config = readJsonConfig(getConfigPath());
-  const web =
-    config.web && typeof config.web === "object"
-      ? { ...(config.web as Record<string, unknown>) }
-      : {};
-  const webKeys = ["vncAllowDirect", "vnc_allow_direct", "webVncAllowDirect", "PICLAW_WEB_VNC_ALLOW_DIRECT", "PICLAW_VNC_ALLOW_DIRECT"];
-  for (const key of webKeys) {
-    delete web[key];
-    delete config[key];
-  }
-  web.vncAllowDirect = nextEnabled;
-  config.web = web;
-  delete config.webVncAllowDirect;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_WEB_VNC_ALLOW_DIRECT = nextEnabled ? "1" : "0";
-  process.env.PICLAW_VNC_ALLOW_DIRECT = nextEnabled ? "1" : "0";
-  WEB_RUNTIME_CONFIG.vncAllowDirect = nextEnabled;
-  return WEB_RUNTIME_CONFIG.vncAllowDirect;
+  return persistWebOrdinarySetting("vncAllowDirect", Boolean(enabled));
 }
 
 function persistWebOrdinarySetting<K extends keyof WebOrdinaryDomainConfig>(key: K, value: WebOrdinaryDomainConfig[K]): WebOrdinaryDomainConfig[K] {
-  writeDomainConfigField(webOrdinaryDomainSchema, getDomainConfigOptions(), key, value);
-  WEB_ORDINARY_DOMAIN_CONFIG[key] = value;
+  const resolved = writeDomainConfigField(webOrdinaryDomainSchema, getWebOrdinaryDomainConfigOptions(), key, value);
+  const effectiveValue = resolved[key];
+  WEB_ORDINARY_DOMAIN_CONFIG[key] = effectiveValue;
   if (key in WEB_RUNTIME_CONFIG) {
-    (WEB_RUNTIME_CONFIG as unknown as Record<string, unknown>)[key as string] = value;
+    (WEB_RUNTIME_CONFIG as unknown as Record<string, unknown>)[key as string] = effectiveValue;
   }
-  return value;
+  return effectiveValue;
 }
 
 function persistWebNumberSetting(options: {

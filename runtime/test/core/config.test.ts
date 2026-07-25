@@ -91,6 +91,14 @@ function loadConfigInSubprocess(
   return runConfigSubprocess(workspace, exports, options).snapshot;
 }
 
+function expectCompatWarningOnce(stderr: string, envKey: string): void {
+  const warningLines = stderr
+    .split("\n")
+    .filter((line) => line.includes('"operation":"domain_config.compat_env"') && line.includes(`"envKey":"${envKey}"`));
+  expect(warningLines, envKey).toHaveLength(1);
+  expect(warningLines[0]).toContain('"removalVersion":"3.0.0"');
+}
+
 describe("core config", () => {
   test("platform helpers expose the documented default remote-surface policy", async () => {
     await withFreshConfig({}, async ({ config }) => {
@@ -159,7 +167,7 @@ describe("core config", () => {
     }
   });
 
-  test("identity and ordinary web domain settings survive a fresh process without env aliases", () => {
+  test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {
       writeWorkspaceConfig(workspace.workspace, {
@@ -173,17 +181,29 @@ describe("core config", () => {
           },
           web: {
             uiMode: "visual",
+            idleTimeout: 123,
             persistThinking: true,
             persistThinkingMaxChars: 4321,
+            totpWindow: 7,
+            sessionTtl: 86400,
+            passkeyMode: "passkey-only",
+            pushSubscriptionCap: 24,
+            pushVapidSubject: "mailto:domain@example.test",
+            terminalEnabled: false,
+            terminalImageProtocol: "kitty",
             composeUploadLimitMb: 48,
             workspaceUploadLimitMb: 512,
             notificationDebugLabels: true,
+            vncAllowDirect: false,
+            vncTargets: '[{"label":"persisted"}]',
             debugCardSubmissions: true,
+            trustProxy: true,
           },
         },
       });
       const snapshot = loadConfigInSubprocess(workspace, [
         "call:getIdentityConfig",
+        "call:getWebServerConfig",
         "call:getWebRuntimeConfig",
         "call:isPersistThinkingEnabled",
         "call:getPersistThinkingMaxChars",
@@ -195,12 +215,25 @@ describe("core config", () => {
           PICLAW_USER_AVATAR: undefined,
           PICLAW_USER_AVATAR_BACKGROUND: undefined,
           PICLAW_WEB_UI_MODE: undefined,
+          PICLAW_WEB_IDLE_TIMEOUT: undefined,
           PICLAW_WEB_PERSIST_THINKING: undefined,
           PICLAW_WEB_PERSIST_THINKING_MAX_CHARS: undefined,
+          PICLAW_WEB_TOTP_WINDOW: undefined,
+          PICLAW_WEB_SESSION_TTL: undefined,
+          PICLAW_WEB_PASSKEY_MODE: undefined,
+          PICLAW_WEB_PUSH_SUBSCRIPTION_CAP: undefined,
+          PICLAW_WEB_PUSH_VAPID_SUBJECT: undefined,
+          PICLAW_WEB_TERMINAL_ENABLED: undefined,
+          PICLAW_TERMINAL_IMAGE_PROTOCOL: undefined,
           PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB: undefined,
           PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB: undefined,
           PICLAW_WEB_NOTIFICATION_DEBUG_LABELS: undefined,
+          PICLAW_WEB_VNC_ALLOW_DIRECT: undefined,
+          PICLAW_VNC_ALLOW_DIRECT: undefined,
+          PICLAW_WEB_VNC_TARGETS: undefined,
+          PICLAW_VNC_TARGETS: undefined,
           PICLAW_DEBUG_CARD_SUBMISSIONS: undefined,
+          PICLAW_TRUST_PROXY: undefined,
         },
       });
       expect(snapshot["call:getIdentityConfig"]).toEqual({
@@ -210,12 +243,23 @@ describe("core config", () => {
         userAvatar: "/persisted-user.png",
         userAvatarBackground: "#123456",
       });
+      expect(snapshot["call:getWebServerConfig"]).toMatchObject({ idleTimeout: 123 });
       expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({
         uiMode: "visual",
+        totpWindow: 7,
+        sessionTtl: 86400,
+        passkeyMode: "passkey-only",
+        terminalEnabled: false,
+        terminalImageProtocol: "kitty",
+        pushSubscriptionCap: 24,
+        pushVapidSubject: "mailto:domain@example.test",
         composeUploadLimitMb: 48,
         workspaceUploadLimitMb: 512,
         notificationDebugLabels: true,
+        vncAllowDirect: false,
+        vncTargetsRaw: '[{"label":"persisted"}]',
         debugCardSubmissions: true,
+        trustProxy: true,
       });
       expect(snapshot["call:isPersistThinkingEnabled"]).toBe(true);
       expect(snapshot["call:getPersistThinkingMaxChars"]).toBe(4321);
@@ -224,40 +268,116 @@ describe("core config", () => {
     }
   });
 
-  test("PICLAW compatibility aliases override persisted domain settings and report the 3.0.0 removal", () => {
+  test("compatibility aliases override persisted domain settings and warn once", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-compat-");
     try {
       writeWorkspaceConfig(workspace.workspace, {
         domains: {
           identity: { assistantName: "Persisted Assistant" },
-          web: { uiMode: "classic" },
+          web: {
+            uiMode: "classic",
+            idleTimeout: 5,
+            totpWindow: 9,
+            sessionTtl: 120,
+            passkeyMode: "passkey-only",
+            pushSubscriptionCap: 4,
+            pushVapidSubject: "mailto:persisted@example.test",
+            terminalEnabled: true,
+            terminalImageProtocol: "sixel",
+            trustProxy: false,
+          },
         },
       });
       const { snapshot, stderr } = runConfigSubprocess(workspace, [
         "call:getIdentityConfig",
+        "call:getWebServerConfig",
         "call:getWebRuntimeConfig",
       ], {
         env: {
           PICLAW_ASSISTANT_NAME: "Compatibility Assistant",
           PICLAW_WEB_UI_MODE: "visual",
+          PICLAW_WEB_IDLE_TIMEOUT: "61",
+          PICLAW_WEB_TOTP_WINDOW: "2",
+          PICLAW_WEB_SESSION_TTL: "600",
+          PICLAW_WEB_PASSKEY_MODE: "totp-only",
+          PICLAW_WEB_PUSH_SUBSCRIPTION_CAP: "16",
+          PICLAW_WEB_PUSH_VAPID_SUBJECT: "mailto:compat@example.test",
+          PICLAW_WEB_TERMINAL_ENABLED: "0",
+          PICLAW_TERMINAL_IMAGE_PROTOCOL: "kitty",
+          PICLAW_TRUST_PROXY: "1",
         },
       });
       expect(snapshot["call:getIdentityConfig"]).toMatchObject({ assistantName: "Compatibility Assistant" });
-      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({ uiMode: "visual" });
-      for (const envKey of ["PICLAW_ASSISTANT_NAME", "PICLAW_WEB_UI_MODE"]) {
-        const warningLines = stderr.split("\n").filter((line) => line.includes('"operation":"domain_config.compat_env"') && line.includes(`"envKey":"${envKey}"`));
-        expect(warningLines, envKey).toHaveLength(1);
-        expect(warningLines[0]).toContain('"removalVersion":"3.0.0"');
+      expect(snapshot["call:getWebServerConfig"]).toMatchObject({ idleTimeout: 61 });
+      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({
+        uiMode: "visual",
+        totpWindow: 2,
+        sessionTtl: 600,
+        passkeyMode: "totp-only",
+        pushSubscriptionCap: 16,
+        pushVapidSubject: "mailto:compat@example.test",
+        terminalEnabled: false,
+        terminalImageProtocol: "kitty",
+        trustProxy: true,
+      });
+      for (const envKey of [
+        "PICLAW_ASSISTANT_NAME",
+        "PICLAW_WEB_UI_MODE",
+        "PICLAW_WEB_IDLE_TIMEOUT",
+        "PICLAW_WEB_TOTP_WINDOW",
+        "PICLAW_WEB_SESSION_TTL",
+        "PICLAW_WEB_PASSKEY_MODE",
+        "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
+        "PICLAW_WEB_PUSH_VAPID_SUBJECT",
+        "PICLAW_WEB_TERMINAL_ENABLED",
+        "PICLAW_TERMINAL_IMAGE_PROTOCOL",
+        "PICLAW_TRUST_PROXY",
+      ]) {
+        expectCompatWarningOnce(stderr, envKey);
       }
     } finally {
       workspace.cleanup();
     }
   });
 
-  test("CLI flags override env-derived web server settings", () => {
+  test("compatibility aliases preserve legacy push and terminal fallback behavior", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-legacy-fallback-");
+    try {
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getWebRuntimeConfig"], {
+        env: {
+          PICLAW_WEB_PUSH_SUBSCRIPTION_CAP: "invalid",
+          PICLAW_WEB_PUSH_VAPID_SUBJECT: "   ",
+          PICLAW_TERMINAL_IMAGE_PROTOCOL: "",
+        },
+      });
+      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({
+        pushSubscriptionCap: 32,
+        pushVapidSubject: "mailto:notifications@localhost.invalid",
+        terminalImageProtocol: "iterm2",
+      });
+      for (const envKey of [
+        "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
+        "PICLAW_WEB_PUSH_VAPID_SUBJECT",
+        "PICLAW_TERMINAL_IMAGE_PROTOCOL",
+      ]) {
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("CLI idle timeout beats compatibility env and persisted domain values", () => {
     const workspace = createTempWorkspace("piclaw-config-");
     try {
-      const snapshot = loadConfigInSubprocess(workspace, ["call:getWebServerConfig"], {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          web: {
+            idleTimeout: 7,
+          },
+        },
+      });
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getWebServerConfig"], {
         env: {
           PICLAW_WEB_PORT: "8080",
           PICLAW_WEB_HOST: "0.0.0.0",
@@ -268,6 +388,39 @@ describe("core config", () => {
         args: ["--port", "9090", "--host=127.0.0.1", "--idle-timeout", "45", "--tls-cert", "/cli/cert.pem", "--tls-key=/cli/key.pem"],
       });
       expect(snapshot["call:getWebServerConfig"]).toEqual({ port: 9090, host: "127.0.0.1", idleTimeout: 45, tlsCert: "/cli/cert.pem", tlsKey: "/cli/key.pem" });
+      expect(stderr).not.toContain('"envKey":"PICLAW_WEB_IDLE_TIMEOUT"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("VNC compatibility aliases prefer PICLAW_WEB_* over PICLAW_* and legacy config", () => {
+    const workspace = createTempWorkspace("piclaw-vnc-compat-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        web: {
+          vncAllowDirect: false,
+          vncTargets: '[{"label":"legacy-nested"}]',
+        },
+        webVncAllowDirect: false,
+        webVncTargets: '[{"label":"legacy-top"}]',
+      });
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getWebRuntimeConfig"], {
+        env: {
+          PICLAW_WEB_VNC_ALLOW_DIRECT: "1",
+          PICLAW_VNC_ALLOW_DIRECT: "0",
+          PICLAW_WEB_VNC_TARGETS: '[{"label":"primary"}]',
+          PICLAW_VNC_TARGETS: '[{"label":"legacy-alias"}]',
+        },
+      });
+      expect(snapshot["call:getWebRuntimeConfig"]).toMatchObject({
+        vncAllowDirect: true,
+        vncTargetsRaw: '[{"label":"primary"}]',
+      });
+      expectCompatWarningOnce(stderr, "PICLAW_WEB_VNC_ALLOW_DIRECT");
+      expectCompatWarningOnce(stderr, "PICLAW_WEB_VNC_TARGETS");
+      expect(stderr).not.toContain('"envKey":"PICLAW_VNC_ALLOW_DIRECT"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_VNC_TARGETS"');
     } finally {
       workspace.cleanup();
     }
@@ -373,7 +526,6 @@ describe("core config", () => {
   test("mutable general-setting setters persist and apply immediately", async () => {
     await withFreshConfig({}, async ({ workspace, config }) => {
       config.setSessionStorageConfig({ maxSizeMb: 48, autoRotate: false });
-      config.setWebTerminalEnabled(false);
       config.setToolUseMessageBudget(21);
 
       expect(config.getSessionStorageConfig()).toMatchObject({
@@ -381,11 +533,9 @@ describe("core config", () => {
         maxSizeBytes: 48 * 1024 * 1024,
         autoRotate: false,
       });
-      expect(config.getWebRuntimeConfig().terminalEnabled).toBe(false);
       expect(config.getToolUseMessageBudget()).toBe(21);
       expect(process.env.PICLAW_SESSION_MAX_SIZE_MB).toBe("48");
       expect(process.env.PICLAW_SESSION_AUTO_ROTATE).toBe("0");
-      expect(process.env.PICLAW_WEB_TERMINAL_ENABLED).toBe("0");
       expect(process.env.PICLAW_TURN_MAX_TOOL_USE_MESSAGES).toBe("21");
 
       const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
@@ -393,11 +543,41 @@ describe("core config", () => {
         sessionMaxSizeMb: 48,
         sessionAutoRotate: false,
         turnMaxToolUseMessages: 21,
-        web: {
-          terminalEnabled: false,
-        },
       });
     });
+  });
+
+  test("web terminal and VNC setters persist domain values without mutating assigned env vars", async () => {
+    await withFreshConfig(
+      {
+        env: {
+          PICLAW_WEB_TERMINAL_ENABLED: "1",
+          PICLAW_WEB_VNC_ALLOW_DIRECT: "0",
+          PICLAW_VNC_ALLOW_DIRECT: "1",
+        },
+      },
+      async ({ workspace, config }) => {
+        expect(config.setWebTerminalEnabled(false)).toBe(true);
+        expect(config.setWebVncAllowDirect(true)).toBe(false);
+        expect(config.getWebRuntimeConfig()).toMatchObject({
+          terminalEnabled: true,
+          vncAllowDirect: false,
+        });
+        expect(process.env.PICLAW_WEB_TERMINAL_ENABLED).toBe("1");
+        expect(process.env.PICLAW_WEB_VNC_ALLOW_DIRECT).toBe("0");
+        expect(process.env.PICLAW_VNC_ALLOW_DIRECT).toBe("1");
+
+        const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+        expect(persisted).toMatchObject({
+          domains: {
+            web: {
+              terminalEnabled: false,
+              vncAllowDirect: true,
+            },
+          },
+        });
+      },
+    );
   });
 
   test("scopedModelsOnly loads from config/env and persists under models", async () => {
