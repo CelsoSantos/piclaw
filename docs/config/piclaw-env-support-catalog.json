@@ -1372,126 +1372,136 @@
       "name": "PICLAW_MAIN_SESSION_IDLE_TTL_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 180000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.mainIdleTtlMs",
+      "deprecation": "compatibility env alias for domains.sessionPool.mainIdleTtlMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MAIN_SESSION_POOL_MAX_SIZE",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1,
+      "bounds": "non-negative integer",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.mainSessionPoolMaxSize",
+      "deprecation": "compatibility env alias for domains.sessionPool.mainSessionPoolMaxSize",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 60000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.memoryPressureMainIdleTtlMs",
+      "deprecation": "compatibility env alias for domains.sessionPool.memoryPressureMainIdleTtlMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1,
+      "bounds": "non-negative integer",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.memoryPressureMainSessionPoolMaxSize",
+      "deprecation": "compatibility env alias for domains.sessionPool.memoryPressureMainSessionPoolMaxSize",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 402653184,
+      "bounds": "non-negative integer bytes",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.memoryPressureRssBytes",
+      "deprecation": "compatibility env alias for domains.sessionPool.memoryPressureRssBytes",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MANUAL_COMPACTION_EXTERNAL_FAILSAFE",
@@ -2454,26 +2464,28 @@
       "name": "PICLAW_SESSION_CLEANUP_INTERVAL_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 30000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.cleanupIntervalMs",
+      "deprecation": "compatibility env alias for domains.sessionPool.cleanupIntervalMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
@@ -2555,25 +2567,27 @@
       "owner": "agent-runtime",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "positive integer ms; fallback alias for main/side idle TTL",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.sessionPool.mainIdleTtlMs and sideIdleTtlMs",
+      "deprecation": "compatibility env alias for domains.sessionPool.mainIdleTtlMs and sideIdleTtlMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_ISOLATION",
@@ -2686,25 +2700,27 @@
       "owner": "agent-runtime",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "non-negative integer; fallback alias for main pool size",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.sessionPool.mainSessionPoolMaxSize",
+      "deprecation": "compatibility env alias for domains.sessionPool.mainSessionPoolMaxSize",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
@@ -2760,26 +2776,28 @@
       "name": "PICLAW_SIDE_SESSION_IDLE_TTL_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 60000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.sessionPool.sideIdleTtlMs",
+      "deprecation": "compatibility env alias for domains.sessionPool.sideIdleTtlMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753A2a)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SKEL_DIR",

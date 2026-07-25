@@ -150,6 +150,15 @@ const envConfig = readEnvFile([
   "PICLAW_AGENT_LOG_RETENTION_MS",
   "PICLAW_AGENT_LOG_RETENTION_DAYS",
   "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS",
+  "PICLAW_MAIN_SESSION_IDLE_TTL_MS",
+  "PICLAW_SIDE_SESSION_IDLE_TTL_MS",
+  "PICLAW_SESSION_IDLE_TTL_MS",
+  "PICLAW_SESSION_CLEANUP_INTERVAL_MS",
+  "PICLAW_MAIN_SESSION_POOL_MAX_SIZE",
+  "PICLAW_SESSION_POOL_MAX_SIZE",
+  "PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES",
+  "PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS",
+  "PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE",
   "PICLAW_TOOL_OUTPUT_RETENTION_MS",
   "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
   "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
@@ -577,6 +586,44 @@ export const AGENT_RUNTIME_CONFIG = Object.freeze<AgentRuntimeConfig>({
 /** Return grouped agent timeout settings for runtime wiring and tests. */
 export function getAgentRuntimeConfig(): Readonly<AgentRuntimeConfig> {
   return AGENT_RUNTIME_CONFIG;
+}
+
+/** Typed session-pool capacity and memory-pressure policy. */
+export interface SessionPoolConfig {
+  mainIdleTtlMs: number;
+  sideIdleTtlMs: number;
+  cleanupIntervalMs: number;
+  mainSessionPoolMaxSize: number;
+  memoryPressureRssBytes: number;
+  memoryPressureMainIdleTtlMs: number;
+  memoryPressureMainSessionPoolMaxSize: number;
+}
+
+const sessionPoolDomainSchema = registerDomainConfig<SessionPoolConfig>({
+  domain: "sessionPool",
+  fields: {
+    mainIdleTtlMs: integerField({ key: "mainIdleTtlMs", owner: "agent-runtime", defaultValue: 180_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_MAIN_SESSION_IDLE_TTL_MS", replacement: "domains.sessionPool.mainIdleTtlMs", removalVersion: "3.0.0", skipInvalid: true },
+      { envKey: "PICLAW_SESSION_IDLE_TTL_MS", replacement: "domains.sessionPool.mainIdleTtlMs and sideIdleTtlMs", removalVersion: "3.0.0", skipInvalid: true },
+    ] }),
+    sideIdleTtlMs: integerField({ key: "sideIdleTtlMs", owner: "agent-runtime", defaultValue: 60_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_SIDE_SESSION_IDLE_TTL_MS", replacement: "domains.sessionPool.sideIdleTtlMs", removalVersion: "3.0.0", skipInvalid: true },
+      { envKey: "PICLAW_SESSION_IDLE_TTL_MS", replacement: "domains.sessionPool.mainIdleTtlMs and sideIdleTtlMs", removalVersion: "3.0.0", skipInvalid: true },
+    ] }),
+    cleanupIntervalMs: integerField({ key: "cleanupIntervalMs", owner: "agent-runtime", defaultValue: 30_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SESSION_CLEANUP_INTERVAL_MS", replacement: "domains.sessionPool.cleanupIntervalMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    mainSessionPoolMaxSize: integerField({ key: "mainSessionPoolMaxSize", owner: "agent-runtime", defaultValue: 1, min: 0, bounds: "non-negative integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [
+      { envKey: "PICLAW_MAIN_SESSION_POOL_MAX_SIZE", replacement: "domains.sessionPool.mainSessionPoolMaxSize", removalVersion: "3.0.0", skipInvalid: true },
+      { envKey: "PICLAW_SESSION_POOL_MAX_SIZE", replacement: "domains.sessionPool.mainSessionPoolMaxSize", removalVersion: "3.0.0", skipInvalid: true },
+    ] }),
+    memoryPressureRssBytes: integerField({ key: "memoryPressureRssBytes", owner: "agent-runtime", defaultValue: 384 * 1024 * 1024, min: 0, bounds: "non-negative integer bytes", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES", replacement: "domains.sessionPool.memoryPressureRssBytes", removalVersion: "3.0.0", skipInvalid: true }] }),
+    memoryPressureMainIdleTtlMs: integerField({ key: "memoryPressureMainIdleTtlMs", owner: "agent-runtime", defaultValue: 60_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS", replacement: "domains.sessionPool.memoryPressureMainIdleTtlMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    memoryPressureMainSessionPoolMaxSize: integerField({ key: "memoryPressureMainSessionPoolMaxSize", owner: "agent-runtime", defaultValue: 1, min: 0, bounds: "non-negative integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE", replacement: "domains.sessionPool.memoryPressureMainSessionPoolMaxSize", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+/** Return session-pool capacity and pressure settings resolved for a new pool instance. */
+export function getSessionPoolConfig(): Readonly<SessionPoolConfig> {
+  return readDomainConfig(sessionPoolDomainSchema, getDomainConfigOptions());
 }
 
 /** Parse a numeric port string, falling back to `fallback` on failure. */
