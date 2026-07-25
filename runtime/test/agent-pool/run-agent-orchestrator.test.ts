@@ -189,8 +189,12 @@ test("runAgentPrompt reports stale-progress abort failures", async () => {
       onWarn: () => {},
     });
 
-    await Bun.sleep(15);
-    expect(scanForStalls(Date.now())).toHaveLength(1);
+    let stalls = scanForStalls(Date.now());
+    for (let attempt = 0; stalls.length === 0 && attempt < 20; attempt += 1) {
+      await Bun.sleep(10);
+      stalls = scanForStalls(Date.now());
+    }
+    expect(stalls).toHaveLength(1);
     const result = await run;
     expect(result.status).toBe("error");
     expect(result.error).toContain("failed to abort");

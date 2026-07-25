@@ -31,6 +31,7 @@ import {
 } from "../../../db.js";
 import { createUuid } from "../../../utils/ids.js";
 import { createLogger } from "../../../utils/logger.js";
+import { getWebRecoveryConfig } from "../../../core/config.js";
 import { parsePositiveIntStrict } from "../../../utils/strict-int.js";
 
 const log = createLogger("web.recovery");
@@ -208,8 +209,6 @@ const defaultStore: WebRecoveryStore = {
  */
 const MAX_INFLIGHT_AGE_MS = 30 * 60 * 1000;
 const RUNTIME_STALE_INFLIGHT_GRACE_MS = 15_000;
-const DEFAULT_STALE_PREFLIGHT_AGE_MS = 4 * 60 * 1000;
-const DEFAULT_STALE_PREFLIGHT_BACKOFF_MS = 4 * 60 * 60 * 1000;
 const DEFAULT_STALE_ACTIVE_COMPACTION_AGE_MS = 4 * 60 * 1000;
 const DEFAULT_STALE_ACTIVE_COMPACTION_BACKOFF_MS = 4 * 60 * 60 * 1000;
 
@@ -218,11 +217,11 @@ function parsePositiveDurationMs(value: string | undefined, fallback: number): n
 }
 
 function getStalePreflightAgeMs(): number {
-  return parsePositiveDurationMs(process.env.PICLAW_STALE_PREFLIGHT_RECOVERY_MS, DEFAULT_STALE_PREFLIGHT_AGE_MS);
+  return getWebRecoveryConfig().stalePreflightRecoveryMs;
 }
 
 function getStalePreflightBackoffMs(): number {
-  return parsePositiveDurationMs(process.env.PICLAW_STALE_PREFLIGHT_BACKOFF_MS, DEFAULT_STALE_PREFLIGHT_BACKOFF_MS);
+  return getWebRecoveryConfig().stalePreflightBackoffMs;
 }
 
 function getStaleActiveCompactionAgeMs(): number {

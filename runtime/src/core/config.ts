@@ -115,6 +115,14 @@ const envConfig = readEnvFile([
   "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
   "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
   "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
+  "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
+  "PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES",
+  "PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS",
+  "PICLAW_TURN_AUTO_RECOVERY_ENABLED",
+  "PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS",
+  "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
+  "PICLAW_STALE_PREFLIGHT_RECOVERY_MS",
+  "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
   "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
   "PICLAW_AUTO_COMPACTION_ENABLED",
@@ -1343,6 +1351,51 @@ const SESSION_PERSISTENCE_CONFIG = Object.freeze<SessionPersistenceConfig>(
 /** Return session persistence sanitization limits captured at module startup. */
 export function getSessionPersistenceConfig(): Readonly<SessionPersistenceConfig> {
   return SESSION_PERSISTENCE_CONFIG;
+}
+
+export interface RecoveryPolicyConfig {
+  loopGuardEnabled: boolean;
+  loopGuardMaxFailures: number;
+  loopGuardWindowMs: number;
+  automaticRecoveryEnabled: boolean;
+  /** Zero inherits the normalized retry max-attempt setting. */
+  automaticRecoveryMaxAttempts: number;
+  automaticRecoveryTotalBudgetMs: number;
+}
+
+const recoveryPolicyDomainSchema = registerDomainConfig<RecoveryPolicyConfig>({
+  domain: "recovery",
+  fields: {
+    loopGuardEnabled: boolField({ key: "loopGuardEnabled", owner: "agent-runtime", defaultValue: true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_RECOVERY_LOOP_GUARD_ENABLED", replacement: "domains.recovery.loopGuardEnabled", removalVersion: "3.0.0", skipInvalid: true }] }),
+    loopGuardMaxFailures: integerField({ key: "loopGuardMaxFailures", owner: "agent-runtime", defaultValue: 3, min: 1, bounds: "positive integer failures", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES", replacement: "domains.recovery.loopGuardMaxFailures", removalVersion: "3.0.0", skipInvalid: true }] }),
+    loopGuardWindowMs: integerField({ key: "loopGuardWindowMs", owner: "agent-runtime", defaultValue: 10 * 60 * 1000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS", replacement: "domains.recovery.loopGuardWindowMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    automaticRecoveryEnabled: boolField({ key: "automaticRecoveryEnabled", owner: "agent-runtime", defaultValue: true, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TURN_AUTO_RECOVERY_ENABLED", replacement: "domains.recovery.automaticRecoveryEnabled", removalVersion: "3.0.0", skipInvalid: true }] }),
+    automaticRecoveryMaxAttempts: integerField({ key: "automaticRecoveryMaxAttempts", owner: "agent-runtime", defaultValue: 0, min: 0, bounds: "0 inherits retry max; otherwise positive integer", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS", replacement: "domains.recovery.automaticRecoveryMaxAttempts", removalVersion: "3.0.0", parse: (raw) => { const parsed = Number(raw); return Number.isInteger(parsed) && parsed > 0 ? parsed : -1; }, skipInvalid: true }] }),
+    automaticRecoveryTotalBudgetMs: integerField({ key: "automaticRecoveryTotalBudgetMs", owner: "agent-runtime", defaultValue: 30_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS", replacement: "domains.recovery.automaticRecoveryTotalBudgetMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+/** Return recovery-loop and automatic-recovery policy resolved for this attempt. */
+export function getRecoveryPolicyConfig(): Readonly<RecoveryPolicyConfig> {
+  return readDomainConfig(recoveryPolicyDomainSchema, getDomainConfigOptions());
+}
+
+export interface WebRecoveryConfig {
+  stalePreflightRecoveryMs: number;
+  stalePreflightBackoffMs: number;
+}
+
+const webRecoveryDomainSchema = registerDomainConfig<WebRecoveryConfig>({
+  domain: "webRecovery",
+  fields: {
+    stalePreflightRecoveryMs: integerField({ key: "stalePreflightRecoveryMs", owner: "web", defaultValue: 4 * 60 * 1000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_STALE_PREFLIGHT_RECOVERY_MS", replacement: "domains.webRecovery.stalePreflightRecoveryMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+    stalePreflightBackoffMs: integerField({ key: "stalePreflightBackoffMs", owner: "web", defaultValue: 4 * 60 * 60 * 1000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_STALE_PREFLIGHT_BACKOFF_MS", replacement: "domains.webRecovery.stalePreflightBackoffMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+/** Return stale-preflight recovery timing policy resolved for this scan. */
+export function getWebRecoveryConfig(): Readonly<WebRecoveryConfig> {
+  return readDomainConfig(webRecoveryDomainSchema, getDomainConfigOptions());
 }
 
 /** Current per-turn tool-use budget used by the agent orchestrator. */

@@ -399,6 +399,83 @@ describe("core config", () => {
     });
   });
 
+  test("recovery domains persist across restart and preserve compatibility fallbacks", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-recovery-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          recovery: {
+            loopGuardEnabled: false,
+            loopGuardMaxFailures: 5,
+            loopGuardWindowMs: 700000,
+            automaticRecoveryEnabled: false,
+            automaticRecoveryMaxAttempts: 0,
+            automaticRecoveryTotalBudgetMs: 45000,
+          },
+          webRecovery: {
+            stalePreflightRecoveryMs: 300000,
+            stalePreflightBackoffMs: 15000000,
+          },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, ["call:getRecoveryPolicyConfig", "call:getWebRecoveryConfig"], {
+        env: {
+          PICLAW_RECOVERY_LOOP_GUARD_ENABLED: undefined,
+          PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES: undefined,
+          PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS: undefined,
+          PICLAW_TURN_AUTO_RECOVERY_ENABLED: undefined,
+          PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS: undefined,
+          PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS: undefined,
+          PICLAW_STALE_PREFLIGHT_RECOVERY_MS: undefined,
+          PICLAW_STALE_PREFLIGHT_BACKOFF_MS: undefined,
+        },
+      }).snapshot;
+      expect(persisted["call:getRecoveryPolicyConfig"]).toEqual({
+        loopGuardEnabled: false,
+        loopGuardMaxFailures: 5,
+        loopGuardWindowMs: 700000,
+        automaticRecoveryEnabled: false,
+        automaticRecoveryMaxAttempts: 0,
+        automaticRecoveryTotalBudgetMs: 45000,
+      });
+      expect(persisted["call:getWebRecoveryConfig"]).toEqual({ stalePreflightRecoveryMs: 300000, stalePreflightBackoffMs: 15000000 });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getRecoveryPolicyConfig", "call:getWebRecoveryConfig"], {
+        env: {
+          PICLAW_RECOVERY_LOOP_GUARD_ENABLED: "1",
+          PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES: "invalid",
+          PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS: "600000",
+          PICLAW_TURN_AUTO_RECOVERY_ENABLED: "true",
+          PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS: "4",
+          PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS: "50000",
+          PICLAW_STALE_PREFLIGHT_RECOVERY_MS: "240000",
+          PICLAW_STALE_PREFLIGHT_BACKOFF_MS: "14400000",
+        },
+      });
+      expect(snapshot["call:getRecoveryPolicyConfig"]).toEqual({
+        loopGuardEnabled: true,
+        loopGuardMaxFailures: 5,
+        loopGuardWindowMs: 600000,
+        automaticRecoveryEnabled: true,
+        automaticRecoveryMaxAttempts: 4,
+        automaticRecoveryTotalBudgetMs: 50000,
+      });
+      expect(snapshot["call:getWebRecoveryConfig"]).toEqual({ stalePreflightRecoveryMs: 240000, stalePreflightBackoffMs: 14400000 });
+      for (const envKey of [
+        "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
+        "PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS",
+        "PICLAW_TURN_AUTO_RECOVERY_ENABLED",
+        "PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS",
+        "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
+        "PICLAW_STALE_PREFLIGHT_RECOVERY_MS",
+        "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",
+      ]) expectCompatWarningOnce(stderr, envKey);
+      expect(stderr).not.toContain('"envKey":"PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("persisted web domain settings win in a fresh process when compatibility aliases are absent", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-restart-");
     try {

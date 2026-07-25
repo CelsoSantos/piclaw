@@ -2048,76 +2048,91 @@
       "name": "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
       "owner": "agent-runtime",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.loopGuardEnabled",
+      "deprecation": "compatibility env alias for domains.recovery.loopGuardEnabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 3,
+      "bounds": "positive integer failures",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.loopGuardMaxFailures",
+      "deprecation": "compatibility env alias for domains.recovery.loopGuardMaxFailures",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 600000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.loopGuardWindowMs",
+      "deprecation": "compatibility env alias for domains.recovery.loopGuardWindowMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_COMPACTION_ENABLED",
@@ -3108,51 +3123,55 @@
       "name": "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",
       "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 14400000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.webRecovery.stalePreflightBackoffMs",
+      "deprecation": "compatibility env alias for domains.webRecovery.stalePreflightBackoffMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_STALE_PREFLIGHT_RECOVERY_MS",
       "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 240000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.webRecovery.stalePreflightRecoveryMs",
+      "deprecation": "compatibility env alias for domains.webRecovery.stalePreflightRecoveryMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_STARTUP_WARM_DEFAULT_CHAT",
@@ -3798,76 +3817,91 @@
       "name": "PICLAW_TURN_AUTO_RECOVERY_ENABLED",
       "owner": "agent-runtime",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
-      "allowedValues": [],
+      "allowedValues": [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.automaticRecoveryEnabled",
+      "deprecation": "compatibility env alias for domains.recovery.automaticRecoveryEnabled",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 0,
+      "bounds": "positive env override; domain 0 inherits retry max",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.automaticRecoveryMaxAttempts",
+      "deprecation": "compatibility env alias for domains.recovery.automaticRecoveryMaxAttempts",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 30000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
         "process.env",
         ".env",
+        "json-config",
         "defaults"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "supported",
+      "compatibilityAliasFor": "domains.recovery.automaticRecoveryTotalBudgetMs",
+      "deprecation": "compatibility env alias for domains.recovery.automaticRecoveryTotalBudgetMs",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domain schema (#753B1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
