@@ -868,6 +868,43 @@ describe("core config", () => {
     }
   });
 
+  test("tool output presentation domain preserves precedence and avoids env mutation", async () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tool-output-presentation-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: {
+        toolOutputStoreBytes: 7_000,
+        toolOutputStoreLines: 50,
+        toolOutputPreviewLines: 9,
+        toolOutputPreviewLineChars: 240,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_TOOL_OUTPUT_STORE_BYTES=8000",
+        "PICLAW_TOOL_OUTPUT_STORE_LINES=60",
+        "PICLAW_TOOL_OUTPUT_PREVIEW_LINES=10",
+        "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS=260",
+      ].join("\n"), "utf8");
+      const envKeys = ["PICLAW_TOOL_OUTPUT_STORE_BYTES", "PICLAW_TOOL_OUTPUT_STORE_LINES", "PICLAW_TOOL_OUTPUT_PREVIEW_LINES", "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS"];
+      const names = ["call:getToolOutputPresentationConfig", ...envKeys.map((key) => `env:${key}`), ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_TOOL_OUTPUT_STORE_BYTES: "9000",
+      } });
+      expect(snapshot["call:getToolOutputPresentationConfig"]).toEqual({ storeBytes: 9_000, storeLines: 60, previewLines: 10, previewLineChars: 260 });
+      for (const envKey of envKeys) {
+        expect(snapshot[`env:${envKey}`]).toBe(envKey === "PICLAW_TOOL_OUTPUT_STORE_BYTES" ? "9000" : null);
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally { workspace.cleanup(); }
+
+    await withFreshConfig({ env: { PICLAW_TOOL_OUTPUT_STORE_BYTES: undefined } }, async ({ workspace, config }) => {
+      expect(config.setToolOutputStoreThreshold(12_345)).toBe(12_345);
+      expect(process.env.PICLAW_TOOL_OUTPUT_STORE_BYTES).toBeUndefined();
+      const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+      expect(persisted.domains?.tools?.toolOutputStoreBytes).toBe(12_345);
+    });
+  });
+
   test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-compaction-delays-");
     try {

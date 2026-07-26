@@ -3490,52 +3490,54 @@
     {
       "name": "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS",
       "owner": "tools",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 200,
+      "bounds": "positive integer characters",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputPreviewLineChars",
+      "deprecation": "migrated to typed domains.tools.toolOutputPreviewLineChars config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputPreviewLineChars (#754C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_PREVIEW_LINES",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 8,
+      "bounds": "positive integer lines",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputPreviewLines",
+      "deprecation": "migrated to typed domains.tools.toolOutputPreviewLines config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputPreviewLines (#754C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
@@ -3591,51 +3593,53 @@
       "name": "PICLAW_TOOL_OUTPUT_STORE_BYTES",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 5000,
+      "bounds": "500..100000 bytes",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputStoreBytes",
+      "deprecation": "migrated to typed domains.tools.toolOutputStoreBytes config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputStoreBytes (#754C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_STORE_LINES",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 40,
+      "bounds": "positive integer lines",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputStoreLines",
+      "deprecation": "migrated to typed domains.tools.toolOutputStoreLines config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputStoreLines (#754C1)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL",

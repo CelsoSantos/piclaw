@@ -21,12 +21,10 @@ import {
   readToolOutputFile,
   saveToolOutput,
 } from "../../src/extensions/context-mode-api.js";
+import { getToolOutputPresentationConfig } from "../../src/core/config.js";
 import { getRuntimeModelExecutor } from "../../src/extensions/model-execution-runtime.js";
 
-const DEFAULT_STORE_THRESHOLD_BYTES = parseInt(process.env.PICLAW_TOOL_OUTPUT_STORE_BYTES || "4096", 10);
-const DEFAULT_STORE_THRESHOLD_LINES = parseInt(process.env.PICLAW_TOOL_OUTPUT_STORE_LINES || "40", 10);
-const PREVIEW_LINES = parseInt(process.env.PICLAW_TOOL_OUTPUT_PREVIEW_LINES || "8", 10);
-const PREVIEW_LINE_CHARS = parseInt(process.env.PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS || "200", 10);
+const { storeBytes: DEFAULT_STORE_THRESHOLD_BYTES, storeLines: DEFAULT_STORE_THRESHOLD_LINES, previewLines: PREVIEW_LINES, previewLineChars: PREVIEW_LINE_CHARS } = getToolOutputPresentationConfig();
 const STORED_OUTPUT_CACHE_MAX = 512;
 
 type StoredOutputCacheEntry = {

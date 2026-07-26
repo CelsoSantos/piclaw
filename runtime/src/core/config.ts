@@ -159,6 +159,10 @@ const envConfig = readEnvFile([
   "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS",
   "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
   "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL",
+  "PICLAW_TOOL_OUTPUT_STORE_BYTES",
+  "PICLAW_TOOL_OUTPUT_STORE_LINES",
+  "PICLAW_TOOL_OUTPUT_PREVIEW_LINES",
+  "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS",
   "PICLAW_WORKSPACE_SEARCH_ROOTS",
   "PICLAW_INTERNAL_SECRET",
   "PICLAW_REMOTE_INTEROP_ENABLED",
@@ -651,6 +655,10 @@ export interface ToolsIntegrationConfig {
   scopedModelsOnly: boolean;
   workspaceSearchRoots: string[];
   workspaceSearchExtensions: string[];
+  toolOutputStoreBytes: number;
+  toolOutputStoreLines: number;
+  toolOutputPreviewLines: number;
+  toolOutputPreviewLineChars: number;
 }
 
 function parseLegacyCopilotDynamicModels(raw: string): boolean {
@@ -765,6 +773,10 @@ const toolsIntegrationDomainSchema = registerDomainConfig<ToolsIntegrationConfig
       secretClass: "none",
       compatibilityEnv: [{ envKey: "PICLAW_WORKSPACE_SEARCH_EXTENSIONS", replacement: "domains.tools.workspaceSearchExtensions", removalVersion: "3.0.0", parse: (raw) => raw.split(","), skipInvalid: true }],
     },
+    toolOutputStoreBytes: integerField({ key: "toolOutputStoreBytes", owner: "tools", defaultValue: 5_000, min: 500, max: 100_000, bounds: "500..100000 bytes", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_BYTES", replacement: "domains.tools.toolOutputStoreBytes", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolOutputStoreLines: integerField({ key: "toolOutputStoreLines", owner: "tools", defaultValue: 40, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_LINES", replacement: "domains.tools.toolOutputStoreLines", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolOutputPreviewLines: integerField({ key: "toolOutputPreviewLines", owner: "tools", defaultValue: 8, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_PREVIEW_LINES", replacement: "domains.tools.toolOutputPreviewLines", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolOutputPreviewLineChars: integerField({ key: "toolOutputPreviewLineChars", owner: "tools", defaultValue: 200, min: 1, bounds: "positive integer characters", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS", replacement: "domains.tools.toolOutputPreviewLineChars", removalVersion: "3.0.0", skipInvalid: true }] }),
   },
 });
 
@@ -1741,12 +1753,8 @@ export function getProgressWatchdogConfig(): Readonly<ProgressWatchdogConfig> {
 /** Current per-turn tool-use budget used by the agent orchestrator. */
 export let TOOL_USE_MESSAGE_BUDGET = AGENT_DOMAIN_CONFIG.toolUseMessageBudget;
 
-/** Return the current tool-use budget for a single turn. */
 /** Max tool result chars before auto-externalization. Default 5000. */
-export let TOOL_OUTPUT_STORE_THRESHOLD =
-  pickNumber({ PICLAW_TOOL_OUTPUT_STORE_BYTES: process.env.PICLAW_TOOL_OUTPUT_STORE_BYTES }, [
-    "PICLAW_TOOL_OUTPUT_STORE_BYTES",
-  ]) ?? 5000;
+export let TOOL_OUTPUT_STORE_THRESHOLD = getToolsIntegrationConfig().toolOutputStoreBytes;
 
 export interface ToolResultCompactionThresholdPolicy {
   bytes?: number;
@@ -1891,14 +1899,24 @@ export let TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG = Object.seal<ToolResultSemanticS
 });
 
 export function getToolOutputStoreThreshold(): number {
-  return TOOL_OUTPUT_STORE_THRESHOLD;
+  return getToolsIntegrationConfig().toolOutputStoreBytes;
+}
+
+export function getToolOutputPresentationConfig(): Readonly<{ storeBytes: number; storeLines: number; previewLines: number; previewLineChars: number }> {
+  const config = getToolsIntegrationConfig();
+  return Object.freeze({
+    storeBytes: config.toolOutputStoreBytes,
+    storeLines: config.toolOutputStoreLines,
+    previewLines: config.toolOutputPreviewLines,
+    previewLineChars: config.toolOutputPreviewLineChars,
+  });
 }
 
 export function setToolOutputStoreThreshold(value: number): number {
   const next = Math.min(100000, Math.max(500, Math.round(value)));
-  TOOL_OUTPUT_STORE_THRESHOLD = next;
-  process.env.PICLAW_TOOL_OUTPUT_STORE_BYTES = String(next);
-  return next;
+  const resolved = writeDomainConfigField(toolsIntegrationDomainSchema, getDomainConfigOptions(), "toolOutputStoreBytes", next);
+  TOOL_OUTPUT_STORE_THRESHOLD = resolved.toolOutputStoreBytes;
+  return TOOL_OUTPUT_STORE_THRESHOLD;
 }
 
 /** Return whether runtime tool-result compaction is enabled. */
