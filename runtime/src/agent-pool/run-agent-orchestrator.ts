@@ -1697,11 +1697,13 @@ export async function runAgentPrompt(
     const strategyHistory: RecoveryStrategy[] = [];
     const recoveryDiagnostics: AgentRecoveryDiagnosticEntry[] = [];
     let recoveryBudgetStartedAt: number | null = null;
+    let recoveryBudgetAccumulatedMs = 0;
     let allowPostTimeoutRecoveryWindow = false;
     const getRecoveryBudgetElapsedMs = () => {
       if (recoveryBudgetStartedAt != null) {
-        return Math.max(0, Date.now() - recoveryBudgetStartedAt);
+        return Math.max(0, recoveryBudgetAccumulatedMs + Date.now() - recoveryBudgetStartedAt);
       }
+      if (recoveryBudgetAccumulatedMs > 0) return recoveryBudgetAccumulatedMs;
       return timeoutMs <= 0 || allowPostTimeoutRecoveryWindow
         ? 0
         : Math.max(0, Date.now() - startTime);
@@ -1715,8 +1717,13 @@ export async function runAgentPrompt(
       if (recoveryAttemptsUsed === 0 && (isContextPressureFailure(errorText) || snapshot.sawCompactionIntent)) return 0;
       return getRecoveryBudgetElapsedMs();
     };
-    const startRecoveryBudgetAfterCompaction = () => {
-      recoveryBudgetStartedAt = Date.now();
+    const startRecoveryBudget = () => {
+      if (recoveryBudgetStartedAt == null) recoveryBudgetStartedAt = Date.now();
+    };
+    const pauseRecoveryBudget = () => {
+      if (recoveryBudgetStartedAt == null) return;
+      recoveryBudgetAccumulatedMs += Math.max(0, Date.now() - recoveryBudgetStartedAt);
+      recoveryBudgetStartedAt = null;
     };
 
     const runResult: AgentOutput = await withChatContext(chatJid, channel, async () => {
@@ -1987,8 +1994,11 @@ export async function runAgentPrompt(
           errorMessage: errorText,
         });
 
-        if (recoveryBudgetStartedAt == null && (timeoutMs <= 0 || allowPostTimeoutRecoveryWindow)) {
-          recoveryBudgetStartedAt = Date.now();
+        if (effectiveDecision.strategy !== "compact_then_retry"
+          && recoveryBudgetStartedAt == null
+          && recoveryBudgetAccumulatedMs === 0
+          && (timeoutMs <= 0 || allowPostTimeoutRecoveryWindow)) {
+          startRecoveryBudget();
         }
 
         if (retryDelayMs > 0) {
@@ -2010,6 +2020,7 @@ export async function runAgentPrompt(
         recoveryContinuationWithoutTools = recoveryContinuationWithoutTools || attempt.snapshot.hadToolActivity;
 
         if (effectiveDecision.strategy === "compact_then_retry") {
+          pauseRecoveryBudget();
           const compactionResult = await runRecoveryCompaction(session, chatJid, runOptions, options);
           heartbeatTrackedPhase(chatJid, "preprompt_compaction", {
             eventType: "recovery_compaction",
@@ -2089,7 +2100,7 @@ export async function runAgentPrompt(
               };
             }
           }
-          startRecoveryBudgetAfterCompaction();
+          startRecoveryBudget();
         }
 
         heartbeatTrackedPhase(chatJid, "prompt", {

@@ -2579,6 +2579,91 @@ test("runAgentPrompt bounds the compact_then_retry continuation attempt timeout"
   }
 }, 5_000);
 
+test("runAgentPrompt does not reset continuation budget across repeated compact_then_retry cycles", async () => {
+  const restoreEnv = setEnv({
+    PICLAW_TURN_AUTO_RECOVERY_ENABLED: "1",
+    PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS: "3",
+    PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS: "100",
+  });
+  const originalDateNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+
+  class StubSession {
+    private listeners: Array<(event: any) => void> = [];
+    sessionManager = { getLeafId: () => "leaf-multi-cycle" };
+    isStreaming = false;
+    isCompacting = false;
+    isRetrying = false;
+    promptCalls = 0;
+    compactCalls = 0;
+    abortCalls = 0;
+    private releasePrompt: (() => void) | null = null;
+    subscribe(listener: (event: any) => void) {
+      this.listeners.push(listener);
+      return () => { this.listeners = this.listeners.filter((entry) => entry !== listener); };
+    }
+    async compact() {
+      this.compactCalls += 1;
+      // Compaction has its own timeout and does not consume continuation prompt budget.
+      now += 10_000;
+    }
+    async prompt() {
+      this.promptCalls += 1;
+      if (this.promptCalls === 1) throw new Error("maximum context length exceeded before first recovery");
+      if (this.promptCalls === 2) {
+        now += 40;
+        throw new Error("maximum context length exceeded during continuation");
+      }
+      await new Promise<void>((resolve) => { this.releasePrompt = resolve; });
+    }
+    async abort() {
+      this.abortCalls += 1;
+      // The active continuation consumed the remaining 60ms recovery budget
+      // before its timeout fired. Date.now is fake in this test, so advance it
+      // explicitly when the timeout aborts the hanging prompt.
+      if (this.promptCalls === 3) now += 60;
+      this.releasePrompt?.();
+      this.releasePrompt = null;
+    }
+  }
+
+  try {
+    const session = new StubSession();
+    const turnCoordinator = new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} });
+    const attemptTimeouts: number[] = [];
+    const originalStartPromptTimeout = turnCoordinator.startPromptTimeout.bind(turnCoordinator);
+    turnCoordinator.startPromptTimeout = ((promptSession: any, chatJid: string, timeoutMs: number) => {
+      attemptTimeouts.push(timeoutMs);
+      return originalStartPromptTimeout(promptSession, chatJid, timeoutMs);
+    }) as any;
+
+    const result = await runAgentPrompt("large turn", "web:multi-cycle-continuation-budget", { timeoutMs: 1_000 }, {
+      getOrCreateRuntime: async () => createRuntime(session, { maxRetries: 3, baseDelayMs: 1, maxDelayMs: 1 }) as any,
+      turnCoordinator,
+      clearAttachments: () => {},
+      takeAttachments: () => [],
+      logsDir: createTestLogsDir(),
+      setActiveForkBaseLeaf: () => {},
+      clearActiveForkBaseLeaf: () => {},
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.error).toContain("Timed out after");
+    expect(result.recovery).toEqual(expect.objectContaining({ attemptsUsed: 2, exhausted: true, lastClassifier: "budget_exhausted" }));
+    expect(session.promptCalls).toBe(3);
+    expect(session.compactCalls).toBe(2);
+    expect(session.abortCalls).toBe(1);
+    expect(attemptTimeouts[0]).toBe(1_000);
+    expect(attemptTimeouts[1]).toBe(100);
+    expect(attemptTimeouts[2]).toBeGreaterThan(0);
+    expect(attemptTimeouts[2]).toBeLessThanOrEqual(60);
+  } finally {
+    Date.now = originalDateNow;
+    restoreEnv();
+  }
+}, 5_000);
+
 test("runAgentPrompt writes recovery diagnostics into the agent log", async () => {
   const restoreEnv = setEnv({
     PICLAW_TURN_AUTO_RECOVERY_ENABLED: "1",
