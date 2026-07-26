@@ -7,7 +7,7 @@
  * fit checks aligned on an effective usable window.
  */
 
-import { getCompactionRequestOverheadTokenConfig, getSystemPromptOverheadTokenConfig, getTokenEstimateSafetyMultiplierConfig } from "../core/config.js";
+import { getCompactionRequestOverheadTokenConfig, getSystemPromptOverheadTokenConfig, getTokenEstimateSafetyMultiplierConfig, getToolsIntegrationConfig } from "../core/config.js";
 import { parsePositiveIntStrict } from "./strict-int.js";
 
 const DEFAULT_UNKNOWN_MODEL_CONTEXT_WINDOW = 64_000;
@@ -30,7 +30,7 @@ export function getCompactionRequestOverheadTokens(): number {
 }
 
 export function getUnknownModelContextWindow(): number {
-  return parsePositiveInt(process.env.PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW, DEFAULT_UNKNOWN_MODEL_CONTEXT_WINDOW);
+  return parsePositiveInt(getToolsIntegrationConfig().unknownModelContextWindow, DEFAULT_UNKNOWN_MODEL_CONTEXT_WINDOW);
 }
 
 export function getTokenEstimateSafetyMultiplier(): number {

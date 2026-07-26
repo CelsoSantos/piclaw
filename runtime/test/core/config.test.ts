@@ -748,7 +748,7 @@ describe("core config", () => {
         PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
         PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
       } }).snapshot;
-      expect(persisted["call:getToolsIntegrationConfig"]).toEqual({
+      expect(persisted["call:getToolsIntegrationConfig"]).toMatchObject({
         githubCopilotDynamicModels: false,
         githubCopilotModelsTimeoutMs: 7_000,
         mcpToolTimeoutMs: 0,
@@ -759,7 +759,7 @@ describe("core config", () => {
         PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: "200",
         PICLAW_MCP_TOOL_TIMEOUT_MS: "45000",
       } });
-      expect(snapshot["call:getToolsIntegrationConfig"]).toEqual({
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
         // Preserve legacy semantics: only 0/false/no disable discovery.
         githubCopilotDynamicModels: true,
         // Preserve the existing 500ms lower clamp.
@@ -801,7 +801,7 @@ describe("core config", () => {
         PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
         PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
       } });
-      expect(snapshot["call:getToolsIntegrationConfig"]).toEqual({
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
         githubCopilotDynamicModels: true,
         githubCopilotModelsTimeoutMs: 6_000,
         mcpToolTimeoutMs: 0,
@@ -812,6 +812,54 @@ describe("core config", () => {
         "PICLAW_MCP_TOOL_TIMEOUT_MS",
       ]) {
         expect(snapshot[`env:${envKey}`]).toBeNull();
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tools workspace aliases preserve restart precedence and do not mutate process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-workspace-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: { tools: {
+          packageRoot: "/persisted/package",
+          unknownModelContextWindow: 80_000,
+          scopedModelsOnly: false,
+          workspaceSearchRoots: ["persisted"],
+          workspaceSearchExtensions: [".log"],
+        } },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_PACKAGE_ROOT=/dotenv/package",
+        "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW=90000",
+        "PICLAW_SCOPED_MODELS_ONLY=1",
+        "PICLAW_WORKSPACE_SEARCH_ROOTS=docs,notes",
+        "PICLAW_WORKSPACE_SEARCH_EXTENSIONS=.vtt,csv",
+      ].join("\n"), "utf8");
+      const envKeys = [
+        "PICLAW_PACKAGE_ROOT",
+        "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
+        "PICLAW_SCOPED_MODELS_ONLY",
+        "PICLAW_WORKSPACE_SEARCH_ROOTS",
+        "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
+      ];
+      const names = ["call:getToolsIntegrationConfig", ...envKeys.map((key) => `env:${key}`), ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW: "95000",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        packageRoot: "/dotenv/package",
+        unknownModelContextWindow: 95_000,
+        scopedModelsOnly: true,
+        workspaceSearchRoots: ["docs", "notes"],
+        workspaceSearchExtensions: [".vtt", "csv"],
+      });
+      for (const envKey of envKeys) {
+        expect(snapshot[`env:${envKey}`]).toBe(envKey === "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW" ? "95000" : null);
         expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
         expectCompatWarningOnce(stderr, envKey);
       }
@@ -1268,7 +1316,7 @@ describe("core config", () => {
     );
   });
 
-  test("scopedModelsOnly loads from config/env and persists under models", async () => {
+  test("scopedModelsOnly reads legacy config and persists under domains.tools without env mutation", async () => {
     const workspace = createTempWorkspace("piclaw-config-");
     try {
       writeWorkspaceConfig(workspace.workspace, { models: { scopedModelsOnly: true } });
@@ -1285,10 +1333,10 @@ describe("core config", () => {
       async ({ workspace, config }) => {
         expect(config.setScopedModelsOnly(false)).toBe(false);
         expect(config.getScopedModelsOnly()).toBe(false);
-        expect(process.env.PICLAW_SCOPED_MODELS_ONLY).toBe("0");
+        expect(process.env.PICLAW_SCOPED_MODELS_ONLY).toBeUndefined();
 
         const parsed = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
-        expect(parsed.models).toEqual({ scopedModelsOnly: false });
+        expect(parsed.domains?.tools?.scopedModelsOnly).toBe(false);
       },
     );
   });
