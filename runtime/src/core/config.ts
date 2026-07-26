@@ -645,6 +645,12 @@ const legacyScopedModelsOnly = pickBoolean(modelsConfig, [
   "PICLAW_SCOPED_MODELS_ONLY",
 ]);
 
+/** Optional per-tool compaction threshold overrides. */
+export interface ToolResultCompactionThresholdPolicy {
+  bytes?: number;
+  lines?: number;
+}
+
 /** Typed provider/tool integration settings migrated from runtime env support. */
 export interface ToolsIntegrationConfig {
   githubCopilotDynamicModels: boolean;
@@ -659,6 +665,15 @@ export interface ToolsIntegrationConfig {
   toolOutputStoreLines: number;
   toolOutputPreviewLines: number;
   toolOutputPreviewLineChars: number;
+  toolOutputRetentionMs: number;
+  toolOutputCleanupIntervalMs: number;
+  toolResultCompactionEnabled: boolean;
+  toolResultCompactionTools: string[];
+  toolResultCompactionThresholdsByTool: Record<string, ToolResultCompactionThresholdPolicy>;
+  toolResultSemanticSummaryEnabled: boolean;
+  toolResultSemanticSummaryMaxInputChars: number;
+  toolResultSemanticSummaryMaxTokens: number;
+  toolResultSemanticSummaryTimeoutMs: number;
 }
 
 function parseLegacyCopilotDynamicModels(raw: string): boolean {
@@ -777,6 +792,126 @@ const toolsIntegrationDomainSchema = registerDomainConfig<ToolsIntegrationConfig
     toolOutputStoreLines: integerField({ key: "toolOutputStoreLines", owner: "tools", defaultValue: 40, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_LINES", replacement: "domains.tools.toolOutputStoreLines", removalVersion: "3.0.0", skipInvalid: true }] }),
     toolOutputPreviewLines: integerField({ key: "toolOutputPreviewLines", owner: "tools", defaultValue: 8, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_PREVIEW_LINES", replacement: "domains.tools.toolOutputPreviewLines", removalVersion: "3.0.0", skipInvalid: true }] }),
     toolOutputPreviewLineChars: integerField({ key: "toolOutputPreviewLineChars", owner: "tools", defaultValue: 200, min: 1, bounds: "positive integer characters", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS", replacement: "domains.tools.toolOutputPreviewLineChars", removalVersion: "3.0.0", skipInvalid: true }] }),
+    toolOutputRetentionMs: integerField({
+      key: "toolOutputRetentionMs",
+      owner: "tools",
+      defaultValue: DEFAULT_LOG_RETENTION_CAP_MS,
+      min: 1,
+      max: DEFAULT_LOG_RETENTION_CAP_MS,
+      bounds: `1..${DEFAULT_LOG_RETENTION_CAP_MS} ms`,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [
+        { envKey: "PICLAW_TOOL_OUTPUT_RETENTION_MS", replacement: "domains.tools.toolOutputRetentionMs", removalVersion: "3.0.0", parse: (raw) => { const value = parsePositiveInteger(raw); return value === undefined ? undefined : Math.min(DEFAULT_LOG_RETENTION_CAP_MS, value); }, skipInvalid: true },
+        { envKey: "PICLAW_TOOL_OUTPUT_RETENTION_DAYS", replacement: "domains.tools.toolOutputRetentionMs", removalVersion: "3.0.0", parse: (raw) => { const days = parsePositiveInteger(raw); return days === undefined ? undefined : Math.min(DEFAULT_LOG_RETENTION_CAP_MS, days * DAY_MS); }, skipInvalid: true },
+      ],
+    }),
+    toolOutputCleanupIntervalMs: integerField({
+      key: "toolOutputCleanupIntervalMs",
+      owner: "tools",
+      defaultValue: 15 * 60 * 1000,
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS", replacement: "domains.tools.toolOutputCleanupIntervalMs", removalVersion: "3.0.0", parse: (raw) => parsePositiveInteger(raw), skipInvalid: true }],
+    }),
+    toolResultCompactionEnabled: boolField({
+      key: "toolResultCompactionEnabled",
+      owner: "tools",
+      defaultValue: pickBoolean(compactionConfig, ["toolResultCompactionEnabled", "tool_result_compaction_enabled", "PICLAW_TOOL_RESULT_COMPACTION_ENABLED"]) ?? true,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_COMPACTION_ENABLED", replacement: "domains.tools.toolResultCompactionEnabled", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+    toolResultCompactionTools: {
+      key: "toolResultCompactionTools",
+      owner: "tools",
+      type: "json",
+      defaultValue: parseToolResultCompactionTools(compactionConfig.toolResultCompactionTools ?? compactionConfig.tool_result_compaction_tools) ?? ["bash", "powershell", "exec_batch"],
+      validate(value: unknown) {
+        if (typeof value !== "string" && !Array.isArray(value)) throw new Error("Invalid tool result compaction tools");
+        return normalizeToolResultCompactionTools(value);
+      },
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_COMPACTION_TOOLS", replacement: "domains.tools.toolResultCompactionTools", removalVersion: "3.0.0", parse: (raw) => raw.trim() ? raw : undefined, skipInvalid: true }],
+    },
+    toolResultCompactionThresholdsByTool: {
+      key: "toolResultCompactionThresholdsByTool",
+      owner: "tools",
+      type: "json",
+      defaultValue: normalizeToolResultCompactionThresholdsByTool(compactionConfig.toolResultThresholdsByTool ?? compactionConfig.tool_result_thresholds_by_tool),
+      validate(value: unknown) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid tool result compaction thresholds");
+        return Object.freeze(normalizeToolResultCompactionThresholdsByTool(value));
+      },
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL", replacement: "domains.tools.toolResultCompactionThresholdsByTool", removalVersion: "3.0.0", parse: (raw) => parseToolResultCompactionThresholdsByTool(raw) ?? undefined, skipInvalid: true }],
+    },
+    toolResultSemanticSummaryEnabled: boolField({
+      key: "toolResultSemanticSummaryEnabled",
+      owner: "tools",
+      defaultValue: pickBoolean(compactionConfig, ["toolResultSemanticSummaryEnabled", "tool_result_semantic_summary_enabled", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED"]) ?? true,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED", replacement: "domains.tools.toolResultSemanticSummaryEnabled", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+    toolResultSemanticSummaryMaxInputChars: integerField({
+      key: "toolResultSemanticSummaryMaxInputChars",
+      owner: "tools",
+      defaultValue: parsePositiveIntegerWithBounds(
+        pickNumber(compactionConfig, ["toolResultSemanticSummaryMaxInputChars", "tool_result_semantic_summary_max_input_chars", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS"]),
+        12_000,
+        500,
+        200_000,
+      ),
+      min: 500,
+      max: 200_000,
+      bounds: "500..200000 characters",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS", replacement: "domains.tools.toolResultSemanticSummaryMaxInputChars", removalVersion: "3.0.0", parse: (raw) => parsePositiveInteger(raw), skipInvalid: true }],
+    }),
+    toolResultSemanticSummaryMaxTokens: integerField({
+      key: "toolResultSemanticSummaryMaxTokens",
+      owner: "tools",
+      defaultValue: parsePositiveIntegerWithBounds(
+        pickNumber(compactionConfig, ["toolResultSemanticSummaryMaxTokens", "tool_result_semantic_summary_max_tokens", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS"]),
+        320,
+        64,
+        4_096,
+      ),
+      min: 64,
+      max: 4_096,
+      bounds: "64..4096 tokens",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS", replacement: "domains.tools.toolResultSemanticSummaryMaxTokens", removalVersion: "3.0.0", parse: (raw) => parsePositiveInteger(raw), skipInvalid: true }],
+    }),
+    toolResultSemanticSummaryTimeoutMs: integerField({
+      key: "toolResultSemanticSummaryTimeoutMs",
+      owner: "tools",
+      defaultValue: parsePositiveDurationMs(
+        pickNumber(compactionConfig, ["toolResultSemanticSummaryTimeoutMs", "tool_result_semantic_summary_timeout_ms", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS"]),
+        12_000,
+      ),
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS", replacement: "domains.tools.toolResultSemanticSummaryTimeoutMs", removalVersion: "3.0.0", parse: (raw) => parsePositiveInteger(raw), skipInvalid: true }],
+    }),
   },
 });
 
@@ -1325,58 +1460,6 @@ const configCompactionRequestOverheadTokens = pickNumber(compactionConfig, ["com
 const configTokenEstimateSafetyMultiplier = pickNumber(compactionConfig, ["tokenEstimateSafetyMultiplier", "token_estimate_safety_multiplier", "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"]);
 const configProgressiveCompaction = pickBoolean(compactionConfig, ["progressiveCompaction", "progressive_compaction", "PICLAW_PROGRESSIVE_COMPACTION"]);
 const configSmartCompactionReasoning = pickString(compactionConfig, ["smartCompactionReasoning", "smart_compaction_reasoning", "PICLAW_SMART_COMPACTION_REASONING"]);
-const configToolResultCompactionEnabled = pickBoolean(compactionConfig, [
-  "toolResultCompactionEnabled",
-  "tool_result_compaction_enabled",
-  "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
-]);
-const envToolResultCompactionEnabled = pickBoolean({
-  PICLAW_TOOL_RESULT_COMPACTION_ENABLED: process.env.PICLAW_TOOL_RESULT_COMPACTION_ENABLED ?? envConfig.PICLAW_TOOL_RESULT_COMPACTION_ENABLED,
-}, ["PICLAW_TOOL_RESULT_COMPACTION_ENABLED"]);
-const configToolResultThresholdsByToolRaw =
-  compactionConfig.toolResultThresholdsByTool ?? compactionConfig.tool_result_thresholds_by_tool;
-const envToolResultThresholdsByToolRaw =
-  process.env.PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL ?? envConfig.PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL;
-const configToolResultCompactionToolsRaw =
-  compactionConfig.toolResultCompactionTools ?? compactionConfig.tool_result_compaction_tools;
-const envToolResultCompactionToolsRaw =
-  process.env.PICLAW_TOOL_RESULT_COMPACTION_TOOLS ?? envConfig.PICLAW_TOOL_RESULT_COMPACTION_TOOLS;
-const configToolResultSemanticSummaryEnabled = pickBoolean(compactionConfig, [
-  "toolResultSemanticSummaryEnabled",
-  "tool_result_semantic_summary_enabled",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED",
-]);
-const configToolResultSemanticSummaryMaxInputChars = pickNumber(compactionConfig, [
-  "toolResultSemanticSummaryMaxInputChars",
-  "tool_result_semantic_summary_max_input_chars",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
-]);
-const configToolResultSemanticSummaryMaxTokens = pickNumber(compactionConfig, [
-  "toolResultSemanticSummaryMaxTokens",
-  "tool_result_semantic_summary_max_tokens",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS",
-]);
-const configToolResultSemanticSummaryTimeoutMs = pickNumber(compactionConfig, [
-  "toolResultSemanticSummaryTimeoutMs",
-  "tool_result_semantic_summary_timeout_ms",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
-]);
-const envToolResultSemanticSummaryEnabled = pickBoolean({
-  PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED:
-    process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED ?? envConfig.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED,
-}, ["PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED"]);
-const envToolResultSemanticSummaryMaxInputChars = pickNumber({
-  PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS:
-    process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS ?? envConfig.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS,
-}, ["PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS"]);
-const envToolResultSemanticSummaryMaxTokens = pickNumber({
-  PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS:
-    process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS ?? envConfig.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS,
-}, ["PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS"]);
-const envToolResultSemanticSummaryTimeoutMs = pickNumber({
-  PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS:
-    process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS ?? envConfig.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS,
-}, ["PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS"]);
 const configAdditionalDefaultTools = pickStringArray(toolsConfig, [
   "additionalDefaultTools",
   "additional_default_tools",
@@ -1855,47 +1938,23 @@ function parsePositiveIntegerWithBounds(value: unknown, fallback: number, min: n
   return Math.min(max, Math.max(min, Math.round(parsed)));
 }
 
+const INITIAL_TOOL_POLICY_CONFIG = getToolsIntegrationConfig();
+
 /** Runtime toggle for universal tool-result compaction. Default on. */
-export let TOOL_RESULT_COMPACTION_ENABLED =
-  envToolResultCompactionEnabled ?? configToolResultCompactionEnabled ?? true;
+export let TOOL_RESULT_COMPACTION_ENABLED = INITIAL_TOOL_POLICY_CONFIG.toolResultCompactionEnabled;
 
 /** Tool names eligible for tool-result compaction. */
-export let TOOL_RESULT_COMPACTION_TOOLS = Object.freeze(
-  parseToolResultCompactionTools(envToolResultCompactionToolsRaw)
-  ?? parseToolResultCompactionTools(configToolResultCompactionToolsRaw)
-  ?? [...DEFAULT_TOOL_RESULT_COMPACTION_TOOLS]
-);
+export let TOOL_RESULT_COMPACTION_TOOLS = INITIAL_TOOL_POLICY_CONFIG.toolResultCompactionTools;
 
 /** Optional per-tool compaction threshold overrides. */
-export let TOOL_RESULT_COMPACTION_THRESHOLDS_BY_TOOL = Object.freeze(
-  parseToolResultCompactionThresholdsByTool(envToolResultThresholdsByToolRaw)
-  ?? normalizeToolResultCompactionThresholdsByTool(configToolResultThresholdsByToolRaw)
-);
+export let TOOL_RESULT_COMPACTION_THRESHOLDS_BY_TOOL = INITIAL_TOOL_POLICY_CONFIG.toolResultCompactionThresholdsByTool;
 
 /** Semantic summarization config for compacted tool results. */
 export let TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG = Object.seal<ToolResultSemanticSummaryConfig>({
-  enabled: envToolResultSemanticSummaryEnabled
-    ?? configToolResultSemanticSummaryEnabled
-    ?? DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED,
-  maxInputChars: parsePositiveIntegerWithBounds(
-    envToolResultSemanticSummaryMaxInputChars
-      ?? configToolResultSemanticSummaryMaxInputChars,
-    DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS,
-    500,
-    200_000,
-  ),
-  maxTokens: parsePositiveIntegerWithBounds(
-    envToolResultSemanticSummaryMaxTokens
-      ?? configToolResultSemanticSummaryMaxTokens,
-    DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS,
-    64,
-    4_096,
-  ),
-  timeoutMs: parsePositiveDurationMs(
-    envToolResultSemanticSummaryTimeoutMs
-      ?? configToolResultSemanticSummaryTimeoutMs,
-    DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS,
-  ),
+  enabled: INITIAL_TOOL_POLICY_CONFIG.toolResultSemanticSummaryEnabled,
+  maxInputChars: INITIAL_TOOL_POLICY_CONFIG.toolResultSemanticSummaryMaxInputChars,
+  maxTokens: INITIAL_TOOL_POLICY_CONFIG.toolResultSemanticSummaryMaxTokens,
+  timeoutMs: INITIAL_TOOL_POLICY_CONFIG.toolResultSemanticSummaryTimeoutMs,
 });
 
 export function getToolOutputStoreThreshold(): number {
@@ -1921,44 +1980,27 @@ export function setToolOutputStoreThreshold(value: number): number {
 
 /** Return whether runtime tool-result compaction is enabled. */
 export function getToolResultCompactionEnabled(): boolean {
-  return parseOptionalBooleanFlag(process.env.PICLAW_TOOL_RESULT_COMPACTION_ENABLED, TOOL_RESULT_COMPACTION_ENABLED);
+  return getToolsIntegrationConfig().toolResultCompactionEnabled;
 }
 
 /** Return optional per-tool compaction thresholds (tool name -> bytes/lines). */
 export function getToolResultCompactionThresholdsByTool(): Readonly<Record<string, ToolResultCompactionThresholdPolicy>> {
-  return parseToolResultCompactionThresholdsByTool(process.env.PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL)
-    ?? TOOL_RESULT_COMPACTION_THRESHOLDS_BY_TOOL;
+  return getToolsIntegrationConfig().toolResultCompactionThresholdsByTool;
 }
 
 /** Return tool names currently eligible for tool-result compaction. */
 export function getToolResultCompactionTools(): ReadonlyArray<string> {
-  return parseToolResultCompactionTools(process.env.PICLAW_TOOL_RESULT_COMPACTION_TOOLS)
-    ?? TOOL_RESULT_COMPACTION_TOOLS;
+  return getToolsIntegrationConfig().toolResultCompactionTools;
 }
 
 /** Return semantic summarization config for compacted tool results. */
 export function getToolResultSemanticSummaryConfig(): Readonly<ToolResultSemanticSummaryConfig> {
+  const config = getToolsIntegrationConfig();
   return Object.freeze({
-    enabled: parseOptionalBooleanFlag(
-      process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED,
-      TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG.enabled,
-    ),
-    maxInputChars: parsePositiveIntegerWithBounds(
-      process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS,
-      TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG.maxInputChars,
-      500,
-      200_000,
-    ),
-    maxTokens: parsePositiveIntegerWithBounds(
-      process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS,
-      TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG.maxTokens,
-      64,
-      4_096,
-    ),
-    timeoutMs: parsePositiveDurationMs(
-      process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS,
-      TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG.timeoutMs,
-    ),
+    enabled: config.toolResultSemanticSummaryEnabled,
+    maxInputChars: config.toolResultSemanticSummaryMaxInputChars,
+    maxTokens: config.toolResultSemanticSummaryMaxTokens,
+    timeoutMs: config.toolResultSemanticSummaryTimeoutMs,
   });
 }
 
@@ -1983,95 +2025,34 @@ export function setToolResultSemanticSummaryConfig(patch: {
       : parsePositiveDurationMs(patch.timeoutMs, current.timeoutMs),
   };
 
-  const config = readJsonConfig(getConfigPath());
-  const compaction =
-    config.compaction && typeof config.compaction === "object"
-      ? { ...(config.compaction as Record<string, unknown>) }
-      : {};
-  const clearKeys = [
-    "toolResultSemanticSummaryEnabled",
-    "tool_result_semantic_summary_enabled",
-    "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED",
-    "toolResultSemanticSummaryMaxInputChars",
-    "tool_result_semantic_summary_max_input_chars",
-    "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
-    "toolResultSemanticSummaryMaxTokens",
-    "tool_result_semantic_summary_max_tokens",
-    "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS",
-    "toolResultSemanticSummaryTimeoutMs",
-    "tool_result_semantic_summary_timeout_ms",
-    "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
-  ];
-  for (const key of clearKeys) {
-    delete compaction[key];
-    delete config[key];
-  }
-
-  compaction.toolResultSemanticSummaryEnabled = next.enabled;
-  compaction.toolResultSemanticSummaryMaxInputChars = next.maxInputChars;
-  compaction.toolResultSemanticSummaryMaxTokens = next.maxTokens;
-  compaction.toolResultSemanticSummaryTimeoutMs = next.timeoutMs;
-  config.compaction = compaction;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED = next.enabled ? "1" : "0";
-  process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS = String(next.maxInputChars);
-  process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS = String(next.maxTokens);
-  process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS = String(next.timeoutMs);
-
-  TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG = Object.seal(next);
+  const resolved = writeDomainConfig(toolsIntegrationDomainSchema, getDomainConfigOptions(), {
+    toolResultSemanticSummaryEnabled: next.enabled,
+    toolResultSemanticSummaryMaxInputChars: next.maxInputChars,
+    toolResultSemanticSummaryMaxTokens: next.maxTokens,
+    toolResultSemanticSummaryTimeoutMs: next.timeoutMs,
+  });
+  TOOL_RESULT_SEMANTIC_SUMMARY_CONFIG = Object.seal({
+    enabled: resolved.toolResultSemanticSummaryEnabled,
+    maxInputChars: resolved.toolResultSemanticSummaryMaxInputChars,
+    maxTokens: resolved.toolResultSemanticSummaryMaxTokens,
+    timeoutMs: resolved.toolResultSemanticSummaryTimeoutMs,
+  });
   return getToolResultSemanticSummaryConfig();
 }
 
 /** Persist and apply tool names eligible for tool-result compaction. */
 export function setToolResultCompactionTools(tools: string[]): string[] {
   const nextTools = normalizeToolResultCompactionTools(tools);
-  const config = readJsonConfig(getConfigPath());
-  const compaction =
-    config.compaction && typeof config.compaction === "object"
-      ? { ...(config.compaction as Record<string, unknown>) }
-      : {};
-  const clearKeys = [
-    "toolResultCompactionTools",
-    "tool_result_compaction_tools",
-    "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
-  ];
-  for (const key of clearKeys) {
-    delete compaction[key];
-    delete config[key];
-  }
-  compaction.toolResultCompactionTools = nextTools;
-  config.compaction = compaction;
-  writeJsonConfig(getConfigPath(), config);
-
-  TOOL_RESULT_COMPACTION_TOOLS = Object.freeze([...nextTools]);
-  process.env.PICLAW_TOOL_RESULT_COMPACTION_TOOLS = nextTools.join(",");
+  const resolved = writeDomainConfigField(toolsIntegrationDomainSchema, getDomainConfigOptions(), "toolResultCompactionTools", nextTools);
+  TOOL_RESULT_COMPACTION_TOOLS = resolved.toolResultCompactionTools;
   return [...TOOL_RESULT_COMPACTION_TOOLS];
 }
 
 /** Persist and apply the runtime tool-result compaction toggle. */
 export function setToolResultCompactionEnabled(enabled: boolean): boolean {
   const next = Boolean(enabled);
-  const config = readJsonConfig(getConfigPath());
-  const compaction =
-    config.compaction && typeof config.compaction === "object"
-      ? { ...(config.compaction as Record<string, unknown>) }
-      : {};
-  const clearKeys = [
-    "toolResultCompactionEnabled",
-    "tool_result_compaction_enabled",
-    "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
-  ];
-  for (const key of clearKeys) {
-    delete compaction[key];
-    delete config[key];
-  }
-  compaction.toolResultCompactionEnabled = next;
-  config.compaction = compaction;
-  writeJsonConfig(getConfigPath(), config);
-
-  TOOL_RESULT_COMPACTION_ENABLED = next;
-  process.env.PICLAW_TOOL_RESULT_COMPACTION_ENABLED = next ? "1" : "0";
+  const resolved = writeDomainConfigField(toolsIntegrationDomainSchema, getDomainConfigOptions(), "toolResultCompactionEnabled", next);
+  TOOL_RESULT_COMPACTION_ENABLED = resolved.toolResultCompactionEnabled;
   return TOOL_RESULT_COMPACTION_ENABLED;
 }
 
@@ -2861,21 +2842,10 @@ export function getAgentLogConfig(): Readonly<AgentLogConfig> {
 /** Typed tool-output retention settings grouped for runtime startup wiring. */
 export type ToolOutputConfig = RetentionCleanupConfig;
 
-const DEFAULT_TOOL_OUTPUT_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
-
-/** Grouped tool-output retention settings. Defaults/caps retention at 30 days. */
+/** Stable public object with live typed-domain retention values. */
 export const TOOL_OUTPUT_CONFIG = Object.freeze<ToolOutputConfig>({
-  retentionMs: clampLogRetentionMs(
-    parseRetentionMs(
-      process.env.PICLAW_TOOL_OUTPUT_RETENTION_MS ?? envConfig.PICLAW_TOOL_OUTPUT_RETENTION_MS,
-      process.env.PICLAW_TOOL_OUTPUT_RETENTION_DAYS ?? envConfig.PICLAW_TOOL_OUTPUT_RETENTION_DAYS,
-    ),
-    DEFAULT_LOG_RETENTION_CAP_MS,
-  ),
-  cleanupIntervalMs: parseCleanupIntervalMs(
-    process.env.PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS ?? envConfig.PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS,
-    DEFAULT_TOOL_OUTPUT_CLEANUP_INTERVAL_MS,
-  ),
+  get retentionMs() { return getToolsIntegrationConfig().toolOutputRetentionMs; },
+  get cleanupIntervalMs() { return getToolsIntegrationConfig().toolOutputCleanupIntervalMs; },
 });
 
 /** Return the grouped tool-output settings for startup wiring and tests. */

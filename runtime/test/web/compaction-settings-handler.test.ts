@@ -97,14 +97,16 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
       compaction: {
         remoteCompactionEnabled: true,
         remoteCompactionTimeoutMs: 45000,
-        toolResultCompactionEnabled: false,
-        toolResultCompactionTools: ['bash', 'exec_batch'],
-        toolResultSemanticSummaryEnabled: true,
-        toolResultSemanticSummaryMaxInputChars: 24000,
-        toolResultSemanticSummaryMaxTokens: 640,
-        toolResultSemanticSummaryTimeoutMs: 30000,
       },
       domains: {
+        tools: {
+          toolResultCompactionEnabled: false,
+          toolResultCompactionTools: ['bash', 'exec_batch'],
+          toolResultSemanticSummaryEnabled: true,
+          toolResultSemanticSummaryMaxInputChars: 24000,
+          toolResultSemanticSummaryMaxTokens: 640,
+          toolResultSemanticSummaryTimeoutMs: 30000,
+        },
         compaction: {
           autoCompactionEnabled: false,
           smartCompactionMethod: 'pipelined',
@@ -176,10 +178,9 @@ test('saveCompactionSettings normalizes per-tool compaction allowlist', async ()
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
-      compaction: {
-        toolResultCompactionTools: ['bash', 'proxmox'],
-      },
+      domains: { tools: { toolResultCompactionTools: ['bash', 'proxmox'] } },
     });
+    expect(process.env.PICLAW_TOOL_RESULT_COMPACTION_TOOLS).toBeUndefined();
   });
 });
 
@@ -212,13 +213,17 @@ test('saveCompactionSettings normalizes semantic summary settings', async () => 
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
-      compaction: {
+      domains: { tools: {
         toolResultSemanticSummaryEnabled: true,
         toolResultSemanticSummaryMaxInputChars: 500,
         toolResultSemanticSummaryMaxTokens: 4096,
         toolResultSemanticSummaryTimeoutMs: 300000,
-      },
+      } },
     });
+    expect(process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED).toBeUndefined();
+    expect(process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS).toBeUndefined();
+    expect(process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS).toBeUndefined();
+    expect(process.env.PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS).toBeUndefined();
   });
 });
 
