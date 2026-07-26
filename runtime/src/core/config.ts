@@ -2531,10 +2531,14 @@ export interface WorkspaceSearchConfig {
 
 const initialToolsIntegrationConfig = getToolsIntegrationConfig();
 
-/** Grouped workspace-search config loaded from typed tools-domain config. */
+/**
+ * Stable public config object with live typed-domain values. Some callers keep
+ * object identity while tests/settings can change compatibility inputs between
+ * reads, so expose accessor properties instead of freezing one startup snapshot.
+ */
 export const WORKSPACE_SEARCH_CONFIG = Object.freeze<WorkspaceSearchConfig>({
-  roots: initialToolsIntegrationConfig.workspaceSearchRoots,
-  extraExtensions: initialToolsIntegrationConfig.workspaceSearchExtensions,
+  get roots() { return getToolsIntegrationConfig().workspaceSearchRoots; },
+  get extraExtensions() { return getToolsIntegrationConfig().workspaceSearchExtensions; },
 });
 
 /** Return grouped workspace-search config for runtime wiring and tests. */
