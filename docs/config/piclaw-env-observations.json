@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 60 to 55",
+    "source": "accepted direct-reader reduction from 55 to 51",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -38,12 +38,8 @@
       "PICLAW_STORE",
       "PICLAW_TEST_PLATFORM",
       "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
-      "PICLAW_TOOL_OUTPUT_PREVIEW_LINES",
-      "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS",
       "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
       "PICLAW_TOOL_OUTPUT_RETENTION_MS",
-      "PICLAW_TOOL_OUTPUT_STORE_BYTES",
-      "PICLAW_TOOL_OUTPUT_STORE_LINES",
       "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL",
       "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
       "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
@@ -102,30 +98,30 @@
   "current": {
     "production": {
       "referencedNames": 179,
-      "directReaderNames": 56,
-      "directReaderOccurrences": 140,
+      "directReaderNames": 52,
+      "directReaderOccurrences": 122,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 56,
-      "semanticReaderOccurrences": 140
+      "semanticReaderNames": 52,
+      "semanticReaderOccurrences": 122
     },
     "runtimeSrc": {
       "referencedNames": 176,
-      "directReaderNames": 55,
-      "directReaderOccurrences": 129,
+      "directReaderNames": 51,
+      "directReaderOccurrences": 115,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 55,
-      "semanticReaderOccurrences": 129
+      "semanticReaderNames": 51,
+      "semanticReaderOccurrences": 115
     },
     "extensions": {
-      "referencedNames": 14,
-      "directReaderNames": 10,
-      "directReaderOccurrences": 11,
+      "referencedNames": 10,
+      "directReaderNames": 6,
+      "directReaderOccurrences": 7,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 10,
-      "semanticReaderOccurrences": 11
+      "semanticReaderNames": 6,
+      "semanticReaderOccurrences": 7
     },
     "tooling": {
       "referencedNames": 74,
@@ -5479,49 +5475,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 4,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 4,
+          "semanticReaders": 0,
           "files": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -5543,49 +5513,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 4,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 4,
+          "semanticReaders": 0,
           "files": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -5691,53 +5635,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 6,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 6,
+          "semanticReaders": 0,
           "files": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/core/config.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/core/config.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 5,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 5,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
+          "readerFiles": []
         },
         "tooling": {
           "referenced": true,
@@ -5771,49 +5685,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 4,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 4,
+          "semanticReaders": 0,
           "files": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts",
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/integrations/context-mode.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/extensions/structured-tool-response.ts",
-            "runtime/src/tools/bun-runner.ts",
-            "runtime/src/tools/context-tools.ts"
-          ]
+          "readerFiles": []
         },
         "tooling": {
           "referenced": true,
