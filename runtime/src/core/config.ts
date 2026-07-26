@@ -189,6 +189,9 @@ const envConfig = readEnvFile([
   "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
   "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
   "PICLAW_MCP_TOOL_TIMEOUT_MS",
+  "PICLAW_PACKAGE_ROOT",
+  "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
+  "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
 ]);
 
 import { pickString, pickNumber, pickBoolean, pickStringArray } from "./config-helpers.js";
@@ -622,11 +625,32 @@ const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
 
 const AGENT_DOMAIN_CONFIG = readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions());
 
+const legacyWorkspaceSearchRoots = pickStringArray(toolsConfig, [
+  "workspaceSearchRoots",
+  "workspace_search_roots",
+  "PICLAW_WORKSPACE_SEARCH_ROOTS",
+]);
+const legacyWorkspaceSearchExtensions = pickStringArray(toolsConfig, [
+  "workspaceSearchExtensions",
+  "workspace_search_extensions",
+  "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
+]);
+const legacyScopedModelsOnly = pickBoolean(modelsConfig, [
+  "scopedModelsOnly",
+  "scoped_models_only",
+  "PICLAW_SCOPED_MODELS_ONLY",
+]);
+
 /** Typed provider/tool integration settings migrated from runtime env support. */
 export interface ToolsIntegrationConfig {
   githubCopilotDynamicModels: boolean;
   githubCopilotModelsTimeoutMs: number;
   mcpToolTimeoutMs: number;
+  packageRoot: string;
+  unknownModelContextWindow: number;
+  scopedModelsOnly: boolean;
+  workspaceSearchRoots: string[];
+  workspaceSearchExtensions: string[];
 }
 
 function parseLegacyCopilotDynamicModels(raw: string): boolean {
@@ -684,6 +708,63 @@ const toolsIntegrationDomainSchema = registerDomainConfig<ToolsIntegrationConfig
         skipInvalid: true,
       }],
     }),
+    packageRoot: stringField({
+      key: "packageRoot",
+      owner: "tools",
+      defaultValue: "",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_PACKAGE_ROOT", replacement: "domains.tools.packageRoot", removalVersion: "3.0.0" }],
+    }),
+    unknownModelContextWindow: integerField({
+      key: "unknownModelContextWindow",
+      owner: "tools",
+      defaultValue: 64_000,
+      min: 1,
+      bounds: "positive integer tokens",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW", replacement: "domains.tools.unknownModelContextWindow", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+    scopedModelsOnly: boolField({
+      key: "scopedModelsOnly",
+      owner: "tools",
+      defaultValue: legacyScopedModelsOnly ?? false,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_SCOPED_MODELS_ONLY", replacement: "domains.tools.scopedModelsOnly", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+    workspaceSearchRoots: {
+      key: "workspaceSearchRoots",
+      owner: "workspace",
+      type: "json",
+      defaultValue: legacyWorkspaceSearchRoots ?? ["notes", ".pi/skills"],
+      validate(value: unknown) {
+        if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error("Invalid workspace search roots");
+        return value.map((entry) => entry.trim()).filter(Boolean);
+      },
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_WORKSPACE_SEARCH_ROOTS", replacement: "domains.tools.workspaceSearchRoots", removalVersion: "3.0.0", parse: (raw) => raw.split(","), skipInvalid: true }],
+    },
+    workspaceSearchExtensions: {
+      key: "workspaceSearchExtensions",
+      owner: "workspace",
+      type: "json",
+      defaultValue: legacyWorkspaceSearchExtensions ?? [],
+      validate(value: unknown) {
+        if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error("Invalid workspace search extensions");
+        return value.map((entry) => entry.trim()).filter(Boolean);
+      },
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_WORKSPACE_SEARCH_EXTENSIONS", replacement: "domains.tools.workspaceSearchExtensions", removalVersion: "3.0.0", parse: (raw) => raw.split(","), skipInvalid: true }],
+    },
   },
 });
 
@@ -1289,25 +1370,10 @@ const configAdditionalDefaultTools = pickStringArray(toolsConfig, [
   "additional_default_tools",
   "PICLAW_ADDITIONAL_DEFAULT_TOOLS",
 ]);
-const configWorkspaceSearchRoots = pickStringArray(toolsConfig, [
-  "workspaceSearchRoots",
-  "workspace_search_roots",
-  "PICLAW_WORKSPACE_SEARCH_ROOTS",
-]);
-const configWorkspaceSearchExtensions = pickStringArray(toolsConfig, [
-  "workspaceSearchExtensions",
-  "workspace_search_extensions",
-  "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
-]);
 const configSearchMatchMode = pickString(toolsConfig, [
   "searchMatchMode",
   "search_match_mode",
   "PICLAW_SEARCH_MATCH_MODE",
-]);
-const configScopedModelsOnly = pickBoolean(modelsConfig, [
-  "scopedModelsOnly",
-  "scoped_models_only",
-  "PICLAW_SCOPED_MODELS_ONLY",
 ]);
 
 /** Typed session-file safeguards grouped for runtime/session wiring. */
@@ -2463,25 +2529,21 @@ export interface WorkspaceSearchConfig {
   extraExtensions: string[];
 }
 
-const workspaceSearchRoots = pickStringArray(
-  { PICLAW_WORKSPACE_SEARCH_ROOTS: process.env.PICLAW_WORKSPACE_SEARCH_ROOTS ?? envConfig.PICLAW_WORKSPACE_SEARCH_ROOTS },
-  ["PICLAW_WORKSPACE_SEARCH_ROOTS"],
-) ?? configWorkspaceSearchRoots ?? ["notes", ".pi/skills"];
+const initialToolsIntegrationConfig = getToolsIntegrationConfig();
 
-const workspaceSearchExtensions = pickStringArray(
-  { PICLAW_WORKSPACE_SEARCH_EXTENSIONS: process.env.PICLAW_WORKSPACE_SEARCH_EXTENSIONS ?? envConfig.PICLAW_WORKSPACE_SEARCH_EXTENSIONS },
-  ["PICLAW_WORKSPACE_SEARCH_EXTENSIONS"],
-) ?? configWorkspaceSearchExtensions ?? [];
-
-/** Grouped workspace-search config loaded from env/config. */
+/** Grouped workspace-search config loaded from typed tools-domain config. */
 export const WORKSPACE_SEARCH_CONFIG = Object.freeze<WorkspaceSearchConfig>({
-  roots: workspaceSearchRoots,
-  extraExtensions: workspaceSearchExtensions,
+  roots: initialToolsIntegrationConfig.workspaceSearchRoots,
+  extraExtensions: initialToolsIntegrationConfig.workspaceSearchExtensions,
 });
 
 /** Return grouped workspace-search config for runtime wiring and tests. */
 export function getWorkspaceSearchConfig(): Readonly<WorkspaceSearchConfig> {
-  return WORKSPACE_SEARCH_CONFIG;
+  const domain = getToolsIntegrationConfig();
+  return Object.freeze({
+    roots: domain.workspaceSearchRoots,
+    extraExtensions: domain.workspaceSearchExtensions,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -2530,37 +2592,17 @@ export function setSearchMatchMode(mode: SearchMatchMode): SearchMatchMode {
 // Model scoping – optionally apply Pi enabledModels outside the TUI.
 // ---------------------------------------------------------------------------
 
-let SCOPED_MODELS_ONLY = Boolean(
-  pickBoolean({ PICLAW_SCOPED_MODELS_ONLY: process.env.PICLAW_SCOPED_MODELS_ONLY ?? envConfig.PICLAW_SCOPED_MODELS_ONLY }, [
-    "PICLAW_SCOPED_MODELS_ONLY",
-  ]) ?? configScopedModelsOnly ?? false,
-);
+let SCOPED_MODELS_ONLY = initialToolsIntegrationConfig.scopedModelsOnly;
 
 /** Return true when Piclaw should filter non-TUI model lists by Pi enabledModels. */
 export function getScopedModelsOnly(): boolean {
-  const envOverride = pickBoolean({ PICLAW_SCOPED_MODELS_ONLY: process.env.PICLAW_SCOPED_MODELS_ONLY }, [
-    "PICLAW_SCOPED_MODELS_ONLY",
-  ]);
-  return envOverride ?? SCOPED_MODELS_ONLY;
+  return getToolsIntegrationConfig().scopedModelsOnly;
 }
 
 /** Persist and apply global model scoping for Piclaw list/model-picker surfaces. */
 export function setScopedModelsOnly(enabled: boolean): boolean {
   const next = Boolean(enabled);
-  const config = readJsonConfig(getConfigPath());
-  const models =
-    config.models && typeof config.models === "object"
-      ? { ...(config.models as Record<string, unknown>) }
-      : {};
-  const clearKeys = ["scopedModelsOnly", "scoped_models_only", "PICLAW_SCOPED_MODELS_ONLY"];
-  for (const key of clearKeys) {
-    delete models[key];
-  }
-  models.scopedModelsOnly = next;
-  config.models = models;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_SCOPED_MODELS_ONLY = next ? "1" : "0";
+  writeDomainConfigField(toolsIntegrationDomainSchema, getDomainConfigOptions(), "scopedModelsOnly", next);
   SCOPED_MODELS_ONLY = next;
   return SCOPED_MODELS_ONLY;
 }

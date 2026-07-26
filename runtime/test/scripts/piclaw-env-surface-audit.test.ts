@@ -59,7 +59,7 @@ describe("Piclaw env surface audit", () => {
     expect(observations.issueBaseline).toEqual({ distinctNames: 235, literalProductionReaders: 151 });
     expect(observations.scanScopes.production).toEqual(["runtime/src", "runtime/extensions"]);
     expect(observations.current.runtimeSrc.directReaderNames).toBe(observations.runtimeSrcDirectBaseline.names.length);
-    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(60);
+    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(55);
     expect(observations.runtimeSrcDirectBaseline.added).toEqual([]);
     expect(observations.runtimeSrcDirectBaseline.removed).toEqual([]);
     expect(observations.current.runtimeSrc.directReaderNames).toBeLessThan(issueBaseline.literalProductionReaders);

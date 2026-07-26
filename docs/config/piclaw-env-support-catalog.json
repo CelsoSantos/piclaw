@@ -1623,26 +1623,27 @@
       "name": "PICLAW_PACKAGE_ROOT",
       "owner": "tools",
       "type": "path",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "empty derives installed package root",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.packageRoot",
+      "deprecation": "migrated to typed domains.tools.packageRoot config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.packageRoot (#754B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_PI_AGENT_DIR",
@@ -2442,28 +2443,29 @@
     },
     {
       "name": "PICLAW_SCOPED_MODELS_ONLY",
-      "owner": "core",
+      "owner": "tools",
       "type": "boolean",
-      "default": null,
+      "default": false,
       "bounds": null,
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.scopedModelsOnly",
+      "deprecation": "migrated to typed domains.tools.scopedModelsOnly config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.scopedModelsOnly (#754B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_SEARCH_MATCH_MODE",
@@ -3993,28 +3995,29 @@
     },
     {
       "name": "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
-      "owner": "core",
+      "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 64000,
+      "bounds": "positive integer tokens",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.unknownModelContextWindow",
+      "deprecation": "migrated to typed domains.tools.unknownModelContextWindow config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.unknownModelContextWindow (#754B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_USER_AVATAR",
@@ -4920,53 +4923,58 @@
     },
     {
       "name": "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
-      "owner": "core",
-      "type": "path",
-      "default": null,
-      "bounds": null,
+      "owner": "workspace",
+      "type": "json",
+      "default": [],
+      "bounds": "string array",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.workspaceSearchExtensions",
+      "deprecation": "migrated to typed domains.tools.workspaceSearchExtensions config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.workspaceSearchExtensions (#754B)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_WORKSPACE_SEARCH_ROOTS",
-      "owner": "core",
-      "type": "path",
-      "default": null,
-      "bounds": null,
+      "owner": "workspace",
+      "type": "json",
+      "default": [
+        "notes",
+        ".pi/skills"
+      ],
+      "bounds": "non-empty string array",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.workspaceSearchRoots",
+      "deprecation": "migrated to typed domains.tools.workspaceSearchRoots config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.workspaceSearchRoots (#754B)",
+      "migrationDisposition": "migrated-to-domain-config"
     }
   ]
 }
