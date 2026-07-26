@@ -2539,11 +2539,7 @@ export const WORKSPACE_SEARCH_CONFIG = Object.freeze<WorkspaceSearchConfig>({
 
 /** Return grouped workspace-search config for runtime wiring and tests. */
 export function getWorkspaceSearchConfig(): Readonly<WorkspaceSearchConfig> {
-  const domain = getToolsIntegrationConfig();
-  return Object.freeze({
-    roots: domain.workspaceSearchRoots,
-    extraExtensions: domain.workspaceSearchExtensions,
-  });
+  return WORKSPACE_SEARCH_CONFIG;
 }
 
 // ---------------------------------------------------------------------------
