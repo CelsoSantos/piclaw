@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 68 to 63",
+  "source": "accepted direct-reader reduction from 63 to 60",
   "names": [
     "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
     "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -12,13 +12,10 @@
     "PICLAW_DREAM_BACKUP_KEEP",
     "PICLAW_DREAM_CRON",
     "PICLAW_DREAM_MODEL",
-    "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
-    "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
     "PICLAW_INTERNAL_SECRET",
     "PICLAW_KEYCHAIN_KEY",
     "PICLAW_KEYCHAIN_KEY_FILE",
     "PICLAW_LOG_LEVEL",
-    "PICLAW_MCP_TOOL_TIMEOUT_MS",
     "PICLAW_PACKAGE_ROOT",
     "PICLAW_RECORDINGS_DIR",
     "PICLAW_REMOTE_COMPACTION_ENABLED",

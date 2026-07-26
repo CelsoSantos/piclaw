@@ -10,13 +10,15 @@
 import type { Api, Model, OAuthCredential, Provider, RefreshModelsContext } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ModelRuntime } from "@earendil-works/pi-coding-agent";
 
+import { getToolsIntegrationConfig } from "../core/config.js";
 import { createLogger } from "../utils/logger.js";
 
 const PROVIDER = "github-copilot";
 const DEFAULT_BASE_URL = "https://api.individual.githubcopilot.com";
-const FETCH_TIMEOUT_MS = Math.max(500, Number(process.env.PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS || "3500"));
+const toolsIntegrationConfig = getToolsIntegrationConfig();
+const FETCH_TIMEOUT_MS = toolsIntegrationConfig.githubCopilotModelsTimeoutMs;
 const REFRESH_TTL_MS = 15 * 60_000;
-const DISABLED = /^(0|false|no)$/i.test(process.env.PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS || "1");
+const DISABLED = !toolsIntegrationConfig.githubCopilotDynamicModels;
 
 const COPILOT_HEADERS: Record<string, string> = {
   "User-Agent": "GitHubCopilotChat/0.35.0",

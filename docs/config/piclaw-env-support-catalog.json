@@ -1199,52 +1199,54 @@
     {
       "name": "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
       "owner": "tools",
-      "type": "enum",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": true,
+      "bounds": "legacy false values: 0, false, no; any other supplied value enables",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.githubCopilotDynamicModels",
+      "deprecation": "migrated to typed domains.tools.githubCopilotDynamicModels config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.githubCopilotDynamicModels (#754A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 3500,
+      "bounds": ">=500 ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.githubCopilotModelsTimeoutMs",
+      "deprecation": "migrated to typed domains.tools.githubCopilotModelsTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.githubCopilotModelsTimeoutMs (#754A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS",
@@ -1568,26 +1570,27 @@
       "name": "PICLAW_MCP_TOOL_TIMEOUT_MS",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 120000,
+      "bounds": ">=0 ms; 0 disables the outer wrapper timeout",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.mcpToolTimeoutMs",
+      "deprecation": "migrated to typed domains.tools.mcpToolTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.mcpToolTimeoutMs (#754A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",

@@ -730,6 +730,96 @@ describe("core config", () => {
     }
   });
 
+  test("tools integration domain persists across restart with compatibility precedence", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-integration-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          tools: {
+            githubCopilotDynamicModels: false,
+            githubCopilotModelsTimeoutMs: 7_000,
+            mcpToolTimeoutMs: 0,
+          },
+        },
+      });
+      const names = ["call:getToolsIntegrationConfig"];
+      const persisted = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: undefined,
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
+        PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
+      } }).snapshot;
+      expect(persisted["call:getToolsIntegrationConfig"]).toEqual({
+        githubCopilotDynamicModels: false,
+        githubCopilotModelsTimeoutMs: 7_000,
+        mcpToolTimeoutMs: 0,
+      });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: "yes",
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: "200",
+        PICLAW_MCP_TOOL_TIMEOUT_MS: "45000",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toEqual({
+        // Preserve legacy semantics: only 0/false/no disable discovery.
+        githubCopilotDynamicModels: true,
+        // Preserve the existing 500ms lower clamp.
+        githubCopilotModelsTimeoutMs: 500,
+        mcpToolTimeoutMs: 45_000,
+      });
+      for (const envKey of [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ]) expectCompatWarningOnce(stderr, envKey);
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tools integration aliases resolve from .env without mutating process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-envfile-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: { tools: { githubCopilotDynamicModels: false, githubCopilotModelsTimeoutMs: 7_000, mcpToolTimeoutMs: 90_000 } },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS=yes",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS=6000",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS=0",
+      ].join("\n"), "utf8");
+      const names = [
+        "call:getToolsIntegrationConfig",
+        "env:PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "env:PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "env:PICLAW_MCP_TOOL_TIMEOUT_MS",
+        "env-unchanged:PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "env-unchanged:PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "env-unchanged:PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: undefined,
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
+        PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toEqual({
+        githubCopilotDynamicModels: true,
+        githubCopilotModelsTimeoutMs: 6_000,
+        mcpToolTimeoutMs: 0,
+      });
+      for (const envKey of [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ]) {
+        expect(snapshot[`env:${envKey}`]).toBeNull();
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-compaction-delays-");
     try {
