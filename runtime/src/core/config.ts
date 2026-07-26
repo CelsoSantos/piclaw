@@ -186,6 +186,9 @@ const envConfig = readEnvFile([
   "PICLAW_TOOL_OUTPUT_RETENTION_MS",
   "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
   "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
+  "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+  "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+  "PICLAW_MCP_TOOL_TIMEOUT_MS",
 ]);
 
 import { pickString, pickNumber, pickBoolean, pickStringArray } from "./config-helpers.js";
@@ -618,6 +621,76 @@ const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
 });
 
 const AGENT_DOMAIN_CONFIG = readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions());
+
+/** Typed provider/tool integration settings migrated from runtime env support. */
+export interface ToolsIntegrationConfig {
+  githubCopilotDynamicModels: boolean;
+  githubCopilotModelsTimeoutMs: number;
+  mcpToolTimeoutMs: number;
+}
+
+function parseLegacyCopilotDynamicModels(raw: string): boolean {
+  return !/^(0|false|no)$/i.test(raw.trim());
+}
+
+const toolsIntegrationDomainSchema = registerDomainConfig<ToolsIntegrationConfig>({
+  domain: "tools",
+  fields: {
+    githubCopilotDynamicModels: boolField({
+      key: "githubCopilotDynamicModels",
+      owner: "tools",
+      defaultValue: true,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{
+        envKey: "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        replacement: "domains.tools.githubCopilotDynamicModels",
+        removalVersion: "3.0.0",
+        parse: parseLegacyCopilotDynamicModels,
+      }],
+    }),
+    githubCopilotModelsTimeoutMs: integerField({
+      key: "githubCopilotModelsTimeoutMs",
+      owner: "tools",
+      defaultValue: 3_500,
+      min: 500,
+      bounds: ">=500 ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{
+        envKey: "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        replacement: "domains.tools.githubCopilotModelsTimeoutMs",
+        removalVersion: "3.0.0",
+        parse: (raw) => Math.max(500, Number(raw)),
+        skipInvalid: true,
+      }],
+    }),
+    mcpToolTimeoutMs: integerField({
+      key: "mcpToolTimeoutMs",
+      owner: "tools",
+      defaultValue: 120_000,
+      min: 0,
+      bounds: ">=0 ms; 0 disables the outer wrapper timeout",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{
+        envKey: "PICLAW_MCP_TOOL_TIMEOUT_MS",
+        replacement: "domains.tools.mcpToolTimeoutMs",
+        removalVersion: "3.0.0",
+        parse: (raw) => Number(raw),
+        skipInvalid: true,
+      }],
+    }),
+  },
+});
+
+/** Read current tools integration configuration without mutating process.env. */
+export function getToolsIntegrationConfig(): Readonly<ToolsIntegrationConfig> {
+  return Object.freeze(readDomainConfig(toolsIntegrationDomainSchema, getDomainConfigOptions()));
+}
 
 /** Grouped agent turn timeout settings. */
 export const AGENT_RUNTIME_CONFIG = Object.freeze<AgentRuntimeConfig>({
