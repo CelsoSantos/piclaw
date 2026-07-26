@@ -55,10 +55,10 @@ async function withFreshConfig(
 function runConfigSubprocess(
   workspace: { workspace: string; store: string; data: string },
   exports: string[],
-  options: { args?: string[]; env?: Record<string, string | undefined> } = {},
+  options: { args?: string[]; env?: Record<string, string | undefined>; noEnvFile?: boolean } = {},
 ): { snapshot: Record<string, any>; stderr: string } {
   const proc = Bun.spawnSync({
-    cmd: ["bun", CONFIG_SUBPROCESS, ...(options.args || [])],
+    cmd: ["bun", ...(options.noEnvFile ? ["--no-env-file"] : []), CONFIG_SUBPROCESS, ...(options.args || [])],
     cwd: workspace.workspace,
     env: {
       PATH: process.env.PATH || "",
@@ -536,6 +536,11 @@ describe("core config", () => {
             hardCeilingPercent: 98,
             warningThreshold: 4,
             backoffDecayFactor: 0.25,
+            systemPromptOverheadTokens: 5000,
+            compactionRequestOverheadTokens: 1200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: true,
+            smartCompactionReasoning: "low",
           },
         },
       });
@@ -552,6 +557,11 @@ describe("core config", () => {
         PICLAW_COMPACTION_HARD_CEILING_PERCENT: undefined,
         PICLAW_COMPACTION_WARNING_THRESHOLD: undefined,
         PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: undefined,
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: undefined,
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: undefined,
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: undefined,
+        PICLAW_PROGRESSIVE_COMPACTION: undefined,
+        PICLAW_SMART_COMPACTION_REASONING: undefined,
         PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: undefined,
       } }).snapshot;
       expect(persisted["call:getCompactionRuntimeConfig"]).toMatchObject({
@@ -559,6 +569,9 @@ describe("core config", () => {
         backoffBaseMs: 120000, backoffMaxMs: 600000, thresholdPercent: 70,
         maxThresholdTokens: 123456, autoCompactionScope: "body_after_prefix",
         hardCeilingPercent: 98, warningThreshold: 4, backoffDecayFactor: 0.25,
+        systemPromptOverheadTokens: 5000, compactionRequestOverheadTokens: 1200,
+        tokenEstimateSafetyMultiplier: 1.25, progressiveCompaction: true,
+        smartCompactionReasoning: "low",
       });
       expect(persisted["call:getMidTurnToolExecutionHardCeiling"]).toBe(72);
 
@@ -574,6 +587,11 @@ describe("core config", () => {
         PICLAW_COMPACTION_HARD_CEILING_PERCENT: "100",
         PICLAW_COMPACTION_WARNING_THRESHOLD: "5",
         PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: "0.5",
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: "6000",
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: "1500",
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "1.5",
+        PICLAW_PROGRESSIVE_COMPACTION: "1",
+        PICLAW_SMART_COMPACTION_REASONING: "high",
         PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "9999",
       } });
       expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
@@ -581,6 +599,9 @@ describe("core config", () => {
         backoffBaseMs: 900000, backoffMaxMs: 900000, thresholdPercent: 70,
         maxThresholdTokens: 0, autoCompactionScope: "total", hardCeilingPercent: 100,
         warningThreshold: 5, backoffDecayFactor: 0.5,
+        systemPromptOverheadTokens: 6000, compactionRequestOverheadTokens: 1500,
+        tokenEstimateSafetyMultiplier: 1.5, progressiveCompaction: true,
+        smartCompactionReasoning: "high",
       });
       expect(snapshot["call:getMidTurnToolExecutionHardCeiling"]).toBe(512);
       for (const envKey of [
@@ -588,9 +609,122 @@ describe("core config", () => {
         "PICLAW_COMPACTION_BACKOFF_BASE_MS", "PICLAW_COMPACTION_BACKOFF_MAX_MS",
         "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS", "PICLAW_AUTO_COMPACTION_SCOPE",
         "PICLAW_COMPACTION_HARD_CEILING_PERCENT", "PICLAW_COMPACTION_WARNING_THRESHOLD",
-        "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
+        "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS", "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "PICLAW_PROGRESSIVE_COMPACTION", "PICLAW_SMART_COMPACTION_REASONING",
+        "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
       ]) expectCompatWarningOnce(stderr, envKey);
       expect(stderr).not.toContain('"envKey":"PICLAW_COMPACTION_THRESHOLD_PERCENT"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("C3 compaction compatibility aliases resolve from .env without mutating process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-c3-envfile-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          compaction: {
+            systemPromptOverheadTokens: 5_000,
+            compactionRequestOverheadTokens: 1_200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: false,
+            smartCompactionReasoning: "low",
+          },
+        },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS=6000",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS=1500",
+        "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER=1.5",
+        "PICLAW_PROGRESSIVE_COMPACTION=1",
+        "PICLAW_SMART_COMPACTION_REASONING=medium",
+      ].join("\n"), "utf8");
+      const names = [
+        "call:getCompactionRuntimeConfig",
+        "env:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "env:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "env:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "env:PICLAW_PROGRESSIVE_COMPACTION",
+        "env:PICLAW_SMART_COMPACTION_REASONING",
+        "env-unchanged:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "env-unchanged:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "env-unchanged:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "env-unchanged:PICLAW_PROGRESSIVE_COMPACTION",
+        "env-unchanged:PICLAW_SMART_COMPACTION_REASONING",
+      ];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: undefined,
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: undefined,
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "2",
+        PICLAW_PROGRESSIVE_COMPACTION: undefined,
+        PICLAW_SMART_COMPACTION_REASONING: undefined,
+      }, noEnvFile: true });
+
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+        systemPromptOverheadTokens: 6000,
+        compactionRequestOverheadTokens: 1500,
+        tokenEstimateSafetyMultiplier: 2,
+        progressiveCompaction: true,
+        smartCompactionReasoning: "medium",
+      });
+      expect(snapshot["env:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"]).toBeNull();
+      expect(snapshot["env:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"]).toBeNull();
+      expect(snapshot["env:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"]).toBe("2");
+      expect(snapshot["env:PICLAW_PROGRESSIVE_COMPACTION"]).toBeNull();
+      expect(snapshot["env:PICLAW_SMART_COMPACTION_REASONING"]).toBeNull();
+      expect(snapshot["env-unchanged:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_PROGRESSIVE_COMPACTION"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_SMART_COMPACTION_REASONING"]).toBe(true);
+      for (const envKey of [
+        "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "PICLAW_PROGRESSIVE_COMPACTION",
+        "PICLAW_SMART_COMPACTION_REASONING",
+      ]) expectCompatWarningOnce(stderr, envKey);
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("C3 invalid compatibility aliases retain persisted and default config", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-c3-invalid-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          compaction: {
+            systemPromptOverheadTokens: 5_000,
+            compactionRequestOverheadTokens: 1_200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: true,
+            smartCompactionReasoning: "low",
+          },
+        },
+      });
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getCompactionRuntimeConfig"], { env: {
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: "0",
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: "bad",
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "0.5",
+        PICLAW_PROGRESSIVE_COMPACTION: "not-one",
+        PICLAW_SMART_COMPACTION_REASONING: "extreme",
+      } });
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+        systemPromptOverheadTokens: 5_000,
+        compactionRequestOverheadTokens: 1_200,
+        tokenEstimateSafetyMultiplier: 1.25,
+        // Legacy env semantics were exact enabled flag: only "1" means forced.
+        progressiveCompaction: false,
+        smartCompactionReasoning: "low",
+      });
+      expect(stderr).not.toContain('"envKey":"PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"');
+      expectCompatWarningOnce(stderr, "PICLAW_PROGRESSIVE_COMPACTION");
+      expect(stderr).not.toContain('"envKey":"PICLAW_SMART_COMPACTION_REASONING"');
     } finally {
       workspace.cleanup();
     }
