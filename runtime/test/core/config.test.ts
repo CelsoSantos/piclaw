@@ -905,6 +905,77 @@ describe("core config", () => {
     });
   });
 
+  test("tool output policy domain preserves precedence and avoids env mutation", async () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tool-output-policy-");
+    const envKeys = [
+      "PICLAW_TOOL_OUTPUT_RETENTION_MS", "PICLAW_TOOL_OUTPUT_RETENTION_DAYS", "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
+      "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL", "PICLAW_TOOL_RESULT_COMPACTION_ENABLED", "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
+      "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
+      "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
+    ];
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: {
+        toolOutputRetentionMs: 123_000,
+        toolOutputCleanupIntervalMs: 45_000,
+        toolResultCompactionEnabled: false,
+        toolResultCompactionTools: ["bash"],
+        toolResultCompactionThresholdsByTool: { bash: { bytes: 7000 } },
+        toolResultSemanticSummaryEnabled: false,
+        toolResultSemanticSummaryMaxInputChars: 20_000,
+        toolResultSemanticSummaryMaxTokens: 512,
+        toolResultSemanticSummaryTimeoutMs: 20_000,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_TOOL_OUTPUT_RETENTION_DAYS=2",
+        "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS=60000",
+        'PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL={"bash":{"bytes":8000,"lines":80}}',
+        "PICLAW_TOOL_RESULT_COMPACTION_ENABLED=1",
+        "PICLAW_TOOL_RESULT_COMPACTION_TOOLS=bash,exec_batch",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED=1",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS=24000",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS=640",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS=30000",
+      ].join("\n"), "utf8");
+      const names = ["call:getToolsIntegrationConfig", "same:getToolOutputConfig:TOOL_OUTPUT_CONFIG", ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS: "768",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        toolOutputRetentionMs: 2 * 24 * 60 * 60 * 1000,
+        toolOutputCleanupIntervalMs: 60_000,
+        toolResultCompactionEnabled: true,
+        toolResultCompactionTools: ["bash", "exec_batch"],
+        toolResultCompactionThresholdsByTool: { bash: { bytes: 8000, lines: 80 } },
+        toolResultSemanticSummaryEnabled: true,
+        toolResultSemanticSummaryMaxInputChars: 24_000,
+        toolResultSemanticSummaryMaxTokens: 768,
+        toolResultSemanticSummaryTimeoutMs: 30_000,
+      });
+      expect(snapshot["same:getToolOutputConfig:TOOL_OUTPUT_CONFIG"]).toBe(true);
+      for (const envKey of envKeys) {
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        if (envKey !== "PICLAW_TOOL_OUTPUT_RETENTION_MS") expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally { workspace.cleanup(); }
+
+    await withFreshConfig({ env: Object.fromEntries(envKeys.map((key) => [key, undefined])) }, async ({ workspace, config }) => {
+      config.setToolResultCompactionEnabled(false);
+      config.setToolResultCompactionTools(["bash", "proxmox"]);
+      config.setToolResultSemanticSummaryConfig({ enabled: true, maxInputChars: 500, maxTokens: 4096, timeoutMs: 300000 });
+      for (const envKey of envKeys) expect(process.env[envKey]).toBeUndefined();
+      const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+      expect(persisted.domains?.tools).toMatchObject({
+        toolResultCompactionEnabled: false,
+        toolResultCompactionTools: ["bash", "proxmox"],
+        toolResultSemanticSummaryEnabled: true,
+        toolResultSemanticSummaryMaxInputChars: 500,
+        toolResultSemanticSummaryMaxTokens: 4096,
+        toolResultSemanticSummaryTimeoutMs: 300000,
+      });
+    });
+  });
+
   test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-compaction-delays-");
     try {

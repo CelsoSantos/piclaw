@@ -3466,26 +3466,27 @@
       "name": "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 900000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputCleanupIntervalMs",
+      "deprecation": "migrated to typed domains.tools.toolOutputCleanupIntervalMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputCleanupIntervalMs (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS",
@@ -3543,51 +3544,53 @@
       "name": "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 30,
+      "bounds": "positive days capped at 30",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputRetentionMs",
+      "deprecation": "migrated to typed domains.tools.toolOutputRetentionMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputRetentionMs (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_RETENTION_MS",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 2592000000,
+      "bounds": "1..2592000000 ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolOutputRetentionMs",
+      "deprecation": "migrated to typed domains.tools.toolOutputRetentionMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolOutputRetentionMs (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_STORE_BYTES",
@@ -3643,178 +3646,189 @@
     },
     {
       "name": "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL",
-      "owner": "core",
+      "owner": "tools",
       "type": "json",
-      "default": null,
-      "bounds": null,
+      "default": {},
+      "bounds": "tool-name object with positive bytes/lines",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultCompactionThresholdsByTool",
+      "deprecation": "migrated to typed domains.tools.toolResultCompactionThresholdsByTool config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultCompactionThresholdsByTool (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
-      "owner": "core",
+      "owner": "tools",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultCompactionEnabled",
+      "deprecation": "migrated to typed domains.tools.toolResultCompactionEnabled config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultCompactionEnabled (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
-      "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "owner": "tools",
+      "type": "json",
+      "default": [
+        "bash",
+        "powershell",
+        "exec_batch"
+      ],
+      "bounds": "normalized unique tool-name array",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultCompactionTools",
+      "deprecation": "migrated to typed domains.tools.toolResultCompactionTools config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultCompactionTools (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED",
-      "owner": "core",
+      "owner": "tools",
       "type": "boolean",
-      "default": null,
+      "default": true,
       "bounds": null,
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultSemanticSummaryEnabled",
+      "deprecation": "migrated to typed domains.tools.toolResultSemanticSummaryEnabled config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultSemanticSummaryEnabled (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
-      "owner": "core",
+      "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 12000,
+      "bounds": "500..200000 characters",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultSemanticSummaryMaxInputChars",
+      "deprecation": "migrated to typed domains.tools.toolResultSemanticSummaryMaxInputChars config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultSemanticSummaryMaxInputChars (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS",
-      "owner": "core",
-      "type": "secret",
-      "default": null,
-      "bounds": null,
-      "allowedValues": [],
-      "secret": true,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
-      "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
-    },
-    {
-      "name": "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
-      "owner": "core",
+      "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 320,
+      "bounds": "64..4096 tokens",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultSemanticSummaryMaxTokens",
+      "deprecation": "migrated to typed domains.tools.toolResultSemanticSummaryMaxTokens config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.tools.toolResultSemanticSummaryMaxTokens (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
+    },
+    {
+      "name": "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
+      "owner": "tools",
+      "type": "integer",
+      "default": 12000,
+      "bounds": "positive integer ms",
+      "allowedValues": [],
+      "secret": false,
+      "persistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ],
+      "precedence": [
+        "compat-env",
+        "persisted",
+        "default"
+      ],
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.toolResultSemanticSummaryTimeoutMs",
+      "deprecation": "migrated to typed domains.tools.toolResultSemanticSummaryTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
+      "bootstrapAllowed": false,
+      "source": "runtime/src/core/config.ts domains.tools.toolResultSemanticSummaryTimeoutMs (#754C2)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_TOTP_SECRET",
