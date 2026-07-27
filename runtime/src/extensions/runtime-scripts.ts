@@ -3,7 +3,7 @@ import path from "node:path";
 import { isPathWithin } from "../utils/path-safety.js";
 import { Type } from "typebox";
 import type { AgentToolResult, ExtensionAPI, ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import { WORKSPACE_DIR, getToolsIntegrationConfig } from "../core/config.js";
+import { WORKSPACE_DIR, getRuntimeRoot as getConfiguredRuntimeRoot, getToolsIntegrationConfig } from "../core/config.js";
 import {
   addDiscoveryExactPhraseMatches,
   addDiscoveryTokenMatches,
@@ -182,8 +182,7 @@ function getPackageRoot(): string {
 }
 
 function getRuntimeRoot(): string {
-  if (process.env.PICLAW_RUNTIME_ROOT) return path.resolve(process.env.PICLAW_RUNTIME_ROOT);
-  return path.resolve(import.meta.dir, "../..");
+  return getConfiguredRuntimeRoot(path.resolve(import.meta.dir, "../.."));
 }
 
 export function getScriptRoots(workspaceDir = WORKSPACE_DIR): ScriptRootSpec[] {

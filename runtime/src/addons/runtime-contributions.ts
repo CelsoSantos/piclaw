@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { WORKSPACE_DIR } from "../core/config.js";
+import { getWorkspaceDir as getConfiguredWorkspaceDir } from "../core/config.js";
 import { createMedia } from "../db/media.js";
 import { postMessagesToolMessage } from "../extensions/messages-crud.js";
 import type { RuntimeAgentMessageRequest, RuntimeAgentMessageResult } from "../channels/web/core/web-channel-runtime-public-surface-service.js";
@@ -55,7 +55,7 @@ let runtimeEntriesLoadPromise: Promise<void> | null = null;
 let agentMessageEnqueuer: AddonAgentMessageEnqueuer | null = null;
 
 function getWorkspaceDir(): string {
-  return process.env.PICLAW_WORKSPACE || WORKSPACE_DIR;
+  return getConfiguredWorkspaceDir();
 }
 
 function listAddonPackageDirs(addonsNodeModulesDir: string): string[] {

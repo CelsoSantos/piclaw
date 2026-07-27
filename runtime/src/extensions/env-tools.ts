@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
-import { dirname, join, resolve } from "path";
+import { dirname, join } from "path";
 import { Type } from "typebox";
 import type { AgentToolResult, ExtensionAPI, ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import { applyEnvironmentOverrides } from "../environment-overrides.js";
+import { getWorkspaceDir } from "../core/config.js";
 
 const ENV_TOOL_SCHEMA = Type.Object({
   action: Type.Union([
@@ -56,7 +57,7 @@ const ENV_TOOL_HINT = [
 ].join("\n");
 
 function getWorkspaceRoot(): string {
-  return resolve(process.env.PICLAW_WORKSPACE || "/workspace");
+  return getWorkspaceDir();
 }
 
 function getEnvScriptPath(): string {

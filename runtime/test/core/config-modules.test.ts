@@ -1,14 +1,24 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { createCliArgReader } from "../../src/core/config-cli.js";
-import { resolveConfigPath, resolveRuntimeConfigPaths } from "../../src/core/config-paths.js";
+import {
+  readRuntimeBootstrapPathOverrides,
+  resolveConfigPath,
+  resolveRuntimeConfigPaths,
+  resolveRuntimeRoot,
+} from "../../src/core/config-paths.js";
 import { loadPiclawEnvConfig, nestedConfig } from "../../src/core/config-sources.js";
 import {
   DATA_DIR,
   getConfigPath,
+  getDataDir,
   getDomainConfigOptions,
+  getRuntimeBootstrapPathOverrides,
+  getRuntimeRoot,
+  getStoreDir,
+  getWorkspaceDir,
   PICLAW_CONFIG_PATH,
   STORE_DIR,
   WORKSPACE_DIR,
@@ -75,6 +85,24 @@ test("resolveRuntimeConfigPaths preserves CLI workspace and environment preceden
   expect(cliPaths.configPath).toBe("/cli/ws/.piclaw/config.json");
 });
 
+test("bootstrap path helpers preserve sentinels, trimming, and runtime-root fallbacks", () => {
+  const env = {
+    PICLAW_WORKSPACE: " /dynamic/ws ",
+    PICLAW_STORE: ":memory:",
+    PICLAW_DATA: " /dynamic/data ",
+    PICLAW_RUNTIME_ROOT: " /runtime/root ",
+  } as NodeJS.ProcessEnv;
+  expect(readRuntimeBootstrapPathOverrides(env)).toEqual({
+    workspace: "/dynamic/ws",
+    store: ":memory:",
+    data: "/dynamic/data",
+    runtimeRoot: "/runtime/root",
+  });
+  expect(resolveRuntimeConfigPaths({ env }).storeDir).toBe(resolve(":memory:"));
+  expect(resolveRuntimeRoot("/fallback", env)).toBe("/runtime/root");
+  expect(resolveRuntimeRoot("/fallback", {} as NodeJS.ProcessEnv)).toBe("/fallback");
+});
+
 test("resolveConfigPath and source helpers stay stateless", () => {
   expect(resolveConfigPath("/default/config.json", { PICLAW_WORKSPACE: "/dynamic/ws" } as NodeJS.ProcessEnv)).toBe("/dynamic/ws/.piclaw/config.json");
   expect(resolveConfigPath("/default/config.json", {} as NodeJS.ProcessEnv)).toBe("/default/config.json");
@@ -90,6 +118,41 @@ test("config context exposes one coherent bootstrap snapshot", () => {
   expect(PICLAW_CONFIG_PATH).toStartWith(WORKSPACE_DIR);
   expect(getConfigPath()).toBeTruthy();
   expect(getDomainConfigOptions().configPath).toBe(getConfigPath());
+});
+
+test("config context resolves path overrides at call time", () => {
+  const previous = {
+    workspace: process.env.PICLAW_WORKSPACE,
+    store: process.env.PICLAW_STORE,
+    data: process.env.PICLAW_DATA,
+    runtimeRoot: process.env.PICLAW_RUNTIME_ROOT,
+  };
+  try {
+    process.env.PICLAW_WORKSPACE = "/live/ws";
+    process.env.PICLAW_STORE = "/live/store";
+    process.env.PICLAW_DATA = "/live/data";
+    process.env.PICLAW_RUNTIME_ROOT = "/live/runtime";
+    expect(getWorkspaceDir()).toBe("/live/ws");
+    expect(getStoreDir()).toBe("/live/store");
+    expect(getDataDir()).toBe("/live/data");
+    expect(getRuntimeRoot("/fallback")).toBe("/live/runtime");
+    expect(getRuntimeBootstrapPathOverrides()).toEqual({
+      workspace: "/live/ws",
+      store: "/live/store",
+      data: "/live/data",
+      runtimeRoot: "/live/runtime",
+    });
+  } finally {
+    for (const [key, value] of Object.entries({
+      PICLAW_WORKSPACE: previous.workspace,
+      PICLAW_STORE: previous.store,
+      PICLAW_DATA: previous.data,
+      PICLAW_RUNTIME_ROOT: previous.runtimeRoot,
+    })) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test("config web module preserves grouped runtime and platform defaults", () => {
