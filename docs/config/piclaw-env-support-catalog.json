@@ -1379,26 +1379,36 @@
       "name": "PICLAW_LOG_LEVEL",
       "owner": "core",
       "type": "enum",
-      "default": null,
-      "bounds": null,
-      "allowedValues": [],
+      "default": "info",
+      "bounds": "debug|info|warn|error",
+      "allowedValues": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
       "secret": false,
       "persistence": [
         "env",
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.logging.level",
+      "deprecation": "migrated to typed domains.logging.level config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed domains.logging configuration (#755D)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_M365_YOLO",

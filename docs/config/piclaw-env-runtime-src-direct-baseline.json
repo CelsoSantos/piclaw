@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 29 to 24",
+  "source": "accepted direct-reader reduction from 24 to 23",
   "names": [
     "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
     "PICLAW_CHAT_JID",
@@ -9,7 +9,6 @@
     "PICLAW_INTERNAL_SECRET",
     "PICLAW_KEYCHAIN_KEY",
     "PICLAW_KEYCHAIN_KEY_FILE",
-    "PICLAW_LOG_LEVEL",
     "PICLAW_RUNTIME_DOCS_DIR",
     "PICLAW_RUNTIME_ROOT",
     "PICLAW_SEARCH_MATCH_MODE",

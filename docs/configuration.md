@@ -56,6 +56,10 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_DATA` | `/workspace/.piclaw/data` | Sessions, IPC, chats.json |
 | `SUPERVISOR_CONF` | `/workspace/.piclaw/supervisor/supervisord.conf` | Supervisor config path (falls back to `/etc/supervisor/supervisord.conf`) |
 
+## Logging
+
+`domains.logging.level` persists the runtime logging threshold in `.piclaw/config.json`. `PICLAW_LOG_LEVEL` and the older `LOG_LEVEL` name remain compatibility aliases until 3.0.0 and override the persisted value for startup and live logger checks. Allowed values are `debug`, `info`, `warn`, and `error`; the default is `info`.
+
 ## Web server
 
 | Variable | Default | Purpose |
