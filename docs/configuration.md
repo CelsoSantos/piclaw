@@ -55,6 +55,9 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_STORE` | `/workspace/.piclaw/store` | SQLite database location |
 | `PICLAW_DATA` | `/workspace/.piclaw/data` | Sessions, IPC, chats.json |
 | `SUPERVISOR_CONF` | `/workspace/.piclaw/supervisor/supervisord.conf` | Supervisor config path (falls back to `/etc/supervisor/supervisord.conf`) |
+| `PICLAW_SKEL_DIR` | packaged `skel/` directory | Deployment/package bootstrap override for the workspace skeleton source. Retained env-only because it is needed before ordinary domain config is available. |
+| `PICLAW_DB_IN_MEMORY` | `0` | Test/database bootstrap switch (`1` or `true`). Retained env-only because it selects the database before persisted config can safely be read. |
+| `PICLAW_CHAT_JID` | `web:default` | Per-invocation IPC target fallback. Request payload fields take precedence; this value is intentionally not persisted. |
 
 ## Logging
 

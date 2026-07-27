@@ -1,8 +1,7 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 24 to 23",
+  "source": "accepted direct-reader reduction from 23 to 21",
   "names": [
-    "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
     "PICLAW_CHAT_JID",
     "PICLAW_DATA",
     "PICLAW_DB_IN_MEMORY",
@@ -14,7 +13,6 @@
     "PICLAW_SEARCH_MATCH_MODE",
     "PICLAW_SKEL_DIR",
     "PICLAW_STORE",
-    "PICLAW_TEST_PLATFORM",
     "PICLAW_WEB_EXTERNAL_URL",
     "PICLAW_WEB_HOST",
     "PICLAW_WEB_INTERNAL_SECRET",

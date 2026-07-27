@@ -20,7 +20,9 @@
     "PICLAW_WEB_TLS_KEY",
     "PICLAW_INTERNAL_SECRET",
     "PICLAW_WEB_INTERNAL_SECRET",
-    "PICLAW_WEB_EXTERNAL_URL"
+    "PICLAW_WEB_EXTERNAL_URL",
+    "PICLAW_DB_IN_MEMORY",
+    "PICLAW_SKEL_DIR"
   ],
   "entries": [
     {
@@ -271,26 +273,23 @@
       "name": "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
       "owner": "storage",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": false,
+      "bounds": "removed; use explicit setAllowLiveDbInTestsForTests() hook",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
         "dotenv"
       ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "removed from runtime/src/db/connection.ts (#755E)",
+      "migrationDisposition": "removed-test-only-env",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_ASSISTANT_AVATAR",
@@ -468,8 +467,8 @@
       "name": "PICLAW_CHAT_JID",
       "owner": "core",
       "type": "string",
-      "default": null,
-      "bounds": null,
+      "default": "web:default",
+      "bounds": "per-invocation chat JID",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -477,17 +476,20 @@
         "dotenv"
       ],
       "precedence": [
+        "request payload",
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "retained IPC per-invocation targeting contract (#755E)",
+      "migrationDisposition": "retain-per-invocation-context",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_COMPACTION_BACKOFF_BASE_MS",
@@ -819,9 +821,9 @@
     {
       "name": "PICLAW_DB_IN_MEMORY",
       "owner": "storage",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": false,
+      "bounds": "true values: 1 or true",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -830,16 +832,18 @@
       ],
       "precedence": [
         "process.env",
-        ".env",
         "defaults"
       ],
-      "status": "undocumented-runtime",
+      "status": "bootstrap",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
-      "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "bootstrapAllowed": true,
+      "source": "retained test/database bootstrap contract (#755E)",
+      "migrationDisposition": "retain-bootstrap-test-boundary",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_DEBUG_CARD_SUBMISSIONS",
@@ -2936,8 +2940,8 @@
       "name": "PICLAW_SKEL_DIR",
       "owner": "core",
       "type": "path",
-      "default": null,
-      "bounds": null,
+      "default": "<package-root>/skel",
+      "bounds": "startup skeleton directory path",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -2946,16 +2950,18 @@
       ],
       "precedence": [
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "bootstrap",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
-      "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "bootstrapAllowed": true,
+      "source": "retained deployment/package bootstrap contract (#755E)",
+      "migrationDisposition": "retain-deployment-bootstrap",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_SMART_COMPACTION_METHOD",
@@ -3469,25 +3475,22 @@
       "owner": "web",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "removed; use explicit platform operation injection",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
         "dotenv"
       ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "removed from runtime/src/channels/web/handlers/addons.ts (#755E)",
+      "migrationDisposition": "removed-test-only-env",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",

@@ -6,9 +6,8 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 24 to 23",
+    "source": "accepted direct-reader reduction from 23 to 21",
     "names": [
-      "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
       "PICLAW_CHAT_JID",
       "PICLAW_DATA",
       "PICLAW_DB_IN_MEMORY",
@@ -20,7 +19,6 @@
       "PICLAW_SEARCH_MATCH_MODE",
       "PICLAW_SKEL_DIR",
       "PICLAW_STORE",
-      "PICLAW_TEST_PLATFORM",
       "PICLAW_WEB_EXTERNAL_URL",
       "PICLAW_WEB_HOST",
       "PICLAW_WEB_INTERNAL_SECRET",
@@ -69,22 +67,22 @@
   },
   "current": {
     "production": {
-      "referencedNames": 179,
-      "directReaderNames": 24,
-      "directReaderOccurrences": 68,
+      "referencedNames": 177,
+      "directReaderNames": 22,
+      "directReaderOccurrences": 66,
       "helperReaderNames": 1,
       "helperReaderOccurrences": 1,
-      "semanticReaderNames": 25,
-      "semanticReaderOccurrences": 69
+      "semanticReaderNames": 23,
+      "semanticReaderOccurrences": 67
     },
     "runtimeSrc": {
-      "referencedNames": 176,
-      "directReaderNames": 23,
-      "directReaderOccurrences": 63,
+      "referencedNames": 174,
+      "directReaderNames": 21,
+      "directReaderOccurrences": 61,
       "helperReaderNames": 1,
       "helperReaderOccurrences": 1,
-      "semanticReaderNames": 24,
-      "semanticReaderOccurrences": 64
+      "semanticReaderNames": 22,
+      "semanticReaderOccurrences": 62
     },
     "extensions": {
       "referencedNames": 9,
@@ -96,7 +94,7 @@
       "semanticReaderOccurrences": 5
     },
     "tooling": {
-      "referencedNames": 74,
+      "referencedNames": 75,
       "directReaderNames": 40,
       "directReaderOccurrences": 67,
       "helperReaderNames": 0,
@@ -105,7 +103,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 125,
+      "referencedNames": 126,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -379,35 +377,6 @@
             "runtime/src/workspace-index-core.ts"
           ],
           "readerFiles": []
-        }
-      }
-    },
-    {
-      "name": "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/src/db/connection.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/db/connection.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/src/db/connection.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/db/connection.ts"
-          ]
         }
       }
     },
@@ -822,6 +791,25 @@
     {
       "name": "PICLAW_CHAT_JID",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 3,
+          "helperReaders": 0,
+          "semanticReaders": 3,
+          "files": [
+            "docs/configuration.md",
+            "skel/.pi/skills/graphite-power-chart/graphite-power-chart.ts",
+            "skel/.pi/skills/kanban-management/kanban-board-svg.ts",
+            "skel/.pi/skills/schedule/SKILL.md",
+            "skel/.pi/skills/send-message/SKILL.md",
+            "skel/.pi/skills/token-chart/token-chart.ts"
+          ],
+          "readerFiles": [
+            "skel/.pi/skills/graphite-power-chart/graphite-power-chart.ts",
+            "skel/.pi/skills/kanban-management/kanban-board-svg.ts",
+            "skel/.pi/skills/token-chart/token-chart.ts"
+          ]
+        },
         "production": {
           "referenced": true,
           "directReaders": 1,
@@ -857,24 +845,6 @@
           ],
           "readerFiles": [
             "scripts/token-chart.ts"
-          ]
-        },
-        "docsDeploy": {
-          "referenced": true,
-          "directReaders": 3,
-          "helperReaders": 0,
-          "semanticReaders": 3,
-          "files": [
-            "skel/.pi/skills/graphite-power-chart/graphite-power-chart.ts",
-            "skel/.pi/skills/kanban-management/kanban-board-svg.ts",
-            "skel/.pi/skills/schedule/SKILL.md",
-            "skel/.pi/skills/send-message/SKILL.md",
-            "skel/.pi/skills/token-chart/token-chart.ts"
-          ],
-          "readerFiles": [
-            "skel/.pi/skills/graphite-power-chart/graphite-power-chart.ts",
-            "skel/.pi/skills/kanban-management/kanban-board-svg.ts",
-            "skel/.pi/skills/token-chart/token-chart.ts"
           ]
         }
       }
@@ -1254,6 +1224,7 @@
           "semanticReaders": 0,
           "files": [
             ".github/workflows/integration-gate.yml",
+            "docs/configuration.md",
             "docs/development.md",
             "docs/development/testing-and-linting-flow-presentation-2026-04-18.html",
             "package.json"
@@ -1271,6 +1242,7 @@
             "scripts/audit-baseline-quality-deterministic.ts",
             "scripts/audit-core-config-keychain-coverage.sh",
             "scripts/audit-extract-typed-config-objects.sh",
+            "scripts/audit-piclaw-env-surface.ts",
             "scripts/audit-queue-session-threading-replay.ts",
             "scripts/audit-session-turn-management-regression.sh",
             "scripts/integration-test-suite.ts"
@@ -1283,9 +1255,9 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 6,
+          "directReaders": 7,
           "helperReaders": 0,
-          "semanticReaders": 6,
+          "semanticReaders": 7,
           "files": [
             "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
@@ -1301,9 +1273,9 @@
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 6,
+          "directReaders": 7,
           "helperReaders": 0,
-          "semanticReaders": 6,
+          "semanticReaders": 7,
           "files": [
             "runtime/src/agent-pool/compaction.ts",
             "runtime/src/core/config.ts",
@@ -4591,6 +4563,16 @@
     {
       "name": "PICLAW_SKEL_DIR",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
           "directReaders": 1,
@@ -4614,6 +4596,16 @@
           "readerFiles": [
             "runtime/src/runtime/startup.ts"
           ]
+        },
+        "tooling": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "scripts/audit-piclaw-env-surface.ts"
+          ],
+          "readerFiles": []
         }
       }
     },
@@ -5277,35 +5269,6 @@
             "runtime/src/core/config.ts"
           ],
           "readerFiles": []
-        }
-      }
-    },
-    {
-      "name": "PICLAW_TEST_PLATFORM",
-      "scopes": {
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/handlers/addons.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/addons.ts"
-          ]
-        },
-        "runtimeSrc": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/src/channels/web/handlers/addons.ts"
-          ],
-          "readerFiles": [
-            "runtime/src/channels/web/handlers/addons.ts"
-          ]
         }
       }
     },
