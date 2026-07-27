@@ -60,25 +60,19 @@
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -115,25 +109,19 @@
       "owner": "core",
       "type": "path",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS",
@@ -249,25 +237,19 @@
       "owner": "core",
       "type": "path",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
@@ -443,25 +425,19 @@
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_CHAT_JID",
@@ -774,25 +750,19 @@
       "owner": "core",
       "type": "path",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DATA",
@@ -886,25 +856,19 @@
       "owner": "core",
       "type": "boolean",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DISABLE_PRIVATE_UPSTREAM_AUTO_COMPACTION_SUPPRESSOR",
@@ -929,25 +893,19 @@
       "owner": "core",
       "type": "boolean",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DREAM_AGENT_TIMEOUT_MS",
@@ -1044,100 +1002,76 @@
       "owner": "core",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DREAM_CUE_FULL_SLICE_MAX_SESSION_TREES",
       "owner": "core",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DREAM_CUE_MAX_SNIPPETS",
       "owner": "core",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DREAM_CUE_SMALL_TREE_MAX_MESSAGES",
       "owner": "core",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_DREAM_MODEL",
@@ -1172,27 +1106,28 @@
     {
       "name": "PICLAW_ENABLE_M365_EXPERIMENTAL",
       "owner": "agent-runtime",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": false,
+      "bounds": "truthy enables experimental extension",
       "allowedValues": [],
       "secret": false,
       "persistence": [
-        "env",
-        "dotenv"
+        "env"
       ],
       "precedence": [
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "optional extension startup gate",
+      "migrationDisposition": "retain-experimental-extension-gate",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
@@ -1417,27 +1352,28 @@
     {
       "name": "PICLAW_M365_YOLO",
       "owner": "tools",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": false,
+      "bounds": "1|true|yes|on",
       "allowedValues": [],
       "secret": false,
       "persistence": [
-        "env",
-        "dotenv"
+        "env"
       ],
       "precedence": [
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "experimental M365 consent override",
+      "migrationDisposition": "retain-experimental-emergency-override",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_MAIN_SESSION_IDLE_TTL_MS",
@@ -1716,26 +1652,28 @@
       "name": "PICLAW_PORT",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 8080,
+      "bounds": "valid TCP port",
       "allowedValues": [],
       "secret": false,
       "persistence": [
-        "env",
-        "dotenv"
+        "env"
       ],
       "precedence": [
+        "PICLAW_WEB_PORT",
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "experimental Azure OpenAI harness",
+      "migrationDisposition": "retain-harness-compatibility",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS",
@@ -1908,25 +1846,19 @@
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_COMPACTION",
@@ -1959,150 +1891,114 @@
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_COMPACTION_MAX_CHUNKS",
       "owner": "tools",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS",
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_COMPRESS_REASONING",
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_FINAL_REASONING",
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROGRESSIVE_MERGE_REASONING",
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_PROVIDER_USAGE_TTL_MS",
@@ -2454,8 +2350,8 @@
       "name": "PICLAW_RUNTIME_DOCS_DIR",
       "owner": "web",
       "type": "path",
-      "default": null,
-      "bounds": null,
+      "default": "<runtime-root>/docs",
+      "bounds": "runtime documentation directory",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -2465,15 +2361,19 @@
       "precedence": [
         "process.env",
         ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web static documentation deployment path",
+      "migrationDisposition": "retain-deployment-path",
+      "supportedPersistence": [
+        "env",
+        "dotenv"
+      ]
     },
     {
       "name": "PICLAW_RUNTIME_ROOT",
@@ -2526,28 +2426,37 @@
     },
     {
       "name": "PICLAW_SEARCH_MATCH_MODE",
-      "owner": "core",
+      "owner": "workspace",
       "type": "enum",
-      "default": null,
-      "bounds": null,
-      "allowedValues": [],
+      "default": "or",
+      "bounds": "or|and",
+      "allowedValues": [
+        "or",
+        "and"
+      ],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.tools.searchMatchMode",
+      "deprecation": "migrated to typed domains.tools.searchMatchMode config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed tools domain (#747 closure)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_SESSION_AUTO_ROTATE",
@@ -2644,50 +2553,38 @@
       "owner": "agent-runtime",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_SESSION_IDLE_MAX_WAIT_MS",
       "owner": "agent-runtime",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_SESSION_IDLE_TTL_MS",
@@ -3001,25 +2898,19 @@
       "owner": "tools",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_SMART_COMPACTION_REASONING",
@@ -3058,150 +2949,166 @@
       "owner": "tools",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "implementation-only tuning; source-defined default and bounds",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "internal",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime implementation tuning retained outside public config",
+      "migrationDisposition": "internal-runtime-tuning",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_SSH_KNOWN_HOSTS_KEYCHAIN",
       "owner": "tools",
-      "type": "secret",
-      "default": null,
-      "bounds": null,
+      "type": "string",
+      "default": "",
+      "bounds": "optional keychain entry name",
       "allowedValues": [],
-      "secret": true,
+      "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "cli"
       ],
       "precedence": [
+        "CLI flag",
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "SSH core bootstrap fallback",
+      "migrationDisposition": "retain-cli-compatibility",
+      "supportedPersistence": [
+        "env",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_SSH_PORT",
       "owner": "tools",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 22,
+      "bounds": "1..65535",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "cli"
       ],
       "precedence": [
+        "CLI flag",
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "SSH core bootstrap fallback",
+      "migrationDisposition": "retain-cli-compatibility",
+      "supportedPersistence": [
+        "env",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_SSH_PRIVATE_KEY_KEYCHAIN",
       "owner": "tools",
-      "type": "secret",
-      "default": null,
-      "bounds": null,
+      "type": "string",
+      "default": "",
+      "bounds": "required keychain entry name when SSH env fallback is used",
       "allowedValues": [],
-      "secret": true,
+      "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "cli"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "CLI flag",
+        "process.env"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "SSH core bootstrap fallback",
+      "migrationDisposition": "retain-cli-keychain-reference",
+      "supportedPersistence": [
+        "env",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_SSH_STRICT_HOST_KEY_CHECKING",
       "owner": "tools",
-      "type": "secret",
-      "default": null,
-      "bounds": null,
-      "allowedValues": [],
-      "secret": true,
+      "type": "enum",
+      "default": "accept-new",
+      "bounds": "yes|accept-new|no",
+      "allowedValues": [
+        "yes",
+        "accept-new",
+        "no"
+      ],
+      "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "cli"
       ],
       "precedence": [
+        "CLI flag",
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "SSH core bootstrap fallback",
+      "migrationDisposition": "retain-cli-compatibility",
+      "supportedPersistence": [
+        "env",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_SSH_TARGET",
       "owner": "tools",
       "type": "string",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "user@host[:path]",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "cli"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "CLI flag",
+        "process.env"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "SSH core bootstrap fallback",
+      "migrationDisposition": "retain-cli-compatibility",
+      "supportedPersistence": [
+        "env",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_STALE_ACTIVE_COMPACTION_BACKOFF_MS",
@@ -3296,77 +3203,73 @@
     {
       "name": "PICLAW_STARTUP_WARM_DEFAULT_CHAT",
       "owner": "core",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "boolean",
+      "default": false,
+      "bounds": "startup-only boolean",
       "allowedValues": [],
       "secret": false,
       "persistence": [
-        "env",
-        "dotenv"
+        "env"
       ],
       "precedence": [
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "startup session warmup policy",
+      "migrationDisposition": "retain-startup-tuning",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_STARTUP_WARMUP_RECENT_LIMIT",
       "owner": "core",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 0,
+      "bounds": "0..8 chats",
       "allowedValues": [],
       "secret": false,
       "persistence": [
-        "env",
-        "dotenv"
+        "env"
       ],
       "precedence": [
         "process.env",
-        ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "startup session warmup policy",
+      "migrationDisposition": "retain-startup-tuning",
+      "supportedPersistence": [
+        "env"
+      ]
     },
     {
       "name": "PICLAW_STATE_SCHEMA",
       "owner": "web",
       "type": "string",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_STORE",
@@ -3423,25 +3326,19 @@
       "owner": "web",
       "type": "integer",
       "default": null,
-      "bounds": null,
+      "bounds": "identifier/reference only; not a supported environment input",
       "allowedValues": [],
       "secret": false,
-      "persistence": [
-        "env",
-        "dotenv"
-      ],
-      "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
-      ],
-      "status": "undocumented-runtime",
+      "persistence": [],
+      "precedence": [],
+      "status": "removed",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "reference-only identifier with no environment reader",
+      "migrationDisposition": "removed-reference-only",
+      "supportedPersistence": []
     },
     {
       "name": "PICLAW_TERMINAL_IMAGE_PROTOCOL",
@@ -4293,28 +4190,35 @@
     },
     {
       "name": "PICLAW_WEB_HOST",
-      "owner": "core",
+      "owner": "web",
       "type": "string",
-      "default": null,
-      "bounds": null,
+      "default": "0.0.0.0",
+      "bounds": "bind host",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "cli"
       ],
       "precedence": [
+        "CLI flag",
         "process.env",
         ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web server deployment binding",
+      "migrationDisposition": "retain-deployment-binding",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_WEB_IDLE_TIMEOUT",
@@ -4532,28 +4436,35 @@
     },
     {
       "name": "PICLAW_WEB_PORT",
-      "owner": "tools",
+      "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 8080,
+      "bounds": "valid TCP port",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "cli"
       ],
       "precedence": [
+        "CLI flag",
         "process.env",
         ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web server deployment binding and service templates",
+      "migrationDisposition": "retain-deployment-binding",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "cli"
+      ]
     },
     {
       "name": "PICLAW_WEB_PREVIEW_CHARS",
@@ -4670,8 +4581,8 @@
       "name": "PICLAW_WEB_STATIC_DIR",
       "owner": "web",
       "type": "path",
-      "default": null,
-      "bounds": null,
+      "default": "<runtime-root>/web/static",
+      "bounds": "web static asset directory",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -4681,15 +4592,19 @@
       "precedence": [
         "process.env",
         ".env",
-        "defaults"
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
       "deprecation": null,
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web static asset deployment path",
+      "migrationDisposition": "retain-deployment-path",
+      "supportedPersistence": [
+        "env",
+        "dotenv"
+      ]
     },
     {
       "name": "PICLAW_WEB_TERMINAL_ENABLED",
@@ -4784,28 +4699,35 @@
     },
     {
       "name": "PICLAW_WEB_TOTP_SECRET",
-      "owner": "core",
+      "owner": "web/security",
       "type": "secret",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "TOTP base32 secret",
       "allowedValues": [],
       "secret": true,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "keychain"
       ],
       "precedence": [
         "process.env",
         ".env",
-        "defaults"
+        "legacy JSON compatibility",
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "plaintext JSON is a legacy compatibility path; new deployment secrets use keychain/service environment",
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web authentication secret compatibility path; legacy runtime setters predate #747",
+      "migrationDisposition": "retain-secret-compatibility",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "keychain"
+      ]
     },
     {
       "name": "PICLAW_WEB_TOTP_WINDOW",
@@ -4929,28 +4851,35 @@
     },
     {
       "name": "PICLAW_WEB_WIDGET_TOKEN",
-      "owner": "core",
+      "owner": "web/security",
       "type": "secret",
-      "default": null,
-      "bounds": null,
+      "default": "",
+      "bounds": "opaque widget bearer token",
       "allowedValues": [],
       "secret": true,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "keychain"
       ],
       "precedence": [
         "process.env",
         ".env",
-        "defaults"
+        "legacy JSON compatibility",
+        "default"
       ],
-      "status": "undocumented-runtime",
+      "status": "supported",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "plaintext JSON is a legacy compatibility path; new deployment secrets use keychain/service environment",
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "web widget token compatibility path; legacy runtime setters predate #747",
+      "migrationDisposition": "retain-secret-compatibility",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "keychain"
+      ]
     },
     {
       "name": "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",

@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 23 to 21",
+    "source": "accepted direct-reader reduction from 21 to 20",
     "names": [
       "PICLAW_CHAT_JID",
       "PICLAW_DATA",
@@ -16,7 +16,6 @@
       "PICLAW_KEYCHAIN_KEY_FILE",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_RUNTIME_ROOT",
-      "PICLAW_SEARCH_MATCH_MODE",
       "PICLAW_SKEL_DIR",
       "PICLAW_STORE",
       "PICLAW_WEB_EXTERNAL_URL",
@@ -68,21 +67,21 @@
   "current": {
     "production": {
       "referencedNames": 177,
-      "directReaderNames": 22,
-      "directReaderOccurrences": 66,
-      "helperReaderNames": 1,
-      "helperReaderOccurrences": 1,
-      "semanticReaderNames": 23,
-      "semanticReaderOccurrences": 67
-    },
-    "runtimeSrc": {
-      "referencedNames": 174,
       "directReaderNames": 21,
-      "directReaderOccurrences": 61,
+      "directReaderOccurrences": 63,
       "helperReaderNames": 1,
       "helperReaderOccurrences": 1,
       "semanticReaderNames": 22,
-      "semanticReaderOccurrences": 62
+      "semanticReaderOccurrences": 64
+    },
+    "runtimeSrc": {
+      "referencedNames": 174,
+      "directReaderNames": 20,
+      "directReaderOccurrences": 58,
+      "helperReaderNames": 1,
+      "helperReaderOccurrences": 1,
+      "semanticReaderNames": 21,
+      "semanticReaderOccurrences": 59
     },
     "extensions": {
       "referencedNames": 9,
@@ -103,7 +102,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 126,
+      "referencedNames": 128,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -2927,6 +2926,16 @@
     {
       "name": "PICLAW_PORT",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/config/piclaw-env-reduction-report.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
           "directReaders": 1,
@@ -4037,29 +4046,35 @@
     {
       "name": "PICLAW_SEARCH_MATCH_MODE",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -6930,8 +6945,7 @@
           "files": [
             "docs/architecture.md",
             "docs/configuration.md",
-            "docs/web-pane-extensions.md",
-            "supervisor/conf.d/piclaw.conf"
+            "docs/web-pane-extensions.md"
           ],
           "readerFiles": []
         },
