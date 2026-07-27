@@ -167,6 +167,87 @@ describe("core config", () => {
     }
   });
 
+  test("dream domain preserves defaults, precedence, fallback, and env immutability", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-dream-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          agent: { backgroundTimeoutMs: 240000 },
+          dream: { cron: "15 2 * * *", backupKeep: 7, model: "anthropic/claude-sonnet", agentTimeoutMs: 180000 },
+        },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_DREAM_CRON=30 3 * * *",
+        "PICLAW_DREAM_BACKUP_KEEP=8",
+        "PICLAW_DREAM_MODEL=openai/gpt-5-mini",
+        "PICLAW_DREAM_AGENT_TIMEOUT_MS=210000",
+      ].join("\n"), "utf8");
+
+      const envFile = runConfigSubprocess(workspace, ["call:getDreamConfig"], {
+        env: {
+          PICLAW_DREAM_CRON: undefined,
+          PICLAW_DREAM_BACKUP_KEEP: undefined,
+          PICLAW_DREAM_MODEL: undefined,
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: undefined,
+        },
+      });
+      expect(envFile.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "30 3 * * *",
+        backupKeep: 8,
+        model: "openai/gpt-5-mini",
+        agentTimeoutMs: 210000,
+      });
+
+      const compatEnv = runConfigSubprocess(workspace, [
+        "call:getDreamConfig",
+        "env-unchanged:PICLAW_DREAM_CRON",
+        "env-unchanged:PICLAW_DREAM_BACKUP_KEEP",
+        "env-unchanged:PICLAW_DREAM_MODEL",
+        "env-unchanged:PICLAW_DREAM_AGENT_TIMEOUT_MS",
+      ], {
+        env: {
+          PICLAW_DREAM_CRON: "45 4 * * *",
+          PICLAW_DREAM_BACKUP_KEEP: "9",
+          PICLAW_DREAM_MODEL: "github-copilot/gpt-5-mini",
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: "220000",
+        },
+      });
+      expect(compatEnv.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "45 4 * * *",
+        backupKeep: 9,
+        model: "github-copilot/gpt-5-mini",
+        agentTimeoutMs: 220000,
+      });
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_CRON"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_BACKUP_KEEP"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_MODEL"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_AGENT_TIMEOUT_MS"]).toBe(true);
+      for (const key of ["PICLAW_DREAM_CRON", "PICLAW_DREAM_BACKUP_KEEP", "PICLAW_DREAM_MODEL", "PICLAW_DREAM_AGENT_TIMEOUT_MS"]) {
+        expectCompatWarningOnce(compatEnv.stderr, key);
+      }
+
+      writeWorkspaceConfig(workspace.workspace, { domains: { agent: { backgroundTimeoutMs: 240000 } } });
+      writeFileSync(join(workspace.workspace, ".env"), "", "utf8");
+      const fallback = runConfigSubprocess(workspace, ["call:getDreamConfig"], {
+        noEnvFile: true,
+        env: {
+          PICLAW_DREAM_CRON: undefined,
+          PICLAW_DREAM_BACKUP_KEEP: undefined,
+          PICLAW_DREAM_MODEL: undefined,
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: undefined,
+        },
+      });
+      expect(fallback.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "0 1 * * *",
+        backupKeep: 10,
+        model: "",
+        agentTimeoutMs: 240000,
+      });
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("agent, session, and logging domains persist across restart with compatibility precedence", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-agent-session-");
     try {

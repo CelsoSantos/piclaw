@@ -939,8 +939,8 @@
       "name": "PICLAW_DREAM_AGENT_TIMEOUT_MS",
       "owner": "dream",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 360000,
+      "bounds": "positive integer ms; defaults to domains.agent.backgroundTimeoutMs when positive",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -948,24 +948,29 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.dream.agentTimeoutMs",
+      "deprecation": "migrated to typed domains.dream.agentTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed domains.dream configuration (#755B)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_DREAM_BACKUP_KEEP",
       "owner": "dream",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "type": "integer",
+      "default": 10,
+      "bounds": "positive integer backups",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -973,24 +978,29 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.dream.backupKeep",
+      "deprecation": "migrated to typed domains.dream.backupKeep config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed domains.dream configuration (#755B)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_DREAM_CRON",
       "owner": "dream",
       "type": "cron",
-      "default": null,
-      "bounds": null,
+      "default": "0 1 * * *",
+      "bounds": "non-empty cron expression",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -998,17 +1008,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.dream.cron",
+      "deprecation": "migrated to typed domains.dream.cron config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed domains.dream configuration (#755B)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_DREAM_CUE_FULL_SLICE_MAX_MESSAGES",
@@ -1113,9 +1128,9 @@
     {
       "name": "PICLAW_DREAM_MODEL",
       "owner": "dream",
-      "type": "enum",
-      "default": null,
-      "bounds": null,
+      "type": "string",
+      "default": "",
+      "bounds": "optional provider/model label",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -1123,17 +1138,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.dream.model",
+      "deprecation": "migrated to typed domains.dream.model config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed domains.dream configuration (#755B)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_ENABLE_M365_EXPERIMENTAL",
