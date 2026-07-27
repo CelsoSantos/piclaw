@@ -14,6 +14,14 @@ import {
   WORKSPACE_DIR,
 } from "../../src/core/config-context.js";
 import {
+  getSearchMatchMode,
+  getScopedModelsOnly,
+  getToolOutputPresentationConfig,
+  getToolResultCompactionTools,
+  getToolsIntegrationConfig,
+  getWorkspaceSearchConfig,
+} from "../../src/core/config-tools.js";
+import {
   getWebContentConfig,
   getWebRuntimeConfig,
   getWebServerConfig,
@@ -71,6 +79,16 @@ test("config web module preserves grouped runtime and platform defaults", () => 
   expect(isDefaultWebTerminalEnabled("linux")).toBe(true);
   expect(isDefaultWebTerminalEnabled("win32")).toBe(false);
   expect(isDefaultWebVncDirectEnabled("win32")).toBe(true);
+});
+
+test("config tools module preserves live grouped policy contracts", () => {
+  const tools = getToolsIntegrationConfig();
+  expect(tools.toolOutputStoreBytes).toBeGreaterThanOrEqual(500);
+  expect(getToolOutputPresentationConfig().previewLines).toBeGreaterThan(0);
+  expect(getToolResultCompactionTools()).toEqual(tools.toolResultCompactionTools);
+  expect(getWorkspaceSearchConfig().roots).toEqual(tools.workspaceSearchRoots);
+  expect(getSearchMatchMode()).toBe(tools.searchMatchMode);
+  expect(getScopedModelsOnly()).toBe(tools.scopedModelsOnly);
 });
 
 test("loadPiclawEnvConfig reads only Piclaw's allowlisted dotenv keys", () => {
