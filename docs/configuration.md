@@ -71,10 +71,19 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_WEB_PERSIST_THINKING_MAX_CHARS` | `100000` | Per-turn cap on persisted thinking text (UTF-16 surrogate-safe). |
 | `PICLAW_WEB_TLS_CERT` | _(empty)_ | Path to TLS certificate; enables HTTPS |
 | `PICLAW_WEB_TLS_KEY` | _(empty)_ | Path to TLS private key; enables HTTPS |
-| `PICLAW_WEB_MAX_CONTENT_CHARS` | `262144` | Max message size in characters; oversized messages are truncated with metadata |
+| `PICLAW_WEB_MAX_CONTENT_CHARS` | `262144` | Compatibility alias for `domains.web.contentMaxChars`; max message size in characters, with oversized messages truncated with metadata. |
+| `PICLAW_WEB_PREVIEW_CHARS` | `16000` | Compatibility alias for `domains.web.contentPreviewChars`; preview threshold, capped at the hard content limit. |
 | `PICLAW_TRUST_PROXY` | `0` | Trust `Forwarded` / `X-Forwarded-*` headers from a reverse proxy for origin, host, proto, and client IP handling |
 
 If `PICLAW_WEB_TLS_CERT` and `PICLAW_WEB_TLS_KEY` are both omitted, piclaw checks for `.piclaw/certs/sandbox.local.crt` and `.piclaw/certs/sandbox.local.key` and enables HTTPS automatically if both exist.
+
+The following operational settings are persisted under typed domains in `.piclaw/config.json`; their legacy variables remain compatibility aliases until 3.0.0:
+
+| Typed setting | Compatibility variable | Default | Purpose |
+|---------------|------------------------|---------|---------|
+| `domains.sessionRecordings.directory` | `PICLAW_RECORDINGS_DIR` | `<PICLAW_DATA>/session-recordings` | Root directory for opt-in session trace recordings. |
+| `domains.addons.apiFailureBackoffMs` | `PICLAW_ADDON_API_FAILURE_BACKOFF_MS` | `60000` | Suppression period for repeated identical add-on API failures. |
+| `domains.agentControl.abortSettleTimeoutMs` | `PICLAW_ABORT_SETTLE_TIMEOUT_MS` | `1000` | Bounded `0..10000` ms wait for abort cleanup to settle. |
 
 ### VNC target examples
 

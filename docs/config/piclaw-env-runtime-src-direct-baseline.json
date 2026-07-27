@@ -1,9 +1,7 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 33 to 29",
+  "source": "accepted direct-reader reduction from 29 to 24",
   "names": [
-    "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
-    "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
     "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
     "PICLAW_CHAT_JID",
     "PICLAW_DATA",
@@ -12,7 +10,6 @@
     "PICLAW_KEYCHAIN_KEY",
     "PICLAW_KEYCHAIN_KEY_FILE",
     "PICLAW_LOG_LEVEL",
-    "PICLAW_RECORDINGS_DIR",
     "PICLAW_RUNTIME_DOCS_DIR",
     "PICLAW_RUNTIME_ROOT",
     "PICLAW_SEARCH_MATCH_MODE",
@@ -22,9 +19,7 @@
     "PICLAW_WEB_EXTERNAL_URL",
     "PICLAW_WEB_HOST",
     "PICLAW_WEB_INTERNAL_SECRET",
-    "PICLAW_WEB_MAX_CONTENT_CHARS",
     "PICLAW_WEB_PORT",
-    "PICLAW_WEB_PREVIEW_CHARS",
     "PICLAW_WEB_STATIC_DIR",
     "PICLAW_WEB_TLS_CERT",
     "PICLAW_WEB_TLS_KEY",

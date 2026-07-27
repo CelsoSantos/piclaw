@@ -84,6 +84,11 @@ const envConfig = readEnvFile([
   "PICLAW_DREAM_BACKUP_KEEP",
   "PICLAW_DREAM_MODEL",
   "PICLAW_DREAM_AGENT_TIMEOUT_MS",
+  "PICLAW_WEB_MAX_CONTENT_CHARS",
+  "PICLAW_WEB_PREVIEW_CHARS",
+  "PICLAW_RECORDINGS_DIR",
+  "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
+  "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
   "PUSHOVER_APP_TOKEN",
   "PUSHOVER_USER_KEY",
   "PUSHOVER_DEVICE",
@@ -1195,6 +1200,8 @@ type WebOrdinaryDomainConfig = Pick<
   persistThinking: boolean;
   persistThinkingMaxChars: number;
   vncTargets: string;
+  contentMaxChars: number;
+  contentPreviewChars: number;
 };
 
 const webOrdinaryDomainSchema = registerDomainConfig<WebOrdinaryDomainConfig>({
@@ -1227,6 +1234,8 @@ const webOrdinaryDomainSchema = registerDomainConfig<WebOrdinaryDomainConfig>({
     ] }),
     debugCardSubmissions: boolField({ key: "debugCardSubmissions", owner: "web", defaultValue: debugCards ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_DEBUG_CARD_SUBMISSIONS", replacement: "domains.web.debugCardSubmissions", removalVersion: "3.0.0" }] }),
     trustProxy: boolField({ key: "trustProxy", owner: "web", defaultValue: configTrustProxy ?? legacyWebTrustProxy ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TRUST_PROXY", replacement: "domains.web.trustProxy", removalVersion: "3.0.0" }] }),
+    contentMaxChars: integerField({ key: "contentMaxChars", owner: "web", defaultValue: 262_144, min: 1, bounds: "positive integer characters", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_MAX_CONTENT_CHARS", replacement: "domains.web.contentMaxChars", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true }] }),
+    contentPreviewChars: integerField({ key: "contentPreviewChars", owner: "web", defaultValue: 16_000, min: 1, bounds: "positive integer characters; capped at contentMaxChars when consumed", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_WEB_PREVIEW_CHARS", replacement: "domains.web.contentPreviewChars", removalVersion: "3.0.0", parse: (raw) => Number.parseInt(raw, 10), skipInvalid: true }] }),
   },
 });
 
@@ -1305,6 +1314,15 @@ export function isPersistThinkingEnabled(): boolean {
 
 export function getPersistThinkingMaxChars(): number {
   return readWebOrdinaryDomainConfig().persistThinkingMaxChars;
+}
+
+/** Current web timeline content presentation limits. */
+export function getWebContentConfig(): Readonly<{ maxChars: number; previewChars: number }> {
+  const config = readWebOrdinaryDomainConfig();
+  return Object.freeze({
+    maxChars: config.contentMaxChars,
+    previewChars: Math.min(config.contentPreviewChars, config.contentMaxChars),
+  });
 }
 
 /** Persist and apply the web terminal toggle so new requests see it immediately. */
@@ -1398,6 +1416,85 @@ export function getOrCreateWebWidgetToken(): string {
 
 export function rotateWebWidgetToken(): string {
   return setWebWidgetToken(generateWebWidgetToken());
+}
+
+// ---------------------------------------------------------------------------
+// Operational add-on, agent-control, and recording storage settings.
+// ---------------------------------------------------------------------------
+
+export interface AddonsConfig {
+  apiFailureBackoffMs: number;
+}
+
+const addonsDomainSchema = registerDomainConfig<AddonsConfig>({
+  domain: "addons",
+  fields: {
+    apiFailureBackoffMs: integerField({
+      key: "apiFailureBackoffMs",
+      owner: "addons",
+      defaultValue: 60_000,
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_ADDON_API_FAILURE_BACKOFF_MS", replacement: "domains.addons.apiFailureBackoffMs", removalVersion: "3.0.0", parse: (raw) => Number(raw), skipInvalid: true }],
+    }),
+  },
+});
+
+export function getAddonsConfig(): Readonly<AddonsConfig> {
+  return Object.freeze(readDomainConfig(addonsDomainSchema, getDomainConfigOptions()));
+}
+
+export interface AgentControlConfig {
+  abortSettleTimeoutMs: number;
+}
+
+const agentControlDomainSchema = registerDomainConfig<AgentControlConfig>({
+  domain: "agentControl",
+  fields: {
+    abortSettleTimeoutMs: integerField({
+      key: "abortSettleTimeoutMs",
+      owner: "agent-control",
+      defaultValue: 1000,
+      min: 0,
+      max: 10_000,
+      bounds: "0..10000 ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_ABORT_SETTLE_TIMEOUT_MS", replacement: "domains.agentControl.abortSettleTimeoutMs", removalVersion: "3.0.0", parse: (raw) => { const value = Number(raw); return Number.isFinite(value) ? Math.max(0, Math.min(10_000, Math.round(value))) : 1000; } }],
+    }),
+  },
+});
+
+export function getAgentControlConfig(): Readonly<AgentControlConfig> {
+  return Object.freeze(readDomainConfig(agentControlDomainSchema, getDomainConfigOptions()));
+}
+
+export interface SessionRecordingsConfig {
+  directory: string;
+}
+
+const sessionRecordingsDomainSchema = registerDomainConfig<SessionRecordingsConfig>({
+  domain: "sessionRecordings",
+  fields: {
+    directory: stringField({
+      key: "directory",
+      owner: "storage",
+      defaultValue: resolve(DATA_DIR, "session-recordings"),
+      nonEmpty: true,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_RECORDINGS_DIR", replacement: "domains.sessionRecordings.directory", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+  },
+});
+
+export function getSessionRecordingsConfig(): Readonly<SessionRecordingsConfig> {
+  return Object.freeze(readDomainConfig(sessionRecordingsDomainSchema, getDomainConfigOptions()));
 }
 
 // ---------------------------------------------------------------------------
