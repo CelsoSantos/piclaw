@@ -14,6 +14,16 @@ import {
   WORKSPACE_DIR,
 } from "../../src/core/config-context.js";
 import {
+  getAgentRuntimeConfig,
+  getCompactionRuntimeConfig,
+  getDreamConfig,
+  getProgressWatchdogConfig,
+  getRecoveryPolicyConfig,
+  getRemoteInteropConfig,
+  getSessionPoolConfig,
+  getSessionStorageConfig,
+} from "../../src/core/config-runtime.js";
+import {
   getSearchMatchMode,
   getScopedModelsOnly,
   getToolOutputPresentationConfig,
@@ -89,6 +99,17 @@ test("config tools module preserves live grouped policy contracts", () => {
   expect(getWorkspaceSearchConfig().roots).toEqual(tools.workspaceSearchRoots);
   expect(getSearchMatchMode()).toBe(tools.searchMatchMode);
   expect(getScopedModelsOnly()).toBe(tools.scopedModelsOnly);
+});
+
+test("config runtime module preserves grouped session and recovery contracts", () => {
+  expect(getAgentRuntimeConfig().timeoutMs).toBeGreaterThan(0);
+  expect(getDreamConfig().agentTimeoutMs).toBeGreaterThan(0);
+  expect(getSessionPoolConfig().cleanupIntervalMs).toBeGreaterThan(0);
+  expect(getSessionStorageConfig().maxSizeBytes).toBe(getSessionStorageConfig().maxSizeMb * 1024 * 1024);
+  expect(getCompactionRuntimeConfig().backoffMaxMs).toBeGreaterThanOrEqual(getCompactionRuntimeConfig().backoffBaseMs);
+  expect(getProgressWatchdogConfig().timeoutMs).toBeGreaterThanOrEqual(0);
+  expect(getRecoveryPolicyConfig().automaticRecoveryTotalBudgetMs).toBeGreaterThan(0);
+  expect(typeof getRemoteInteropConfig().enabled).toBe("boolean");
 });
 
 test("loadPiclawEnvConfig reads only Piclaw's allowlisted dotenv keys", () => {
