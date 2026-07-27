@@ -38,7 +38,7 @@ import {
 import { loadOrCreateIdentity, deriveFingerprint } from "../../../src/remote/identity.js";
 import { buildCanonicalRequest, hashBody, signRequest, buildSignedRequestHeaders } from "../../../src/remote/signature.js";
 import { verifyCallbackProof } from "../../../src/remote/service-security.js";
-import { WEB_SERVER_CONFIG, DATA_DIR, getRemoteInteropConfig } from "../../../src/core/config.js";
+import { WEB_SERVER_CONFIG, DATA_DIR, getRemoteInteropConfig, getWebExternalUrl } from "../../../src/core/config.js";
 import { getChatJid } from "../../../src/core/chat-context.js";
 import { getWebOrigin } from "../../../src/channels/web/auth/request-origin.js";
 import { createLogger, debugSuppressedError } from "../../../src/utils/logger.js";
@@ -57,7 +57,7 @@ function getAllRemotePeers(): RemotePeerRecord[] {
 }
 
 export function getMyBaseUrl(chatJid = getChatJid()): string {
-  const env = (process.env.PICLAW_WEB_EXTERNAL_URL || "").trim();
+  const env = getWebExternalUrl();
   if (env) return env.replace(/\/$/, "");
 
   // Prefer the origin the current browser actually used. This lets one Piclaw

@@ -1,16 +1,13 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 16 to 10",
+  "source": "accepted direct-reader reduction from 10 to 7",
   "names": [
     "PICLAW_CHAT_JID",
     "PICLAW_DB_IN_MEMORY",
     "PICLAW_RUNTIME_DOCS_DIR",
     "PICLAW_SKEL_DIR",
-    "PICLAW_WEB_EXTERNAL_URL",
     "PICLAW_WEB_HOST",
     "PICLAW_WEB_PORT",
-    "PICLAW_WEB_STATIC_DIR",
-    "PICLAW_WEB_TLS_CERT",
-    "PICLAW_WEB_TLS_KEY"
+    "PICLAW_WEB_STATIC_DIR"
   ]
 }

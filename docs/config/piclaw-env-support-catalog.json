@@ -4213,11 +4213,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained immutable deployment bootstrap; not persisted to ordinary JSON config",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-network-bootstrap.ts call-time public-origin bootstrap (#810C)",
+      "migrationDisposition": "retain-network-bootstrap"
     },
     {
       "name": "PICLAW_WEB_HOST",
@@ -4695,11 +4695,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained immutable TLS deployment bootstrap with CLI precedence; not domain-persisted",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-network-bootstrap.ts TLS certificate bootstrap (#810C)",
+      "migrationDisposition": "retain-network-bootstrap"
     },
     {
       "name": "PICLAW_WEB_TLS_KEY",
@@ -4722,11 +4722,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained immutable secret TLS deployment bootstrap with CLI precedence; never domain-persisted",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-network-bootstrap.ts TLS private-key bootstrap (#810C)",
+      "migrationDisposition": "retain-network-bootstrap"
     },
     {
       "name": "PICLAW_WEB_TOTP_SECRET",
