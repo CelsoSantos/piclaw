@@ -473,8 +473,7 @@ async function runBunCommand(args: string[], cwd: string): Promise<BunCommandRes
 }
 
 function getRuntimePlatform(): NodeJS.Platform {
-  const override = process.env.PICLAW_TEST_PLATFORM;
-  return (override || process.platform) as NodeJS.Platform;
+  return process.platform;
 }
 
 export function isAddonFsLockError(error: unknown): boolean {
