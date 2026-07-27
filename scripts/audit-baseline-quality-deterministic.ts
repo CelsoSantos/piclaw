@@ -194,6 +194,7 @@ const groupDefinitions: GroupDefinition[] = [
         "message-write-service.test.ts",
         "pending-steering.test.ts",
         "post-mutations.test.ts",
+        "process-chat-control-runtime.test.ts",
         "queued-followup-lifecycle-service.test.ts",
         "recovery.test.ts",
         "runtime-followup-facade-service.test.ts",

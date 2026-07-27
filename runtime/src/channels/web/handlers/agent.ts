@@ -18,7 +18,6 @@ import {
   isPersistThinkingEnabled,
 } from "../../../core/config.js";
 import { parseControlCommand } from "../../../agent-control/index.js";
-import type { AgentControlCommand, AgentControlResult } from "../../../agent-control/index.js";
 import { isSlashCommandInvocation } from "../../../agent-pool/slash-command.js";
 import {
   normalizeAgentMessagePayload,
@@ -32,10 +31,8 @@ import {
   beginChatPreflight,
   beginChatRun,
   clearChatPreflight,
-  clearFailedRun,
   endChatRun,
   getChatCursor,
-  getFailedRun,
   getInflightMessageId,
   getMessageRowIdById,
   getMessagesSince,
@@ -51,6 +48,15 @@ import { resolveAvatarUrl } from "../media/avatar-service.js";
 import { createAgentEventEmitter, createStreamingEventHandler } from "../sse/agent-events.js";
 import { broadcastInteractionUpdated } from "../cards/interaction-service.js";
 import { storeAgentTurn } from "../messaging/agent-message-store.js";
+import {
+  MODEL_COMMAND_TYPES,
+  executeDeferredControlCommand,
+  isDeferredControlCommand,
+  materializeDeferredFollowups,
+  resolveAndBroadcastModelStateForCommand,
+  resumeFailedRunAfterModelSwitch,
+  selectProcessChatMessage,
+} from "../runtime/process-chat-control-runtime.js";
 import { resolveThreadId, resolveThreadRootId } from "../runtime/threading.js";
 import { resolveToolStatusHints } from "../../../tool-status-hints.js";
 import "../../../extensions/local-core-tool-status-hints.js";
@@ -571,54 +577,6 @@ export function summarizeCommandStatusTitle(message: unknown, fallback = "Comman
   return collapsed || fallback;
 }
 
-const MODEL_COMMAND_TYPES = new Set(["model", "thinking", "cycle_model", "cycle_thinking"]);
-const DEFERRED_CONTROL_COMMAND_TYPES = new Set(["compact", ...MODEL_COMMAND_TYPES]);
-
-type ModelControlCommand = Extract<AgentControlCommand, { type: "model" | "thinking" | "cycle_model" | "cycle_thinking" }>;
-type DeferredControlCommand = Extract<AgentControlCommand, { type: "compact" | "model" | "thinking" | "cycle_model" | "cycle_thinking" }>;
-
-function isModelControlCommand(command: unknown): command is ModelControlCommand {
-  return Boolean(command && typeof command === "object" && MODEL_COMMAND_TYPES.has(String((command as { type?: unknown }).type || "")));
-}
-
-function isDeferredControlCommand(command: unknown): command is DeferredControlCommand {
-  return Boolean(command && typeof command === "object" && DEFERRED_CONTROL_COMMAND_TYPES.has(String((command as { type?: unknown }).type || "")));
-}
-
-async function resolveAndBroadcastModelStateForCommand(channel: WebChannelLike, chatJid: string, result: AgentControlResult): Promise<{ model: string | null; thinkingLevel: string | null; thinkingLevelLabel: string | null; supportsThinking: boolean | undefined }> {
-  let nextModel = typeof result.model_label === "string" ? result.model_label : null;
-  let thinkingLevel = typeof result.thinking_level === "string" ? result.thinking_level : null;
-  let thinkingLevelLabel = typeof result.thinking_level_label === "string" ? result.thinking_level_label : null;
-  let supportsThinking: boolean | undefined = undefined;
-
-  try {
-    const modelState = await channel.agentPool.getAvailableModels(chatJid);
-    if (!nextModel) nextModel = modelState.current ?? null;
-    if (thinkingLevel == null) thinkingLevel = modelState.thinking_level ?? null;
-    if (!thinkingLevelLabel) thinkingLevelLabel = modelState.thinking_level_label ?? thinkingLevel;
-    supportsThinking = modelState.supports_thinking;
-  } catch {
-    if (typeof channel.agentPool.getCurrentModelLabel === "function") {
-      nextModel = await channel.agentPool.getCurrentModelLabel(chatJid).catch(() => null);
-    }
-  }
-
-  const state = {
-    model: nextModel ?? null,
-    thinkingLevel: thinkingLevel ?? null,
-    thinkingLevelLabel: thinkingLevelLabel ?? thinkingLevel ?? null,
-    supportsThinking,
-  };
-  channel.broadcastEvent("model_changed", {
-    chat_jid: chatJid,
-    model: state.model,
-    thinking_level: state.thinkingLevel,
-    thinking_level_label: state.thinkingLevelLabel,
-    supports_thinking: state.supportsThinking,
-  });
-  return state;
-}
-
 function parseLeadingAgentMention(content: string): { agentName: string; remainder: string } | null {
   const match = content.match(/^\s*@([a-zA-Z0-9][a-zA-Z0-9_-]{0,31})(?:\s+([\s\S]*))?$/);
   if (!match) return null;
@@ -943,10 +901,8 @@ export async function handleAgentMessage(
     let modelState: { model: string | null; thinkingLevel: string | null; thinkingLevelLabel: string | null; supportsThinking: boolean | undefined } | null = null;
     if (result.status === "success") {
       modelState = await resolveAndBroadcastModelStateForCommand(channel, chatJid, result);
-      if (command.type === "model" || command.type === "cycle_model") {
-        if (channel.retryFailedOnModelSwitch(chatJid)) {
-          channel.resumeChat(chatJid);
-        }
+      if (command.type === "model" || command.type === "thinking" || command.type === "cycle_model" || command.type === "cycle_thinking") {
+        resumeFailedRunAfterModelSwitch(channel, chatJid, command);
       }
     }
 
@@ -1456,251 +1412,56 @@ export async function processChat(
   threadRootId?: number,
   browserObservability?: BrowserObservabilityContext,
 ): Promise<void> {
-  const MAX_MATERIALIZE_RETRIES = 5;
   const prevCursor = getChatCursor(chatJid);
+  const selection = selectProcessChatMessage({
+    chatJid,
+    prevCursor,
+    threadRootId,
+  });
 
-  type DeferredControlExecutionMessage = {
-    rowId: number;
-    messageId?: string | null;
-    content: string;
-    timestamp: string;
-    threadId?: number | null;
-    queuedSource?: string;
-    queuedBy?: import("../runtime/followup-placeholders.js").QueuedFollowupItem["queuedBy"];
-  };
-
-  const executeDeferredControlCommand = async (
-    persistedCommand: DeferredControlCommand,
-    message: DeferredControlExecutionMessage,
-    effectiveThreadRootId?: number | null,
-  ): Promise<"continue" | "resumed"> => {
-    log.info("processChat executing deferred control command", {
-      operation: "process_chat.deferred_control_command",
-      chatJid,
-      cursor: getChatCursor(chatJid),
-      messageId: message.messageId ?? null,
-      rowId: message.rowId,
-      commandType: persistedCommand.type,
-      queuedSource: message.queuedSource ?? null,
-      queuedBy: message.queuedBy ?? null,
-      contentPreview: message.content.slice(0, 80),
-    });
-
-    const result = await channel.agentPool.applyControlCommand(chatJid, persistedCommand);
-    const formatted = formatOutbound(result.message, "web");
-    const commandThreadId = message.threadId ?? effectiveThreadRootId ?? message.rowId ?? null;
-
-    if (result.status === "success" && persistedCommand.type === "compact") {
-      let contextUsage = result.contextUsage;
-      if (contextUsage?.tokens === null || contextUsage?.tokens === undefined) {
-        const current = typeof channel.agentPool.getContextUsageForChat === "function"
-          ? await channel.agentPool.getContextUsageForChat(chatJid).catch(() => null)
-          : null;
-        if (current?.tokens !== null && current?.tokens !== undefined) {
-          contextUsage = {
-            tokens: current.tokens,
-            contextWindow: current.contextWindow,
-            percent: current.percent,
-            source: "agent_pool",
-            phase: "after_command",
-          };
-        }
-      }
-      if (contextUsage?.tokens !== null && contextUsage?.tokens !== undefined) {
-        const persistedUsage = {
-          tokens: contextUsage.tokens,
-          contextWindow: contextUsage.contextWindow,
-          percent: contextUsage.percent,
-        };
-        const statusPayload = {
-          chat_jid: chatJid,
-          thread_id: commandThreadId,
-          agent_id: agentId,
-          turn_id: createUuid("turn"),
-          type: "context_usage",
-          context_usage: {
-            ...persistedUsage,
-            estimated: contextUsage.estimated === true,
-            source: contextUsage.source ?? null,
-            phase: contextUsage.phase ?? null,
-          },
-        };
-        channel.setContextUsage(chatJid, persistedUsage);
-        channel.updateAgentStatus(chatJid, statusPayload);
-        channel.broadcastEvent("agent_status", statusPayload);
-      }
-    }
-
-    if (formatted || result.contentBlocks?.length) {
-      const sendOptions: Record<string, unknown> = { threadId: commandThreadId };
-      if (result.mediaIds?.length) sendOptions.mediaIds = result.mediaIds;
-      if (result.contentBlocks?.length) sendOptions.contentBlocks = result.contentBlocks;
-      await channel.sendMessage(chatJid, formatted || "", sendOptions);
-    }
-
-    if (result.status === "success" && isModelControlCommand(persistedCommand)) {
-      await resolveAndBroadcastModelStateForCommand(channel, chatJid, result);
-    }
-
-    setChatCursor(chatJid, message.timestamp);
-    channel.saveState?.();
-
-    if (result.status === "success" && (persistedCommand.type === "model" || persistedCommand.type === "cycle_model")) {
-      if (channel.retryFailedOnModelSwitch(chatJid)) {
-        channel.resumeChat(chatJid);
-        return "resumed";
-      }
-    }
-
-    const cursorNow = getChatCursor(chatJid);
-    const remainingPersisted = getMessagesSince(chatJid, cursorNow, getIdentityConfig().assistantName);
-    if (remainingPersisted.length > 0) {
-      channel.resumeChat(chatJid);
-      return "resumed";
-    }
-
-    return "continue";
-  };
-
-  const materializeNextDeferredFollowup = async (): Promise<boolean> => {
-    const nextQueued = channel.consumeQueuedFollowupItem(chatJid);
-    if (!nextQueued) return false;
-
-    const retries = nextQueued.materializeRetries ?? 0;
-
-    const queuedInteraction = channel.storeMessage(
-      chatJid,
-      nextQueued.queuedContent,
-      false,
-      nextQueued.mediaIds ?? [],
-      {
-        contentBlocks: Array.isArray(nextQueued.contentBlocks) ? nextQueued.contentBlocks : undefined,
-        linkPreviews: Array.isArray(nextQueued.linkPreviews) ? nextQueued.linkPreviews : undefined,
-        threadId: nextQueued.threadId ?? undefined,
-        screenHint: nextQueued.screenHint,
-      }
-    );
-
-    if (!queuedInteraction) {
-      if (retries >= MAX_MATERIALIZE_RETRIES) {
-        // Too many failures — drop the item to prevent infinite loops.
-        log.error("Dropping queued follow-up after repeated materialize failures", {
-          operation: "process_chat.materialize_followup_drop",
-          chatJid,
-          retries,
-          rowId: nextQueued.rowId,
-          queuedSource: nextQueued.source ?? null,
-          contentPreview: nextQueued.queuedContent?.slice(0, 80) ?? "",
-        });
-        channel.broadcastEvent("agent_followup_consumed", {
-          chat_jid: chatJid,
-          thread_id: nextQueued.threadId ?? null,
-          row_id: nextQueued.rowId,
-          content: nextQueued.queuedContent,
-          timestamp: nextQueued.queuedAt,
-          ...(nextQueued.source ? { source: nextQueued.source } : {}),
-        });
-        return false;
-      }
-      // Preserve order and increment retry counter.
-      const withRetry = { ...nextQueued, materializeRetries: retries + 1 };
-      channel.prependQueuedFollowupItem(chatJid, withRetry);
-      log.warn("Failed to materialize queued follow-up", {
-        operation: "process_chat.materialize_followup_retry",
-        chatJid,
-        attempt: retries + 1,
-        maxAttempts: MAX_MATERIALIZE_RETRIES,
-        rowId: nextQueued.rowId,
-        queuedSource: nextQueued.source ?? null,
-      });
-      return false;
-    }
-
-    channel.broadcastEvent("agent_followup_consumed", {
-      chat_jid: chatJid,
-      thread_id: nextQueued.threadId ?? null,
-      row_id: nextQueued.rowId,
-      content: nextQueued.queuedContent,
-      timestamp: nextQueued.queuedAt,
-      ...(nextQueued.source ? { source: nextQueued.source } : {}),
-    });
-    channel.broadcastEvent("new_post", queuedInteraction);
-
-    const queuedCommand = parseControlCommand(String(nextQueued.queuedContent || ""), getRoutingConfig().triggerPattern);
-    if (isDeferredControlCommand(queuedCommand)) {
-      const action = await executeDeferredControlCommand(
-        queuedCommand,
-        {
-          rowId: queuedInteraction.id,
-          content: nextQueued.queuedContent,
-          timestamp: queuedInteraction.timestamp,
-          threadId: queuedInteraction.data?.thread_id ?? queuedInteraction.id ?? null,
-          queuedSource: nextQueued.source,
-          queuedBy: nextQueued.queuedBy,
-        },
-        queuedInteraction.data?.thread_id ?? queuedInteraction.id ?? null,
-      );
-      if (action === "continue") {
-        await materializeNextDeferredFollowup();
-      }
-      return true;
-    }
-
-    // Resume using the newly materialized message row id as the frontier.
-    // If multiple queued follow-ups belong to the same thread root, reusing the
-    // stable thread id here would cause resume-task deduplication to collapse
-    // later hand-offs and stall the drain loop after one turn.
-    channel.resumeChat(chatJid, queuedInteraction.id);
-    return true;
-  };
-
-  const messages = getMessagesSince(chatJid, prevCursor, getIdentityConfig().assistantName);
-
-  if (messages.length === 0) {
+  if (selection.kind === "no_messages") {
     log.info("processChat found no pending messages", {
       operation: "process_chat.no_pending_messages",
       chatJid,
       cursor: prevCursor,
       threadRootId: threadRootId ?? null,
     });
-    await materializeNextDeferredFollowup();
+    await materializeDeferredFollowups({
+      channel,
+      chatJid,
+      agentId,
+    });
     return;
   }
 
-  // Process exactly one persisted user message per turn. Batching multiple
-  // user messages into one prompt causes cross-parented replies and makes
-  // queue/turn finalization ordering nondeterministic.
-  const currentMessage = messages[0];
-  if (!currentMessage) return;
-
-  const unresolvedFailedRun = getFailedRun(chatJid);
-  if (unresolvedFailedRun && unresolvedFailedRun.messageId === currentMessage.id) {
+  if (selection.kind === "stale_failed_run_cleared") {
     log.info("processChat clearing stale failed-run marker without replay", {
       operation: "process_chat.clear_failed_run_without_replay",
       chatJid,
       cursor: prevCursor,
-      failedPrevTs: unresolvedFailedRun.prevTs,
-      failedTs: unresolvedFailedRun.failedTs,
-      failedMessageId: unresolvedFailedRun.messageId,
-      pendingMessageCount: messages.length,
+      failedPrevTs: selection.failedRun.prevTs,
+      failedTs: selection.failedRun.failedTs,
+      failedMessageId: selection.failedRun.messageId,
+      pendingMessageCount: selection.pendingMessages.length,
     });
-    clearFailedRun(chatJid);
-    setChatCursor(chatJid, currentMessage.timestamp);
-    if (messages.length > 1) {
+    if (selection.shouldResume) {
       channel.resumeChat(chatJid);
     } else {
-      await materializeNextDeferredFollowup();
+      await materializeDeferredFollowups({
+        channel,
+        chatJid,
+        agentId,
+      });
     }
     return;
   }
 
-  // Derive thread root from the actual message being processed, NOT from
-  // the threadRootId parameter. The parameter comes from whichever
-  // handleAgentMessage enqueued this processChat, but cursor-ordered
-  // message selection may pick a DIFFERENT message. Using the parameter
-  // would cross-parent the response under the wrong thread.
-  const messageThreadId = currentMessage.thread_id ?? undefined;
-  const effectiveThreadRootId = messageThreadId ?? threadRootId;
+  const {
+    pendingMessages: messages,
+    currentMessage,
+    messageThreadId,
+    effectiveThreadRootId,
+  } = selection;
 
   log.info("processChat selected next pending message", {
     operation: "process_chat.select_message",
@@ -1716,9 +1477,12 @@ export async function processChat(
 
   const persistedCommand = parseControlCommand(String(currentMessage.content || ""), getRoutingConfig().triggerPattern);
   if (isDeferredControlCommand(persistedCommand)) {
-    const action = await executeDeferredControlCommand(
-      persistedCommand,
-      {
+    const action = await executeDeferredControlCommand({
+      channel,
+      chatJid,
+      agentId,
+      command: persistedCommand,
+      message: {
         rowId: getMessageRowIdById(chatJid, currentMessage.id ?? "") ?? 0,
         messageId: currentMessage.id,
         content: String(currentMessage.content || ""),
@@ -1726,9 +1490,13 @@ export async function processChat(
         threadId: currentMessage.thread_id ?? effectiveThreadRootId ?? null,
       },
       effectiveThreadRootId,
-    );
+    });
     if (action === "continue") {
-      await materializeNextDeferredFollowup();
+      await materializeDeferredFollowups({
+        channel,
+        chatJid,
+        agentId,
+      });
     }
     return;
   }
@@ -2030,7 +1798,7 @@ export async function processChat(
             }, turnId, browserObservability));
           })
           .finally(() => {
-            enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId, browserObservability);
+            enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId ?? undefined, browserObservability);
           });
         return;
       }
@@ -2047,7 +1815,7 @@ export async function processChat(
     if (await maybeEmergencyRotateAfterPrePromptCompaction("foreground")) {
       clearChatPreflight(chatJid);
       endTrackedPhase(chatJid);
-      enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId, browserObservability);
+      enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId ?? undefined, browserObservability);
       return;
     }
 
@@ -2324,7 +2092,7 @@ export async function processChat(
     }
 
     // Start the next queued follow-up only after this turn has fully finalized.
-    await materializeNextDeferredFollowup();
+    await materializeDeferredFollowups({ channel, chatJid, agentId });
 
     // If the exit_process tool was called during this turn, trigger graceful
     // shutdown now that the response has been persisted and broadcast.
