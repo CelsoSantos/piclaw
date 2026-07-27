@@ -1201,6 +1201,10 @@ export async function handleAgentMessage(
     const commandTurnId = createUuid("turn");
     const commandTitle = content.trim().split(/\s+/, 1)[0] || "command";
     const isCompactCommand = command.type === "compact";
+    const isSessionRotateCommand = command.type === "session_rotate";
+    const commandModel = (isCompactCommand || isSessionRotateCommand) && typeof channel.agentPool.getCurrentModelLabel === "function"
+      ? await channel.agentPool.getCurrentModelLabel(chatJid).catch(() => null)
+      : null;
 
     if (isCompactCommand) {
       // Compaction gets the timer affordance (same as auto-compaction)
@@ -1213,6 +1217,19 @@ export async function handleAgentMessage(
         detail: "Manual compaction requested via /compact.",
         intent_key: "compaction",
         started_at: new Date().toISOString(),
+        model: commandModel,
+      });
+    } else if (isSessionRotateCommand) {
+      emitCommandStatus({
+        thread_id: interaction.timestamp,
+        agent_id: agentId,
+        turn_id: commandTurnId,
+        type: "intent",
+        title: "Rotating session",
+        detail: "Compacting context before archiving the current session and creating its successor.",
+        intent_key: "session_rotation",
+        started_at: new Date().toISOString(),
+        model: commandModel,
       });
     } else {
       emitCommandStatus({
@@ -1225,11 +1242,14 @@ export async function handleAgentMessage(
     }
 
     const result = await channel.agentPool.applyControlCommand(chatJid, command);
-    if (result.status === "success" && isCompactCommand) {
+    if (result.status === "success" && (isCompactCommand || isSessionRotateCommand)) {
       await publishCommandContextUsage(result, {
         threadId: interaction.timestamp,
         turnId: commandTurnId,
       });
+    }
+    if (result.status === "success" && isSessionRotateCommand) {
+      await resolveAndBroadcastModelStateForCommand(channel, chatJid, result);
     }
     const formatted = formatOutbound(result.message, "web");
     const isQueueCommand = command.type === "queue" || command.type === "queue_all";
