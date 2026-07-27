@@ -40,6 +40,23 @@ The observations record where each `PICLAW_*` name appears and count both direct
 
 New settings should prefer `.piclaw/config.json` plus typed config access unless they are bootstrap paths, secrets, process-manager toggles, or deliberate compatibility aliases.
 
+### Internal module layout
+
+`runtime/src/core/config.ts` is the stable public façade. Existing runtime code should continue importing from it unless it is implementing another config module. The façade re-exports these ownership modules:
+
+| Module | Ownership |
+|--------|-----------|
+| `config-context.ts` | One startup snapshot of CLI flags, `.env`, paths, JSON config and domain runtime options |
+| `config-web.ts` | Web server, TLS, auth/session, terminal, VNC, upload limits, widget token and TOTP settings |
+| `config-tools.ts` | Provider/tool integration, tool-output policy, workspace search, model scoping and tool activation |
+| `config-runtime.ts` | Agent timeouts/budgets, Dream, session lifecycle/storage, remote interop, compaction, recovery and watchdog settings |
+| `config-identity.ts` | Mutable assistant/user identity, trigger routing and UI theme |
+| `config-integrations.ts` | Logging, agent-log retention and Pushover |
+| `config-cli.ts`, `config-paths.ts`, `config-sources.ts` | Stateless bootstrap parsing and source helpers |
+| `domain-config.ts` | Typed schemas, compatibility precedence, validation and persistence |
+
+The modules share `config-context.ts` rather than re-reading dotenv or JSON state. Domain modules do not import the public façade; this keeps module initialisation acyclic. Mutable setters update their typed domain state and legacy live exports together.
+
 Bootstrap environment variables are reviewed as an allowlist in the inventory. The current allowlist is:
 
 - `PICLAW_WORKSPACE`, `PICLAW_STORE`, `PICLAW_DATA`, `PICLAW_RUNTIME_ROOT`, `PICLAW_PI_AGENT_DIR`
