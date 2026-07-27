@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 51 to 41",
+    "source": "accepted direct-reader reduction from 41 to 33",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -23,14 +23,6 @@
       "PICLAW_KEYCHAIN_KEY_FILE",
       "PICLAW_LOG_LEVEL",
       "PICLAW_RECORDINGS_DIR",
-      "PICLAW_REMOTE_COMPACTION_ENABLED",
-      "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
-      "PICLAW_REMOTE_INSTANCE_NAME",
-      "PICLAW_REMOTE_INTEROP_ALLOW_HTTP",
-      "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK",
-      "PICLAW_REMOTE_INTEROP_DECISION_MODEL",
-      "PICLAW_REMOTE_INTEROP_ENABLED",
-      "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_RUNTIME_ROOT",
       "PICLAW_SEARCH_MATCH_MODE",
@@ -88,30 +80,30 @@
   "current": {
     "production": {
       "referencedNames": 179,
-      "directReaderNames": 42,
-      "directReaderOccurrences": 99,
+      "directReaderNames": 34,
+      "directReaderOccurrences": 79,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 42,
-      "semanticReaderOccurrences": 99
+      "semanticReaderNames": 34,
+      "semanticReaderOccurrences": 79
     },
     "runtimeSrc": {
       "referencedNames": 176,
-      "directReaderNames": 41,
-      "directReaderOccurrences": 92,
+      "directReaderNames": 33,
+      "directReaderOccurrences": 74,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 41,
-      "semanticReaderOccurrences": 92
+      "semanticReaderNames": 33,
+      "semanticReaderOccurrences": 74
     },
     "extensions": {
-      "referencedNames": 10,
-      "directReaderNames": 6,
-      "directReaderOccurrences": 7,
+      "referencedNames": 9,
+      "directReaderNames": 5,
+      "directReaderOccurrences": 5,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 6,
-      "semanticReaderOccurrences": 7
+      "semanticReaderNames": 5,
+      "semanticReaderOccurrences": 5
     },
     "tooling": {
       "referencedNames": 74,
@@ -3649,27 +3641,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3688,27 +3676,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3728,27 +3712,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3768,27 +3748,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3808,27 +3784,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3848,31 +3820,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3892,49 +3856,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 5,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 5,
+          "semanticReaders": 0,
           "files": [
-            "runtime/extensions/integrations/remote-pair/index.ts",
-            "runtime/src/agent-control/handlers/remote.ts",
-            "runtime/src/agent-pool/session.ts",
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/remote-pair/index.ts",
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/extensions/integrations/remote-pair/index.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/integrations/remote-pair/index.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 3,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/remote.ts",
-            "runtime/src/agent-pool/session.ts",
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts",
-            "runtime/src/remote/service.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3954,27 +3892,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 2,
+          "semanticReaders": 0,
           "files": [
             "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/core/config.ts"
-          ]
+          "readerFiles": []
         }
       }
     },

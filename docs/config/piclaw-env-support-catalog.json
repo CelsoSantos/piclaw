@@ -2195,203 +2195,211 @@
     },
     {
       "name": "PICLAW_REMOTE_COMPACTION_ENABLED",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "boolean",
-      "default": null,
+      "default": false,
       "bounds": null,
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.remoteCompactionEnabled",
+      "deprecation": "migrated to typed domains.remote.remoteCompactionEnabled config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.remoteCompactionEnabled (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 300000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.remoteCompactionTimeoutMs",
+      "deprecation": "migrated to typed domains.remote.remoteCompactionTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.remoteCompactionTimeoutMs (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_INSTANCE_NAME",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "string",
-      "default": null,
+      "default": "",
       "bounds": null,
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.instanceName",
+      "deprecation": "migrated to typed domains.remote.instanceName config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.instanceName (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_INTEROP_ALLOW_HTTP",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": false,
+      "bounds": "true only for legacy 1 or true",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.allowHttp",
+      "deprecation": "migrated to typed domains.remote.allowHttp config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.allowHttp (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": false,
+      "bounds": "true only for legacy 1 or true",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.allowPrivateNetwork",
+      "deprecation": "migrated to typed domains.remote.allowPrivateNetwork config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.allowPrivateNetwork (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_INTEROP_DECISION_MODEL",
       "owner": "remote-interop",
-      "type": "enum",
-      "default": null,
-      "bounds": null,
+      "type": "string",
+      "default": "",
+      "bounds": "provider/model label",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.decisionModel",
+      "deprecation": "migrated to typed domains.remote.decisionModel config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.decisionModel (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_INTEROP_ENABLED",
-      "owner": "agent-runtime",
+      "owner": "remote-interop",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": false,
+      "bounds": "true only for legacy 1 or true",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.enabled",
+      "deprecation": "migrated to typed domains.remote.enabled config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.enabled (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED",
-      "owner": "core",
+      "owner": "remote-interop",
       "type": "boolean",
-      "default": null,
-      "bounds": null,
+      "default": false,
+      "bounds": "true only for legacy 1 or true",
       "allowedValues": [],
       "secret": false,
       "persistence": [
         "env",
-        "dotenv"
+        "dotenv",
+        "json-config"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.remote.shortCircuitEnabled",
+      "deprecation": "migrated to typed domains.remote.shortCircuitEnabled config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts domains.remote.shortCircuitEnabled (#755A)",
+      "migrationDisposition": "migrated-to-domain-config"
     },
     {
       "name": "PICLAW_RUNTIME_DOCS_DIR",

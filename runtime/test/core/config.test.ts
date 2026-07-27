@@ -976,6 +976,35 @@ describe("core config", () => {
     });
   });
 
+  test("remote domain preserves security defaults, precedence, and env immutability", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-remote-");
+    const envKeys = [
+      "PICLAW_REMOTE_INTEROP_ENABLED", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK",
+      "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED", "PICLAW_REMOTE_INSTANCE_NAME", "PICLAW_REMOTE_INTEROP_DECISION_MODEL",
+      "PICLAW_REMOTE_COMPACTION_ENABLED", "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+    ];
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { remote: {
+        enabled: false, allowHttp: false, allowPrivateNetwork: false, shortCircuitEnabled: false,
+        instanceName: "persisted", decisionModel: "persisted/model", remoteCompactionEnabled: false, remoteCompactionTimeoutMs: 300000,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_REMOTE_INTEROP_ENABLED=1", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP=1", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK=0",
+        "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED=true", "PICLAW_REMOTE_INSTANCE_NAME=dotenv", "PICLAW_REMOTE_INTEROP_DECISION_MODEL=dotenv/model",
+        "PICLAW_REMOTE_COMPACTION_ENABLED=1", "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=45000",
+      ].join("\n"), "utf8");
+      const names = ["call:getRemoteInteropConfig", "call:getCompactionRuntimeConfig", "same:getRemoteInteropConfig:REMOTE_INTEROP_CONFIG", ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_REMOTE_INSTANCE_NAME: "process",
+      } });
+      expect(snapshot["call:getRemoteInteropConfig"]).toEqual({ enabled: true, allowHttp: true, allowPrivateNetwork: false, shortCircuitEnabled: true, instanceName: "process", decisionModel: "dotenv/model" });
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 45000 });
+      expect(snapshot["same:getRemoteInteropConfig:REMOTE_INTEROP_CONFIG"]).toBe(true);
+      for (const key of envKeys) { expect(snapshot[`env-unchanged:${key}`]).toBe(true); expectCompatWarningOnce(stderr, key); }
+    } finally { workspace.cleanup(); }
+  });
+
   test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-compaction-delays-");
     try {
