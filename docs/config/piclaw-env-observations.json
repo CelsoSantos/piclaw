@@ -20,9 +20,7 @@
     "removed": []
   },
   "extensionDelta": {
-    "directReaderNamesOnlyInExtensions": [
-      "PICLAW_PORT"
-    ]
+    "directReaderNamesOnlyInExtensions": []
   },
   "scanRootVersion": 1,
   "scanScopes": {
@@ -53,13 +51,13 @@
   },
   "current": {
     "production": {
-      "referencedNames": 178,
-      "directReaderNames": 8,
-      "directReaderOccurrences": 16,
+      "referencedNames": 177,
+      "directReaderNames": 7,
+      "directReaderOccurrences": 14,
       "helperReaderNames": 10,
       "helperReaderOccurrences": 10,
-      "semanticReaderNames": 18,
-      "semanticReaderOccurrences": 26
+      "semanticReaderNames": 17,
+      "semanticReaderOccurrences": 24
     },
     "runtimeSrc": {
       "referencedNames": 175,
@@ -71,13 +69,13 @@
       "semanticReaderOccurrences": 24
     },
     "extensions": {
-      "referencedNames": 7,
-      "directReaderNames": 2,
-      "directReaderOccurrences": 2,
+      "referencedNames": 5,
+      "directReaderNames": 0,
+      "directReaderOccurrences": 0,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 2,
-      "semanticReaderOccurrences": 2
+      "semanticReaderNames": 0,
+      "semanticReaderOccurrences": 0
     },
     "tooling": {
       "referencedNames": 75,
@@ -2966,30 +2964,6 @@
             "docs/config/piclaw-env-reduction-report.md"
           ],
           "readerFiles": []
-        },
-        "production": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ]
         }
       }
     },
@@ -6902,32 +6876,6 @@
             "skel/.pi/skills/timeline-cleanup/cleanup.ts"
           ]
         },
-        "production": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-web.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-web.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ]
-        },
         "tooling": {
           "referenced": true,
           "directReaders": 0,
@@ -6937,6 +6885,18 @@
             "runtime/scripts/playwright/oobe-local-container.ts"
           ],
           "readerFiles": []
+        },
+        "production": {
+          "referenced": true,
+          "directReaders": 1,
+          "helperReaders": 0,
+          "semanticReaders": 1,
+          "files": [
+            "runtime/src/core/config-web.ts"
+          ],
+          "readerFiles": [
+            "runtime/src/core/config-web.ts"
+          ]
         },
         "runtimeSrc": {
           "referenced": true,

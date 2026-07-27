@@ -60,6 +60,7 @@ describe("Piclaw env surface audit", () => {
     expect(observations.scanScopes.production).toEqual(["runtime/src", "runtime/extensions"]);
     expect(observations.current.runtimeSrc.directReaderNames).toBe(observations.runtimeSrcDirectBaseline.names.length);
     expect(observations.runtimeSrcDirectBaseline.names.length).toBe(7);
+    expect(observations.extensionDelta.directReaderNamesOnlyInExtensions).toEqual([]);
     expect(observations.runtimeSrcDirectBaseline.added).toEqual([]);
     expect(observations.runtimeSrcDirectBaseline.removed).toEqual([]);
     expect(observations.current.runtimeSrc.directReaderNames).toBeLessThan(issueBaseline.literalProductionReaders);
@@ -67,6 +68,12 @@ describe("Piclaw env surface audit", () => {
     expect(observations.current.production.semanticReaderOccurrences).toBe(
       observations.current.production.directReaderOccurrences + observations.current.production.helperReaderOccurrences,
     );
+  });
+
+  test("support catalog has no unresolved dispositions or stale config monolith provenance", () => {
+    const catalog = buildSupportCatalog();
+    expect(catalog.entries.filter((entry) => entry.migrationDisposition === "investigate")).toEqual([]);
+    expect(catalog.entries.filter((entry) => entry.source.includes("runtime/src/core/config.ts"))).toEqual([]);
   });
 
   test("support catalog covers all production observations with complete metadata", () => {
