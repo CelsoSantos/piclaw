@@ -25,7 +25,7 @@ import { existsSync } from "fs";
 import { readEnvFile } from "./env.js";
 import { readJsonConfig, writeJsonConfig } from "./config-store.js";
 import { createLogger } from "../utils/logger.js";
-import { getConfiguredLogLevel, parseLogLevel } from "../utils/log-level.js";
+import { parseLogLevel, setConfiguredLogLevelFallback, type LogLevel } from "../utils/log-level.js";
 import { DAY_MS, DEFAULT_LOG_RETENTION_CAP_MS, clampLogRetentionMs } from "../utils/log-layout.js";
 import { parsePositiveIntStrict } from "../utils/strict-int.js";
 import {
@@ -474,24 +474,9 @@ warnDeprecatedEnv("LOG_LEVEL", "PICLAW_LOG_LEVEL");
 
 /** Typed logging settings grouped for runtime diagnostics. */
 export interface LoggingConfig {
-  level: ReturnType<typeof parseLogLevel>;
+  level: LogLevel;
 }
 
-/** Grouped logging settings. */
-export const LOGGING_CONFIG = Object.freeze<LoggingConfig>({
-  level: parseLogLevel(
-    process.env.PICLAW_LOG_LEVEL ||
-      envConfig.PICLAW_LOG_LEVEL ||
-      process.env.LOG_LEVEL ||
-      envConfig.LOG_LEVEL ||
-      getConfiguredLogLevel(),
-  ),
-});
-
-/** Return grouped logging settings for runtime wiring and tests. */
-export function getLoggingConfig(): Readonly<LoggingConfig> {
-  return LOGGING_CONFIG;
-}
 
 /** Typed mutable identity settings grouped for runtime consumers that need live values. */
 export interface IdentityConfig {
@@ -2928,12 +2913,29 @@ function parseCleanupIntervalMs(value: string | undefined, fallback: number): nu
 
 const DEFAULT_RETENTION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
-/** Typed agent-run-log retention settings grouped for runtime startup wiring. */
+/** Typed logging and agent-run-log retention settings. */
+type LoggingDomainConfig = LoggingConfig & RetentionCleanupConfig;
 export type AgentLogConfig = RetentionCleanupConfig;
 
-const agentLogDomainSchema = registerDomainConfig<AgentLogConfig>({
+const agentLogDomainSchema = registerDomainConfig<LoggingDomainConfig>({
   domain: "logging",
   fields: {
+    level: {
+      ...stringField({
+        key: "level",
+        owner: "core",
+        defaultValue: "info",
+        allowedValues: ["debug", "info", "warn", "error"],
+        persistence: "json-config",
+        precedence: ["compat-env", "persisted", "default"],
+        secretClass: "none",
+        compatibilityEnv: [
+          { envKey: "PICLAW_LOG_LEVEL", replacement: "domains.logging.level", removalVersion: "3.0.0", parse: (raw) => parseLogLevel(raw) },
+          { envKey: "LOG_LEVEL", replacement: "domains.logging.level", removalVersion: "3.0.0", parse: (raw) => parseLogLevel(raw) },
+        ],
+      }),
+      validate: (value: unknown) => parseLogLevel(value),
+    } as DomainConfigField<LogLevel>,
     retentionMs: integerField({
       key: "retentionMs",
       owner: "agent-runtime",
@@ -2963,10 +2965,22 @@ const agentLogDomainSchema = registerDomainConfig<AgentLogConfig>({
   },
 });
 
+const LOGGING_DOMAIN_CONFIG = readDomainConfig(agentLogDomainSchema, getDomainConfigOptions());
+
+/** Grouped logging threshold settings. */
+export const LOGGING_CONFIG = Object.freeze<LoggingConfig>({ level: LOGGING_DOMAIN_CONFIG.level });
+setConfiguredLogLevelFallback(LOGGING_CONFIG.level);
+
+/** Return grouped logging settings for runtime wiring and tests. */
+export function getLoggingConfig(): Readonly<LoggingConfig> {
+  return LOGGING_CONFIG;
+}
+
 /** Grouped agent-run-log retention settings. Defaults/caps retention at 30 days. */
-export const AGENT_LOG_CONFIG = Object.freeze<AgentLogConfig>(
-  readDomainConfig(agentLogDomainSchema, getDomainConfigOptions()),
-);
+export const AGENT_LOG_CONFIG = Object.freeze<AgentLogConfig>({
+  retentionMs: LOGGING_DOMAIN_CONFIG.retentionMs,
+  cleanupIntervalMs: LOGGING_DOMAIN_CONFIG.cleanupIntervalMs,
+});
 
 /** Return the grouped agent-run-log retention settings for startup wiring and tests. */
 export function getAgentLogConfig(): Readonly<AgentLogConfig> {

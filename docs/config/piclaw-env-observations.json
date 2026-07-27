@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 29 to 24",
+    "source": "accepted direct-reader reduction from 24 to 23",
     "names": [
       "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
       "PICLAW_CHAT_JID",
@@ -15,7 +15,6 @@
       "PICLAW_INTERNAL_SECRET",
       "PICLAW_KEYCHAIN_KEY",
       "PICLAW_KEYCHAIN_KEY_FILE",
-      "PICLAW_LOG_LEVEL",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_RUNTIME_ROOT",
       "PICLAW_SEARCH_MATCH_MODE",
@@ -71,21 +70,21 @@
   "current": {
     "production": {
       "referencedNames": 179,
-      "directReaderNames": 25,
-      "directReaderOccurrences": 70,
-      "helperReaderNames": 0,
-      "helperReaderOccurrences": 0,
+      "directReaderNames": 24,
+      "directReaderOccurrences": 68,
+      "helperReaderNames": 1,
+      "helperReaderOccurrences": 1,
       "semanticReaderNames": 25,
-      "semanticReaderOccurrences": 70
+      "semanticReaderOccurrences": 69
     },
     "runtimeSrc": {
       "referencedNames": 176,
-      "directReaderNames": 24,
-      "directReaderOccurrences": 65,
-      "helperReaderNames": 0,
-      "helperReaderOccurrences": 0,
+      "directReaderNames": 23,
+      "directReaderOccurrences": 63,
+      "helperReaderNames": 1,
+      "helperReaderOccurrences": 1,
       "semanticReaderNames": 24,
-      "semanticReaderOccurrences": 65
+      "semanticReaderOccurrences": 64
     },
     "extensions": {
       "referencedNames": 9,
@@ -106,7 +105,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 124,
+      "referencedNames": 125,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -2359,33 +2358,41 @@
     {
       "name": "PICLAW_LOG_LEVEL",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
             "runtime/src/core/config.ts",
             "runtime/src/utils/log-level.ts",
             "runtime/src/utils/logger.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts",
             "runtime/src/utils/log-level.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
             "runtime/src/core/config.ts",
             "runtime/src/utils/log-level.ts",
             "runtime/src/utils/logger.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts",
             "runtime/src/utils/log-level.ts"
           ]
         }

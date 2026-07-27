@@ -306,6 +306,28 @@ describe("core config", () => {
     }
   });
 
+  test("logging level persists with env compatibility precedence and no mutation", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-log-level-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { logging: { level: "warn" } } });
+      const persisted = runConfigSubprocess(workspace, ["call:getLoggingConfig"], {
+        noEnvFile: true,
+        env: { PICLAW_LOG_LEVEL: undefined, LOG_LEVEL: undefined },
+      });
+      expect(persisted.snapshot["call:getLoggingConfig"]).toEqual({ level: "warn" });
+
+      const compat = runConfigSubprocess(workspace, [
+        "call:getLoggingConfig",
+        "env-unchanged:PICLAW_LOG_LEVEL",
+      ], { env: { PICLAW_LOG_LEVEL: "debug", LOG_LEVEL: undefined } });
+      expect(compat.snapshot["call:getLoggingConfig"]).toEqual({ level: "debug" });
+      expect(compat.snapshot["env-unchanged:PICLAW_LOG_LEVEL"]).toBe(true);
+      expectCompatWarningOnce(compat.stderr, "PICLAW_LOG_LEVEL");
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("agent, session, and logging domains persist across restart with compatibility precedence", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-agent-session-");
     try {
