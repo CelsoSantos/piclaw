@@ -55,6 +55,13 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_STORE` | `/workspace/.piclaw/store` | SQLite database location |
 | `PICLAW_DATA` | `/workspace/.piclaw/data` | Sessions, IPC, chats.json |
 | `SUPERVISOR_CONF` | `/workspace/.piclaw/supervisor/supervisord.conf` | Supervisor config path (falls back to `/etc/supervisor/supervisord.conf`) |
+| `PICLAW_SKEL_DIR` | packaged `skel/` directory | Deployment/package bootstrap override for the workspace skeleton source. Retained env-only because it is needed before ordinary domain config is available. |
+| `PICLAW_DB_IN_MEMORY` | `0` | Test/database bootstrap switch (`1` or `true`). Retained env-only because it selects the database before persisted config can safely be read. |
+| `PICLAW_CHAT_JID` | `web:default` | Per-invocation IPC target fallback. Request payload fields take precedence; this value is intentionally not persisted. |
+
+## Logging
+
+`domains.logging.level` persists the runtime logging threshold in `.piclaw/config.json`. `PICLAW_LOG_LEVEL` and the older `LOG_LEVEL` name remain compatibility aliases until 3.0.0 and override the persisted value for startup and live logger checks. Allowed values are `debug`, `info`, `warn`, and `error`; the default is `info`.
 
 ## Web server
 
@@ -71,10 +78,20 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_WEB_PERSIST_THINKING_MAX_CHARS` | `100000` | Per-turn cap on persisted thinking text (UTF-16 surrogate-safe). |
 | `PICLAW_WEB_TLS_CERT` | _(empty)_ | Path to TLS certificate; enables HTTPS |
 | `PICLAW_WEB_TLS_KEY` | _(empty)_ | Path to TLS private key; enables HTTPS |
-| `PICLAW_WEB_MAX_CONTENT_CHARS` | `262144` | Max message size in characters; oversized messages are truncated with metadata |
+| `PICLAW_WEB_MAX_CONTENT_CHARS` | `262144` | Compatibility alias for `domains.web.contentMaxChars`; max message size in characters, with oversized messages truncated with metadata. |
+| `PICLAW_SEARCH_MATCH_MODE` | `or` | Compatibility alias for `domains.tools.searchMatchMode`; choose `or` (any keyword) or `and` (all keywords) for multi-word FTS queries. |
+| `PICLAW_WEB_PREVIEW_CHARS` | `16000` | Compatibility alias for `domains.web.contentPreviewChars`; preview threshold, capped at the hard content limit. |
 | `PICLAW_TRUST_PROXY` | `0` | Trust `Forwarded` / `X-Forwarded-*` headers from a reverse proxy for origin, host, proto, and client IP handling |
 
 If `PICLAW_WEB_TLS_CERT` and `PICLAW_WEB_TLS_KEY` are both omitted, piclaw checks for `.piclaw/certs/sandbox.local.crt` and `.piclaw/certs/sandbox.local.key` and enables HTTPS automatically if both exist.
+
+The following operational settings are persisted under typed domains in `.piclaw/config.json`; their legacy variables remain compatibility aliases until 3.0.0:
+
+| Typed setting | Compatibility variable | Default | Purpose |
+|---------------|------------------------|---------|---------|
+| `domains.sessionRecordings.directory` | `PICLAW_RECORDINGS_DIR` | `<PICLAW_DATA>/session-recordings` | Root directory for opt-in session trace recordings. |
+| `domains.addons.apiFailureBackoffMs` | `PICLAW_ADDON_API_FAILURE_BACKOFF_MS` | `60000` | Suppression period for repeated identical add-on API failures. |
+| `domains.agentControl.abortSettleTimeoutMs` | `PICLAW_ABORT_SETTLE_TIMEOUT_MS` | `1000` | Bounded `0..10000` ms wait for abort cleanup to settle. |
 
 ### VNC target examples
 
@@ -689,11 +706,19 @@ Default windows:
 AutoDream is gated, but nightly cadence no longer waits for a full 24-hour gap.
 It runs when there has been activity since the last consolidation.
 
+Dream runtime settings are persisted under `domains.dream` in `.piclaw/config.json`. The legacy environment variables remain compatibility aliases until 3.0.0 and override persisted values without being mutated by runtime.
+
+| Typed setting | Compatibility variable | Default | Purpose |
+|---------------|------------------------|---------|---------|
+| `domains.dream.cron` | `PICLAW_DREAM_CRON` | `0 1 * * *` | Cron schedule for AutoDream. Evaluated in the runtime timezone (`TZ` / runtime timing config), so the default is 01:00 local runtime time. |
+| `domains.dream.model` | `PICLAW_DREAM_MODEL` | _(unset — inherits session model)_ | Pin Dream / AutoDream to a specific model label (e.g. `anthropic/claude-sonnet-4-20250514`). The Dream pass applies it to the temporary Dream chat, so it also covers manual `/dream` runs. |
+| `domains.dream.backupKeep` | `PICLAW_DREAM_BACKUP_KEEP` | `10` | Number of pre-Dream note backups to retain. |
+| `domains.dream.agentTimeoutMs` | `PICLAW_DREAM_AGENT_TIMEOUT_MS` | background-agent timeout, or `360000` | Positive timeout for the out-of-band Dream model turn. |
+
+Additional Dream cue tuning remains environment-only:
+
 | Variable | Default | Purpose |
-|----------|---------|---------||
-| `PICLAW_DREAM_CRON` | `0 1 * * *` | Cron schedule for AutoDream. Evaluated in the runtime timezone (`TZ` / runtime timing config), so the default is 01:00 local runtime time. |
-| `PICLAW_DREAM_MODEL` | _(unset — inherits session model)_ | Pin Dream / AutoDream to a specific model label (e.g. `anthropic/claude-sonnet-4-20250514`). The Dream pass applies it to the temporary Dream chat, so it also covers manual `/dream` runs. |
-| `PICLAW_DREAM_BACKUP_KEEP` | `10` | Number of pre-Dream note backups to retain |
+|----------|---------|---------|
 | `PICLAW_DREAM_CUE_FULL_SLICE_MAX_MESSAGES` | `50` | `DREAM_CUES` full-slice cutoff for day message count |
 | `PICLAW_DREAM_CUE_FULL_SLICE_MAX_SESSION_TREES` | `2` | `DREAM_CUES` full-slice cutoff for session-tree count |
 | `PICLAW_DREAM_CUE_SMALL_TREE_MAX_MESSAGES` | `10` | Per-session-tree cue cutoff under which all messages from that tree are included |
@@ -727,7 +752,7 @@ You can gate the entire web UI behind a 6-digit TOTP challenge and optionally en
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `PICLAW_WEB_TOTP_SECRET` | _(empty)_ | Base32 TOTP secret. When set, `/login` requires a 6-digit code before issuing a `piclaw_session` cookie. Leave unset to keep the UI open until you initialize TOTP with `/totp`. |
+| `PICLAW_WEB_TOTP_SECRET` | _(empty)_ | Base32 TOTP secret. When set, `/login` requires a 6-digit code before issuing a `piclaw_session` cookie. Prefer keychain/service-environment storage; plaintext JSON remains a legacy compatibility path for the existing `/totp` flow. |
 | `PICLAW_WEB_PASSKEY_MODE` | `totp-fallback` | Passkey mode: `totp-fallback`, `passkey-only`, or `totp-only`. |
 | `PICLAW_WEB_TOTP_WINDOW` | `1` | TOTP step skew (number of 30s windows to accept on either side). |
 | `PICLAW_WEB_SESSION_TTL` | `604800` (7 days) | Session cookie lifetime in seconds. |

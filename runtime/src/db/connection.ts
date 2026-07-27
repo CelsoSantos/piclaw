@@ -62,6 +62,17 @@ let dbPathCache: string | null = null;
 
 const CANONICAL_WORKSPACE_DIR = path.resolve("/workspace");
 const CANONICAL_LIVE_DB_PATH = path.join(CANONICAL_WORKSPACE_DIR, ".piclaw", "store", "messages.db");
+let allowLiveDbInTestsOverride = false;
+
+/** Explicit test-only safety bypass; returns a restore callback. */
+export function setAllowLiveDbInTestsForTests(allow: boolean): () => void {
+  if (process.env.PICLAW_DB_IN_MEMORY !== "1" && process.env.NODE_ENV !== "test") {
+    throw new Error("setAllowLiveDbInTestsForTests requires a test runtime");
+  }
+  const previous = allowLiveDbInTestsOverride;
+  allowLiveDbInTestsOverride = allow;
+  return () => { allowLiveDbInTestsOverride = previous; };
+}
 
 export function isLikelyTestHarnessProcess(argv: string[] = [...process.argv, ...(globalThis.Bun?.argv ?? [])]): boolean {
   return argv.some((value) => {
@@ -81,7 +92,7 @@ export function shouldBlockLiveDatabaseOpenInTests(options: {
     useMemory,
     nextPath,
     workspaceDir = WORKSPACE_DIR,
-    allowLiveDbInTests = process.env.PICLAW_ALLOW_LIVE_DB_IN_TESTS === "1" || process.env.PICLAW_ALLOW_LIVE_DB_IN_TESTS === "true",
+    allowLiveDbInTests = allowLiveDbInTestsOverride,
     argv,
   } = options;
 
@@ -889,7 +900,7 @@ export function initDatabase(): void {
     throw new Error(
       `Refusing to open live database from a test process: ${nextPath}. ` +
       `Set PICLAW_DB_IN_MEMORY=1 or isolate PICLAW_WORKSPACE/PICLAW_STORE, ` +
-      `or override with PICLAW_ALLOW_LIVE_DB_IN_TESTS=1 if this is truly intentional.`
+      `or use the explicit test-only live DB override if this is truly intentional.`
     );
   }
 

@@ -59,7 +59,7 @@ describe("Piclaw env surface audit", () => {
     expect(observations.issueBaseline).toEqual({ distinctNames: 235, literalProductionReaders: 151 });
     expect(observations.scanScopes.production).toEqual(["runtime/src", "runtime/extensions"]);
     expect(observations.current.runtimeSrc.directReaderNames).toBe(observations.runtimeSrcDirectBaseline.names.length);
-    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(68);
+    expect(observations.runtimeSrcDirectBaseline.names.length).toBe(20);
     expect(observations.runtimeSrcDirectBaseline.added).toEqual([]);
     expect(observations.runtimeSrcDirectBaseline.removed).toEqual([]);
     expect(observations.current.runtimeSrc.directReaderNames).toBeLessThan(issueBaseline.literalProductionReaders);
@@ -77,6 +77,8 @@ describe("Piclaw env surface audit", () => {
     for (const entry of observations.entries.filter((item) => item.scopes.production?.referenced)) {
       expect(catalogNames.has(entry.name), entry.name).toBe(true);
     }
+    expect(catalog.entries.filter((entry) => entry.status === "undocumented-runtime")).toEqual([]);
+    expect(catalog.entries.filter((entry) => entry.migrationDisposition === "move-to-domain-config")).toEqual([]);
     for (const entry of catalog.entries) {
       expect(entry.owner, entry.name).toBeTruthy();
       expect(entry.source, entry.name).toBeTruthy();

@@ -43,14 +43,10 @@ import {
 const log = createLogger("remote.service");
 
 function isRemoteInteropEnabled(config: Readonly<RemoteInteropConfig>): boolean {
-  if (config.enabled) return true;
-  const raw = (process.env.PICLAW_REMOTE_INTEROP_ENABLED || "").trim().toLowerCase();
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  return config.enabled;
 }
 
 function getRemoteInteropDecisionModel(config: Readonly<RemoteInteropConfig>): string {
-  const raw = (process.env.PICLAW_REMOTE_INTEROP_DECISION_MODEL || "").trim();
-  if (raw) return raw;
   return config.decisionModel || "";
 }
 

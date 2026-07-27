@@ -11,7 +11,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { getCompactionRuntimeConfig, setCompactionRuntimeConfig } from "../../core/config.js";
+import { getAgentControlConfig, getCompactionRuntimeConfig, setCompactionRuntimeConfig } from "../../core/config.js";
 import type { AgentControlCommand, AgentControlResult } from "../agent-control-types.js";
 import { formatCompactNumber } from "../agent-control-helpers.js";
 import { createMedia, getChatCompactionBackoff } from "../../db.js";
@@ -35,7 +35,6 @@ import {
 } from "../../agent-pool/compaction.js";
 
 const log = createLogger("agent-control.control");
-const DEFAULT_ABORT_SETTLE_TIMEOUT_MS = 1000;
 let killTrackedProcessesForRestart = killTrackedProcesses;
 
 export function setKillTrackedProcessesForRestartForTests(fn: typeof killTrackedProcesses): () => void {
@@ -60,9 +59,7 @@ function scheduleProcessExit(): void {
 }
 
 function getAbortSettleTimeoutMs(): number {
-  const raw = Number(process.env.PICLAW_ABORT_SETTLE_TIMEOUT_MS);
-  if (!Number.isFinite(raw)) return DEFAULT_ABORT_SETTLE_TIMEOUT_MS;
-  return Math.max(0, Math.min(10_000, Math.round(raw)));
+  return getAgentControlConfig().abortSettleTimeoutMs;
 }
 
 async function waitForAbortToSettle(abortPromise: Promise<void>): Promise<"settled" | "timed_out"> {

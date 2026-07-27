@@ -23,14 +23,36 @@ export const bootstrapEnvAllowlist = [
   "PICLAW_WORKSPACE", "PICLAW_STORE", "PICLAW_DATA", "PICLAW_RUNTIME_ROOT", "PICLAW_PI_AGENT_DIR",
   "PICLAW_KEYCHAIN_KEY", "PICLAW_KEYCHAIN_KEY_FILE", "PICLAW_WEB_TLS_CERT", "PICLAW_WEB_TLS_KEY",
   "PICLAW_INTERNAL_SECRET", "PICLAW_WEB_INTERNAL_SECRET", "PICLAW_WEB_EXTERNAL_URL",
+  "PICLAW_DB_IN_MEMORY", "PICLAW_SKEL_DIR",
 ] as const;
 const bootstrapSet = new Set<string>(bootstrapEnvAllowlist);
 
 type ScopeName = keyof typeof scanScopes;
-type CatalogStatus = "supported" | "bootstrap" | "compatibility" | "internal" | "undocumented-runtime";
+type CatalogStatus = "supported" | "bootstrap" | "compatibility" | "internal" | "removed" | "undocumented-runtime";
 type ValueType = "boolean" | "integer" | "number" | "string" | "json" | "path" | "secret" | "enum" | "cron" | null;
 type PersistenceSurface = "env" | "dotenv" | "json-config" | "cli" | "keychain";
-type MigrationDisposition = "move-to-domain-config" | "migrated-to-domain-config" | "constant" | "remove" | "investigate" | null;
+type MigrationDisposition =
+  | "constant"
+  | "internal-runtime-tuning"
+  | "investigate"
+  | "migrated-to-domain-config"
+  | "move-to-domain-config"
+  | "remove"
+  | "removed-reference-only"
+  | "removed-test-only-env"
+  | "retain-bootstrap-test-boundary"
+  | "retain-cli-compatibility"
+  | "retain-cli-keychain-reference"
+  | "retain-deployment-binding"
+  | "retain-deployment-bootstrap"
+  | "retain-deployment-path"
+  | "retain-experimental-emergency-override"
+  | "retain-experimental-extension-gate"
+  | "retain-harness-compatibility"
+  | "retain-per-invocation-context"
+  | "retain-secret-compatibility"
+  | "retain-startup-tuning"
+  | null;
 
 export interface SupportEntry {
   name: string;

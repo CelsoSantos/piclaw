@@ -9,6 +9,16 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
+/** Read an environment value without requiring consumers to access process.env directly. */
+export function readEnvValue(name: string): string | undefined {
+  return process.env[name];
+}
+
+/** Resolve process environment before a previously parsed `.env` map. */
+export function readMergedEnvValue(name: string, envValues: Record<string, string | undefined>): string | undefined {
+  return readEnvValue(name) ?? envValues[name];
+}
+
 /**
  * Parse a `.env` file from `process.cwd()` and return a map of the requested keys.
  *

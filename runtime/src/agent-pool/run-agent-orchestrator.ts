@@ -18,6 +18,7 @@ import {
   decideAutomaticRecovery,
   getAutomaticRecoveryConfig,
   getAutomaticRecoveryDelayMs,
+  isContextPressureFailure,
   isLengthStopFailure,
   type RecoveryAttemptSnapshot,
   type RecoveryClassifier,
@@ -1696,19 +1697,33 @@ export async function runAgentPrompt(
     const strategyHistory: RecoveryStrategy[] = [];
     const recoveryDiagnostics: AgentRecoveryDiagnosticEntry[] = [];
     let recoveryBudgetStartedAt: number | null = null;
+    let recoveryBudgetAccumulatedMs = 0;
     let allowPostTimeoutRecoveryWindow = false;
     const getRecoveryBudgetElapsedMs = () => {
       if (recoveryBudgetStartedAt != null) {
-        return Math.max(0, Date.now() - recoveryBudgetStartedAt);
+        return Math.max(0, recoveryBudgetAccumulatedMs + Date.now() - recoveryBudgetStartedAt);
       }
-      // A timed-out tool-bearing attempt needs a fresh bounded continuation
-      // window because the original prompt has already consumed its timeout.
-      // Generic configured timeouts keep the historical whole-run budget
-      // semantics; runs without a configured timeout start their recovery
-      // budget after the first failed attempt.
+      if (recoveryBudgetAccumulatedMs > 0) return recoveryBudgetAccumulatedMs;
       return timeoutMs <= 0 || allowPostTimeoutRecoveryWindow
         ? 0
         : Math.max(0, Date.now() - startTime);
+    };
+    const getRecoveryDecisionElapsedMs = (errorText: string, snapshot: RecoveryAttemptSnapshot) => {
+      // #778: context-pressure compact_then_retry has two bounded phases:
+      // recovery compaction is bounded by the compaction timeout; the
+      // continuation prompt receives a fresh recovery budget after compaction.
+      // Therefore the initial prompt duration must not exhaust the recovery
+      // decision before compaction can run.
+      if (recoveryAttemptsUsed === 0 && (isContextPressureFailure(errorText) || snapshot.sawCompactionIntent)) return 0;
+      return getRecoveryBudgetElapsedMs();
+    };
+    const startRecoveryBudget = () => {
+      if (recoveryBudgetStartedAt == null) recoveryBudgetStartedAt = Date.now();
+    };
+    const pauseRecoveryBudget = () => {
+      if (recoveryBudgetStartedAt == null) return;
+      recoveryBudgetAccumulatedMs += Math.max(0, Date.now() - recoveryBudgetStartedAt);
+      recoveryBudgetStartedAt = null;
     };
 
     const runResult: AgentOutput = await withChatContext(chatJid, channel, async () => {
@@ -1874,7 +1889,7 @@ export async function runAgentPrompt(
           config: recoveryConfig,
           errorText,
           recoveryAttemptsUsed,
-          elapsedMs: getRecoveryBudgetElapsedMs(),
+          elapsedMs: getRecoveryDecisionElapsedMs(errorText, attempt.snapshot),
           snapshot: attempt.snapshot,
         });
 
@@ -1956,10 +1971,6 @@ export async function runAgentPrompt(
           return attempt.output;
         }
 
-        if (recoveryBudgetStartedAt == null && (timeoutMs <= 0 || allowPostTimeoutRecoveryWindow)) {
-          recoveryBudgetStartedAt = Date.now();
-        }
-
         recoveryAttemptsUsed += 1;
         strategyHistory.push(effectiveDecision.strategy);
         const retryDelayMs = effectiveDecision.strategy === "retry"
@@ -1983,6 +1994,13 @@ export async function runAgentPrompt(
           errorMessage: errorText,
         });
 
+        if (effectiveDecision.strategy !== "compact_then_retry"
+          && recoveryBudgetStartedAt == null
+          && recoveryBudgetAccumulatedMs === 0
+          && (timeoutMs <= 0 || allowPostTimeoutRecoveryWindow)) {
+          startRecoveryBudget();
+        }
+
         if (retryDelayMs > 0) {
           heartbeatTrackedPhase(chatJid, "recovery", {
             eventType: "recovery_delay",
@@ -2002,6 +2020,7 @@ export async function runAgentPrompt(
         recoveryContinuationWithoutTools = recoveryContinuationWithoutTools || attempt.snapshot.hadToolActivity;
 
         if (effectiveDecision.strategy === "compact_then_retry") {
+          pauseRecoveryBudget();
           const compactionResult = await runRecoveryCompaction(session, chatJid, runOptions, options);
           heartbeatTrackedPhase(chatJid, "preprompt_compaction", {
             eventType: "recovery_compaction",
@@ -2081,6 +2100,7 @@ export async function runAgentPrompt(
               };
             }
           }
+          startRecoveryBudget();
         }
 
         heartbeatTrackedPhase(chatJid, "prompt", {

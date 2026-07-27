@@ -10,13 +10,15 @@
 import type { Api, Model, OAuthCredential, Provider, RefreshModelsContext } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ModelRuntime } from "@earendil-works/pi-coding-agent";
 
+import { getToolsIntegrationConfig } from "../core/config.js";
 import { createLogger } from "../utils/logger.js";
 
 const PROVIDER = "github-copilot";
 const DEFAULT_BASE_URL = "https://api.individual.githubcopilot.com";
-const FETCH_TIMEOUT_MS = Math.max(500, Number(process.env.PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS || "3500"));
+const toolsIntegrationConfig = getToolsIntegrationConfig();
+const FETCH_TIMEOUT_MS = toolsIntegrationConfig.githubCopilotModelsTimeoutMs;
 const REFRESH_TTL_MS = 15 * 60_000;
-const DISABLED = /^(0|false|no)$/i.test(process.env.PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS || "1");
+const DISABLED = !toolsIntegrationConfig.githubCopilotDynamicModels;
 
 const COPILOT_HEADERS: Record<string, string> = {
   "User-Agent": "GitHubCopilotChat/0.35.0",
@@ -406,20 +408,22 @@ export function createGitHubCopilotDynamicModelsProvider(
   const base = modelRuntime.getProvider(PROVIDER);
   if (!base) return null;
   let lastGood: ProviderModelConfig[] = mergeGitHubCopilotDynamicModels([...base.getModels()], []);
-  let hasAuthoritativeCatalog = false;
+  // IDs confirmed by the account's own live /models fetch. Populated only from a
+  // successful network refresh - never from the cached store or static catalog -
+  // so stale entries can never re-enter the selectable set.
+  let liveModelIds: ReadonlySet<string> = new Set<string>();
   let lastNetworkRefreshAt = 0;
   let networkInFlight: Promise<void> | null = null;
 
-  const publishLastGood = (models: ProviderModelConfig[], authoritative = false): void => {
+  const publishLastGood = (models: ProviderModelConfig[]): void => {
     lastGood = models;
-    if (authoritative) hasAuthoritativeCatalog = true;
   };
 
   const readStoredAndMerge = async (context: RefreshModelsContext): Promise<Model<Api>[]> => {
     const cached = await storedProviderModels(context);
     const source = cached.length > 0 ? cached : [...base.getModels()];
     const merged = mergeGitHubCopilotDynamicModels(source, []);
-    if (merged.length > 0) publishLastGood(merged, cached.length > 0);
+    if (merged.length > 0) publishLastGood(merged);
     return cached;
   };
 
@@ -428,12 +432,18 @@ export function createGitHubCopilotDynamicModelsProvider(
     // Register as a native provider so Copilot's built-in OAuth, endpoint
     // derivation, filterModels, and stream implementations remain provider-owned.
     // Piclaw only augments the synchronous model list with account-discovered
-    // chat-capable model IDs and required Copilot IDE headers.
+    // chat-capable model IDs and their context sizes, plus Copilot IDE headers.
     headers: { ...(base.headers ?? {}), ...COPILOT_HEADERS },
     getModels: () => lastGood.map(toStoredModel),
+    // Availability filtering stays upstream. We only widen it by IDs the account's
+    // own live catalog confirmed, which covers models newer than the login-time
+    // `availableModelIds` snapshot. Models present only in the cached/static
+    // catalog stay filtered out: requesting them returns 400 model_not_supported.
     filterModels: (models, credential) => {
-      if (hasAuthoritativeCatalog) return models;
-      return base.filterModels?.(models, credential) ?? models;
+      const upstream = base.filterModels?.(models, credential) ?? models;
+      if (liveModelIds.size === 0) return upstream;
+      const allowed = new Set(upstream.map((model) => model.id));
+      return models.filter((model) => allowed.has(model.id) || liveModelIds.has(model.id));
     },
     refreshModels: async (context) => {
       const cached = await readStoredAndMerge(context);
@@ -455,12 +465,13 @@ export function createGitHubCopilotDynamicModelsProvider(
           if (context.signal?.aborted) return;
           const templates = [...base.getModels(), ...cached];
           const merged = mergeGitHubCopilotDynamicModels(templates, live, { includeExisting: false });
-          publishLastGood(merged, true);
+          publishLastGood(merged);
+          liveModelIds = new Set(merged.map((model) => model.id));
           const stored = await context.store.read();
           await context.store.write({
             ...stored,
             models: lastGood.map(toStoredModel),
-            checkedAt: stored?.checkedAt ?? Date.now(),
+            checkedAt: Date.now(),
           });
           lastNetworkRefreshAt = Date.now();
           log.info("Refreshed GitHub Copilot dynamic native provider", {
