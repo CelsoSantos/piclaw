@@ -21,9 +21,10 @@
 
 import { randomBytes } from "node:crypto";
 import { resolve } from "path";
-import { existsSync } from "fs";
-import { readEnvFile } from "./env.js";
 import { readJsonConfig, writeJsonConfig } from "./config-store.js";
+import { createCliArgReader } from "./config-cli.js";
+import { resolveConfigPath, resolveRuntimeConfigPaths } from "./config-paths.js";
+import { loadPiclawEnvConfig, nestedConfig } from "./config-sources.js";
 import { createLogger } from "../utils/logger.js";
 import { parseLogLevel, setConfiguredLogLevelFallback, type LogLevel } from "../utils/log-level.js";
 import { DAY_MS, DEFAULT_LOG_RETENTION_CAP_MS } from "../utils/log-layout.js";
@@ -44,168 +45,13 @@ import {
 // CLI argument parsing helpers.
 // ---------------------------------------------------------------------------
 
-const CLI_ARGS = process.argv.slice(2);
-
-/** Read a CLI flag value, e.g. `--port 3000` or `--port=3000`. */
-function readCliArg(name: string, alias?: string): string | undefined {
-  const names = [name, alias].filter(Boolean) as string[];
-  for (let i = 0; i < CLI_ARGS.length; i += 1) {
-    const arg = CLI_ARGS[i];
-    for (const flag of names) {
-      if (arg === flag) {
-        return CLI_ARGS[i + 1];
-      }
-      if (arg.startsWith(`${flag}=`)) {
-        return arg.slice(flag.length + 1);
-      }
-    }
-  }
-  return undefined;
-}
-
+const readCliArg = createCliArgReader(process.argv.slice(2));
 const CLI_WORKSPACE = readCliArg("--workspace", "-w");
 
 // ---------------------------------------------------------------------------
 // .env file – loaded once at module init and merged with process.env below.
 // ---------------------------------------------------------------------------
-const envConfig = readEnvFile([
-  "PICLAW_ASSISTANT_NAME",
-  "PICLAW_ASSISTANT_AVATAR",
-  "PICLAW_USER_NAME",
-  "PICLAW_USER_AVATAR",
-  "PICLAW_USER_AVATAR_BACKGROUND",
-  "ASSISTANT_NAME",
-  "ASSISTANT_AVATAR",
-  "PICLAW_AGENT_TIMEOUT",
-  "AGENT_TIMEOUT",
-  "PICLAW_BACKGROUND_AGENT_TIMEOUT",
-  "AGENT_TIMEOUT_BACKGROUND",
-  "PICLAW_DREAM_CRON",
-  "PICLAW_DREAM_BACKUP_KEEP",
-  "PICLAW_DREAM_MODEL",
-  "PICLAW_DREAM_AGENT_TIMEOUT_MS",
-  "PICLAW_WEB_MAX_CONTENT_CHARS",
-  "PICLAW_WEB_PREVIEW_CHARS",
-  "PICLAW_RECORDINGS_DIR",
-  "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
-  "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
-  "PUSHOVER_APP_TOKEN",
-  "PUSHOVER_USER_KEY",
-  "PUSHOVER_DEVICE",
-  "PUSHOVER_PRIORITY",
-  "PUSHOVER_SOUND",
-  "PICLAW_WEB_TLS_CERT",
-  "PICLAW_WEB_TLS_KEY",
-  "PICLAW_WEB_TOTP_SECRET",
-  "PICLAW_WEB_TOTP_WINDOW",
-  "PICLAW_WEB_SESSION_TTL",
-  "PICLAW_WEB_IDLE_TIMEOUT",
-  "PICLAW_WEB_INTERNAL_SECRET",
-  "PICLAW_WEB_WIDGET_TOKEN",
-  "PICLAW_WEB_PASSKEY_MODE",
-  "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",
-  "PICLAW_WEB_PUSH_VAPID_SUBJECT",
-  "PICLAW_WEB_TERMINAL_ENABLED",
-  "PICLAW_TERMINAL_IMAGE_PROTOCOL",
-  "PICLAW_WEB_COMPOSE_UPLOAD_LIMIT_MB",
-  "PICLAW_WEB_WORKSPACE_UPLOAD_LIMIT_MB",
-  "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS",
-  "PICLAW_WEB_PERSIST_THINKING",
-  "PICLAW_WEB_PERSIST_THINKING_MAX_CHARS",
-  "PICLAW_WEB_VNC_ALLOW_DIRECT",
-  "PICLAW_VNC_ALLOW_DIRECT",
-  "PICLAW_WEB_VNC_TARGETS",
-  "PICLAW_VNC_TARGETS",
-  "PICLAW_DEBUG_CARD_SUBMISSIONS",
-  "PICLAW_TRUST_PROXY",
-  "PICLAW_SESSION_MAX_SIZE_MB",
-  "PICLAW_SESSION_AUTO_ROTATE",
-  "PICLAW_SESSION_ISOLATION",
-  "PICLAW_SESSION_FILE_PRELOAD_SANITIZE_MIN_BYTES",
-  "PICLAW_SESSION_TOOL_RESULT_MAX_PERSIST_BYTES",
-  "PICLAW_SESSION_TOOL_RESULT_PREVIEW_CHARS",
-  "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
-  "PICLAW_RECOVERY_LOOP_GUARD_MAX_FAILURES",
-  "PICLAW_RECOVERY_LOOP_GUARD_WINDOW_MS",
-  "PICLAW_TURN_AUTO_RECOVERY_ENABLED",
-  "PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS",
-  "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
-  "PICLAW_STALE_PREFLIGHT_RECOVERY_MS",
-  "PICLAW_STALE_PREFLIGHT_BACKOFF_MS",
-  "PICLAW_PROGRESS_WATCHDOG_ENABLED",
-  "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
-  "PICLAW_PROGRESS_WATCHDOG_RESTART_ON_STALL",
-  "PICLAW_PROGRESS_WATCHDOG_ESCALATE_ON_STALL",
-  "PICLAW_EXTERNAL_PROGRESS_WATCHDOG",
-  "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
-  "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
-  "PICLAW_IDLE_AUTO_COMPACTION_DELAY_MS",
-  "PICLAW_PREPROMPT_COMPACTION_FOREGROUND_MS",
-  "PICLAW_AUTO_COMPACTION_ENABLED",
-  "PICLAW_SMART_COMPACTION_METHOD",
-  "PICLAW_REMOTE_COMPACTION_ENABLED",
-  "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
-  "PICLAW_COMPACTION_TIMEOUT_MS",
-  "PICLAW_COMPACTION_BACKOFF_BASE_MS",
-  "PICLAW_COMPACTION_BACKOFF_MAX_MS",
-  "PICLAW_COMPACTION_THRESHOLD_PERCENT",
-  "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS",
-  "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR",
-  "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
-  "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
-  "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
-  "PICLAW_PROGRESSIVE_COMPACTION",
-  "PICLAW_SMART_COMPACTION_REASONING",
-  "PICLAW_PROGRESS_WATCHDOG_ENABLED",
-  "PICLAW_PROGRESS_WATCHDOG_TIMEOUT_MS",
-  "PICLAW_AUTO_COMPACTION_SCOPE",
-  "PICLAW_COMPACTION_HARD_CEILING_PERCENT",
-  "PICLAW_COMPACTION_WARNING_THRESHOLD",
-  "PICLAW_TOOL_RESULT_COMPACTION_ENABLED",
-  "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS",
-  "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
-  "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL",
-  "PICLAW_TOOL_OUTPUT_STORE_BYTES",
-  "PICLAW_TOOL_OUTPUT_STORE_LINES",
-  "PICLAW_TOOL_OUTPUT_PREVIEW_LINES",
-  "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS",
-  "PICLAW_WORKSPACE_SEARCH_ROOTS",
-  "PICLAW_INTERNAL_SECRET",
-  "PICLAW_REMOTE_INTEROP_ENABLED",
-  "PICLAW_REMOTE_INTEROP_ALLOW_HTTP",
-  "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK",
-  "PICLAW_REMOTE_INSTANCE_NAME",
-  "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED",
-  "PICLAW_REMOTE_INTEROP_DECISION_MODEL",
-  "PICLAW_WEB_EXTERNAL_URL",
-  "PICLAW_SCOPED_MODELS_ONLY",
-  "PICLAW_LOG_LEVEL",
-  "LOG_LEVEL",
-  "PICLAW_AGENT_LOG_RETENTION_MS",
-  "PICLAW_AGENT_LOG_RETENTION_DAYS",
-  "PICLAW_AGENT_LOG_CLEANUP_INTERVAL_MS",
-  "PICLAW_MAIN_SESSION_IDLE_TTL_MS",
-  "PICLAW_SIDE_SESSION_IDLE_TTL_MS",
-  "PICLAW_SESSION_IDLE_TTL_MS",
-  "PICLAW_SESSION_CLEANUP_INTERVAL_MS",
-  "PICLAW_MAIN_SESSION_POOL_MAX_SIZE",
-  "PICLAW_SESSION_POOL_MAX_SIZE",
-  "PICLAW_MAIN_SESSION_PRESSURE_RSS_BYTES",
-  "PICLAW_MAIN_SESSION_PRESSURE_IDLE_TTL_MS",
-  "PICLAW_MAIN_SESSION_PRESSURE_POOL_MAX_SIZE",
-  "PICLAW_TOOL_OUTPUT_RETENTION_MS",
-  "PICLAW_TOOL_OUTPUT_RETENTION_DAYS",
-  "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
-  "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
-  "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
-  "PICLAW_MCP_TOOL_TIMEOUT_MS",
-  "PICLAW_PACKAGE_ROOT",
-  "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
-  "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
-]);
+const envConfig = loadPiclawEnvConfig();
 
 import { pickString, pickNumber, pickBoolean, pickStringArray } from "./config-helpers.js";
 import type { RuntimeTimingConfig } from "./config-helpers.js";
@@ -236,72 +82,47 @@ export function getRuntimeTimingConfig(): Readonly<RuntimeTimingConfig> {
 
 /** Root of the persistent workspace (bind-mounted volume). */
 export function getWorkspaceDir(): string {
-  return resolve(CLI_WORKSPACE || process.env.PICLAW_WORKSPACE || "/workspace");
+  return resolveRuntimeConfigPaths({ cliWorkspace: CLI_WORKSPACE }).workspaceDir;
 }
 
-export const WORKSPACE_DIR = getWorkspaceDir();
+const RUNTIME_CONFIG_PATHS = resolveRuntimeConfigPaths({ cliWorkspace: CLI_WORKSPACE });
+export const WORKSPACE_DIR = RUNTIME_CONFIG_PATHS.workspaceDir;
 /** Directory for the SQLite database and related state. */
-export const STORE_DIR = resolve(
-  CLI_WORKSPACE ? `${WORKSPACE_DIR}/.piclaw/store` : (process.env.PICLAW_STORE || `${WORKSPACE_DIR}/.piclaw/store`)
-);
+export const STORE_DIR = RUNTIME_CONFIG_PATHS.storeDir;
 /** Directory for runtime data (sessions, IPC files, etc.). */
-export const DATA_DIR = resolve(
-  CLI_WORKSPACE ? `${WORKSPACE_DIR}/.piclaw/data` : (process.env.PICLAW_DATA || `${WORKSPACE_DIR}/.piclaw/data`)
-);
+export const DATA_DIR = RUNTIME_CONFIG_PATHS.dataDir;
 
 // ---------------------------------------------------------------------------
 // TLS – optional HTTPS support for the web channel.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_TLS_CERT_PATH = resolve(WORKSPACE_DIR, ".piclaw", "certs", "sandbox.local.crt");
-const DEFAULT_TLS_KEY_PATH = resolve(WORKSPACE_DIR, ".piclaw", "certs", "sandbox.local.key");
+const DEFAULT_TLS_CERT_PATH = RUNTIME_CONFIG_PATHS.defaultTlsCertPath;
+const DEFAULT_TLS_KEY_PATH = RUNTIME_CONFIG_PATHS.defaultTlsKeyPath;
 /** True when default self-signed TLS certificates exist on disk. */
-const HAS_DEFAULT_TLS = existsSync(DEFAULT_TLS_CERT_PATH) && existsSync(DEFAULT_TLS_KEY_PATH);
+const HAS_DEFAULT_TLS = RUNTIME_CONFIG_PATHS.hasDefaultTls;
 
 // ---------------------------------------------------------------------------
 // JSON config file – loaded once and merged with env/CLI values below.
 // ---------------------------------------------------------------------------
 
 /** Absolute path to the JSON config file. */
-export const PICLAW_CONFIG_PATH = resolve(WORKSPACE_DIR, ".piclaw", "config.json");
+export const PICLAW_CONFIG_PATH = RUNTIME_CONFIG_PATHS.configPath;
 
 /** Resolve the config path at call time so tests can override PICLAW_WORKSPACE. */
 export function getConfigPath(): string {
-  const ws = process.env.PICLAW_WORKSPACE?.trim();
-  return ws ? resolve(ws, ".piclaw", "config.json") : PICLAW_CONFIG_PATH;
+  return resolveConfigPath(PICLAW_CONFIG_PATH);
 }
 
 const piclawConfig = readJsonConfig(PICLAW_CONFIG_PATH);
 
 // Sub-objects inside the config file for namespaced settings.
-const pushoverConfig =
-  piclawConfig.pushover && typeof piclawConfig.pushover === "object"
-    ? (piclawConfig.pushover as Record<string, unknown>)
-    : piclawConfig;
-const assistantConfig =
-  piclawConfig.assistant && typeof piclawConfig.assistant === "object"
-    ? (piclawConfig.assistant as Record<string, unknown>)
-    : piclawConfig;
-const userConfig =
-  piclawConfig.user && typeof piclawConfig.user === "object"
-    ? (piclawConfig.user as Record<string, unknown>)
-    : piclawConfig;
-const webConfig =
-  piclawConfig.web && typeof piclawConfig.web === "object"
-    ? (piclawConfig.web as Record<string, unknown>)
-    : piclawConfig;
-const toolsConfig =
-  piclawConfig.tools && typeof piclawConfig.tools === "object"
-    ? (piclawConfig.tools as Record<string, unknown>)
-    : piclawConfig;
-const modelsConfig =
-  piclawConfig.models && typeof piclawConfig.models === "object"
-    ? (piclawConfig.models as Record<string, unknown>)
-    : piclawConfig;
-const compactionConfig =
-  piclawConfig.compaction && typeof piclawConfig.compaction === "object"
-    ? (piclawConfig.compaction as Record<string, unknown>)
-    : piclawConfig;
+const pushoverConfig = nestedConfig(piclawConfig, "pushover");
+const assistantConfig = nestedConfig(piclawConfig, "assistant");
+const userConfig = nestedConfig(piclawConfig, "user");
+const webConfig = nestedConfig(piclawConfig, "web");
+const toolsConfig = nestedConfig(piclawConfig, "tools");
+const modelsConfig = nestedConfig(piclawConfig, "models");
+const compactionConfig = nestedConfig(piclawConfig, "compaction");
 
 // Extract individual settings from the JSON config, trying multiple key aliases.
 const configAppToken = pickString(pushoverConfig, ["appToken", "app_token", "PUSHOVER_APP_TOKEN"]);
