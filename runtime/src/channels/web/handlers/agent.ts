@@ -31,11 +31,9 @@ import {
   beginChatPreflight,
   beginChatRun,
   clearChatPreflight,
-  endChatRun,
   getChatCursor,
   getInflightMessageId,
   getMessageRowIdById,
-  getMessagesSince,
   getDb,
   promoteChatPreflightToInflight,
   rollbackChatRunWithError,
@@ -48,6 +46,7 @@ import { resolveAvatarUrl } from "../media/avatar-service.js";
 import { createAgentEventEmitter, createStreamingEventHandler } from "../sse/agent-events.js";
 import { broadcastInteractionUpdated } from "../cards/interaction-service.js";
 import { storeAgentTurn } from "../messaging/agent-message-store.js";
+import { finalizeSuccessfulProcessChatRun, persistIntermediateProcessChatTurn } from "../runtime/process-chat-finalization-runtime.js";
 import {
   MODEL_COMMAND_TYPES,
   executeDeferredControlCommand,
@@ -65,7 +64,6 @@ import { createUuid } from "../../../utils/ids.js";
 import { createLogger, debugSuppressedError } from "../../../utils/logger.js";
 import type { AttachmentInfo } from "../../../agent-pool/attachments.js";
 import { cancelScheduledIdleAutoCompaction, isCompactionCancellationError, maybeAutoCompactSessionBeforePrompt } from "../../../agent-pool/compaction.js";
-import { checkPendingShutdown } from "../../../runtime/shutdown-registry.js";
 import { DEFAULT_BASE_RETRY_MS, getRetryAtIso } from "../../../queue/retry-policy.js";
 import { storeThinkingContent } from "../../../db/messages.js";
 import { safeTruncateUtf16 } from "../../../utils/safe-truncate.js";
@@ -2039,65 +2037,16 @@ export async function processChat(
     return persistVisibleFailureOutcome(markerBase, reason === "timeout" ? detail : undefined, options);
   };
 
-  const finalizeSuccessfulRun = async () => {
-    endChatRun(chatJid);
-
-    const cursorAfterEnd = getChatCursor(chatJid);
-    const pendingSteerTimestamps = channel.consumePendingSteering(chatJid);
-
-    // Steering-only rows are already excluded from getMessagesSince(), so the
-    // chat cursor must stay anchored to the last processed persisted user
-    // message. Advancing the cursor to steer timestamps can skip normal user
-    // messages that were persisted before those steering rows.
-    const cursorAfterSteer = getChatCursor(chatJid);
-
-    channel.saveState();
-    const contextUsage = await channel.agentPool.getContextUsageForChat(chatJid);
-    channel.setContextUsage(chatJid, contextUsage
-      ? { tokens: contextUsage.tokens, contextWindow: contextUsage.contextWindow, percent: contextUsage.percent }
-      : null);
-    trackedEmitter.status({
-      thread_id: threadId,
-      agent_id: agentId,
-      type: "done",
-      turn_id: turnId,
-      context_usage: contextUsage
-        ? { tokens: contextUsage.tokens, contextWindow: contextUsage.contextWindow, percent: contextUsage.percent }
-        : null,
-      recovery: lastRecoveryMeta,
-    });
-
-    // If more persisted user messages already exist after the cursor, process
-    // them before consuming deferred queued items. This preserves one-message-
-    // per-turn ordering and prevents cross-thread batching.
-    const cursorNow = getChatCursor(chatJid);
-    const remainingPersisted = getMessagesSince(chatJid, cursorNow, getIdentityConfig().assistantName);
-
-    log.info("finalizeSuccessfulRun advanced cursor", {
-      operation: "process_chat.finalize_successful_run",
-      chatJid,
-      cursorBefore: prevCursor,
-      cursorAfterEnd,
-      pendingSteerCount: pendingSteerTimestamps.length,
-      pendingSteerTimestamps,
-      cursorAfterSteer,
-      cursorNow,
-      remainingCount: remainingPersisted.length,
-      remainingMessages: remainingPersisted.map(m => `${m.id}@${m.timestamp}`),
-    });
-
-    if (remainingPersisted.length > 0) {
-      channel.resumeChat(chatJid);
-      return;
-    }
-
-    // Start the next queued follow-up only after this turn has fully finalized.
-    await materializeDeferredFollowups({ channel, chatJid, agentId });
-
-    // If the exit_process tool was called during this turn, trigger graceful
-    // shutdown now that the response has been persisted and broadcast.
-    checkPendingShutdown();
-  };
+  const finalizeSuccessfulRun = async () => finalizeSuccessfulProcessChatRun({
+    channel,
+    emitter: trackedEmitter,
+    chatJid,
+    agentId,
+    turnId,
+    threadId,
+    prevCursor,
+    recovery: lastRecoveryMeta,
+  });
 
   const output = await channel.agentPool.runAgent(prompt, chatJid, {
     timeoutMs,
@@ -2121,15 +2070,18 @@ export async function processChat(
       turnCount++;
       if (turn.text || turn.attachments.length > 0) {
         hadIntermediateOutput = true;
-        const stored = storeAgentTurn(channel, emitter, {
+        const stored = persistIntermediateProcessChatTurn({
+          channel,
+          emitter,
           chatJid,
           text: turn.text,
           attachments: turn.attachments as AttachmentInfo[],
           channelName,
           threadId: resolvedThreadRootId,
           skipPlaceholder: isFirstTurn,
-          extraContentBlocks: [buildAgentTimingBlock(turn.usage)],
-          onMessageStored: turn.followedByToolUse ? clearCommittedDraft : undefined,
+          timingBlock: buildAgentTimingBlock(turn.usage),
+          followedByToolUse: turn.followedByToolUse,
+          clearCommittedDraft,
         });
         if (!stored) {
           intermediatePersistFailed = true;
