@@ -55,10 +55,10 @@ async function withFreshConfig(
 function runConfigSubprocess(
   workspace: { workspace: string; store: string; data: string },
   exports: string[],
-  options: { args?: string[]; env?: Record<string, string | undefined> } = {},
+  options: { args?: string[]; env?: Record<string, string | undefined>; noEnvFile?: boolean } = {},
 ): { snapshot: Record<string, any>; stderr: string } {
   const proc = Bun.spawnSync({
-    cmd: ["bun", CONFIG_SUBPROCESS, ...(options.args || [])],
+    cmd: ["bun", ...(options.noEnvFile ? ["--no-env-file"] : []), CONFIG_SUBPROCESS, ...(options.args || [])],
     cwd: workspace.workspace,
     env: {
       PATH: process.env.PATH || "",
@@ -162,6 +162,167 @@ describe("core config", () => {
       expect(snapshot["call:getToolActivationConfig"]).toEqual({ additionalDefaultTools: ["search_workspace", "introspect_sql"] });
       expect(snapshot["call:getWorkspaceSearchConfig"]).toEqual({ roots: ["notes", ".pi/skills", "docs"], extraExtensions: [] });
       expect(snapshot["call:getRemoteInteropConfig"]).toEqual({ enabled: true, allowHttp: true, allowPrivateNetwork: false, shortCircuitEnabled: true, instanceName: "relay", decisionModel: "openai/gpt-4o" });
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("operational domains preserve precedence, clamps, and env immutability", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-operational-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          web: { contentMaxChars: 200000, contentPreviewChars: 12000 },
+          addons: { apiFailureBackoffMs: 45000 },
+          agentControl: { abortSettleTimeoutMs: 750 },
+          sessionRecordings: { directory: "/tmp/persisted-recordings" },
+        },
+      });
+      const persisted = runConfigSubprocess(workspace, [
+        "call:getWebContentConfig",
+        "call:getAddonsConfig",
+        "call:getAgentControlConfig",
+        "call:getSessionRecordingsConfig",
+      ], { noEnvFile: true, env: {
+        PICLAW_WEB_MAX_CONTENT_CHARS: undefined,
+        PICLAW_WEB_PREVIEW_CHARS: undefined,
+        PICLAW_ADDON_API_FAILURE_BACKOFF_MS: undefined,
+        PICLAW_ABORT_SETTLE_TIMEOUT_MS: undefined,
+        PICLAW_RECORDINGS_DIR: undefined,
+      } });
+      expect(persisted.snapshot["call:getWebContentConfig"]).toEqual({ maxChars: 200000, previewChars: 12000 });
+      expect(persisted.snapshot["call:getAddonsConfig"]).toEqual({ apiFailureBackoffMs: 45000 });
+      expect(persisted.snapshot["call:getAgentControlConfig"]).toEqual({ abortSettleTimeoutMs: 750 });
+      expect(persisted.snapshot["call:getSessionRecordingsConfig"]).toEqual({ directory: "/tmp/persisted-recordings" });
+
+      const compat = runConfigSubprocess(workspace, [
+        "call:getWebContentConfig",
+        "call:getAddonsConfig",
+        "call:getAgentControlConfig",
+        "call:getSessionRecordingsConfig",
+        "env-unchanged:PICLAW_WEB_MAX_CONTENT_CHARS",
+        "env-unchanged:PICLAW_WEB_PREVIEW_CHARS",
+        "env-unchanged:PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
+        "env-unchanged:PICLAW_ABORT_SETTLE_TIMEOUT_MS",
+        "env-unchanged:PICLAW_RECORDINGS_DIR",
+      ], { env: {
+        PICLAW_WEB_MAX_CONTENT_CHARS: "10000",
+        PICLAW_WEB_PREVIEW_CHARS: "15000",
+        PICLAW_ADDON_API_FAILURE_BACKOFF_MS: "30000",
+        PICLAW_ABORT_SETTLE_TIMEOUT_MS: "20000",
+        PICLAW_RECORDINGS_DIR: "/tmp/env-recordings",
+      } });
+      expect(compat.snapshot["call:getWebContentConfig"]).toEqual({ maxChars: 10000, previewChars: 10000 });
+      expect(compat.snapshot["call:getAddonsConfig"]).toEqual({ apiFailureBackoffMs: 30000 });
+      expect(compat.snapshot["call:getAgentControlConfig"]).toEqual({ abortSettleTimeoutMs: 10000 });
+      expect(compat.snapshot["call:getSessionRecordingsConfig"]).toEqual({ directory: "/tmp/env-recordings" });
+      for (const key of ["PICLAW_WEB_MAX_CONTENT_CHARS", "PICLAW_WEB_PREVIEW_CHARS", "PICLAW_ADDON_API_FAILURE_BACKOFF_MS", "PICLAW_ABORT_SETTLE_TIMEOUT_MS", "PICLAW_RECORDINGS_DIR"]) {
+        expect(compat.snapshot[`env-unchanged:${key}`]).toBe(true);
+        expectCompatWarningOnce(compat.stderr, key);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("dream domain preserves defaults, precedence, fallback, and env immutability", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-dream-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          agent: { backgroundTimeoutMs: 240000 },
+          dream: { cron: "15 2 * * *", backupKeep: 7, model: "anthropic/claude-sonnet", agentTimeoutMs: 180000 },
+        },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_DREAM_CRON=30 3 * * *",
+        "PICLAW_DREAM_BACKUP_KEEP=8",
+        "PICLAW_DREAM_MODEL=openai/gpt-5-mini",
+        "PICLAW_DREAM_AGENT_TIMEOUT_MS=210000",
+      ].join("\n"), "utf8");
+
+      const envFile = runConfigSubprocess(workspace, ["call:getDreamConfig"], {
+        env: {
+          PICLAW_DREAM_CRON: undefined,
+          PICLAW_DREAM_BACKUP_KEEP: undefined,
+          PICLAW_DREAM_MODEL: undefined,
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: undefined,
+        },
+      });
+      expect(envFile.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "30 3 * * *",
+        backupKeep: 8,
+        model: "openai/gpt-5-mini",
+        agentTimeoutMs: 210000,
+      });
+
+      const compatEnv = runConfigSubprocess(workspace, [
+        "call:getDreamConfig",
+        "env-unchanged:PICLAW_DREAM_CRON",
+        "env-unchanged:PICLAW_DREAM_BACKUP_KEEP",
+        "env-unchanged:PICLAW_DREAM_MODEL",
+        "env-unchanged:PICLAW_DREAM_AGENT_TIMEOUT_MS",
+      ], {
+        env: {
+          PICLAW_DREAM_CRON: "45 4 * * *",
+          PICLAW_DREAM_BACKUP_KEEP: "9",
+          PICLAW_DREAM_MODEL: "github-copilot/gpt-5-mini",
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: "220000",
+        },
+      });
+      expect(compatEnv.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "45 4 * * *",
+        backupKeep: 9,
+        model: "github-copilot/gpt-5-mini",
+        agentTimeoutMs: 220000,
+      });
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_CRON"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_BACKUP_KEEP"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_MODEL"]).toBe(true);
+      expect(compatEnv.snapshot["env-unchanged:PICLAW_DREAM_AGENT_TIMEOUT_MS"]).toBe(true);
+      for (const key of ["PICLAW_DREAM_CRON", "PICLAW_DREAM_BACKUP_KEEP", "PICLAW_DREAM_MODEL", "PICLAW_DREAM_AGENT_TIMEOUT_MS"]) {
+        expectCompatWarningOnce(compatEnv.stderr, key);
+      }
+
+      writeWorkspaceConfig(workspace.workspace, { domains: { agent: { backgroundTimeoutMs: 240000 } } });
+      writeFileSync(join(workspace.workspace, ".env"), "", "utf8");
+      const fallback = runConfigSubprocess(workspace, ["call:getDreamConfig"], {
+        noEnvFile: true,
+        env: {
+          PICLAW_DREAM_CRON: undefined,
+          PICLAW_DREAM_BACKUP_KEEP: undefined,
+          PICLAW_DREAM_MODEL: undefined,
+          PICLAW_DREAM_AGENT_TIMEOUT_MS: undefined,
+        },
+      });
+      expect(fallback.snapshot["call:getDreamConfig"]).toEqual({
+        cron: "0 1 * * *",
+        backupKeep: 10,
+        model: "",
+        agentTimeoutMs: 240000,
+      });
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("logging level persists with env compatibility precedence and no mutation", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-log-level-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { logging: { level: "warn" } } });
+      const persisted = runConfigSubprocess(workspace, ["call:getLoggingConfig"], {
+        noEnvFile: true,
+        env: { PICLAW_LOG_LEVEL: undefined, LOG_LEVEL: undefined },
+      });
+      expect(persisted.snapshot["call:getLoggingConfig"]).toEqual({ level: "warn" });
+
+      const compat = runConfigSubprocess(workspace, [
+        "call:getLoggingConfig",
+        "env-unchanged:PICLAW_LOG_LEVEL",
+      ], { env: { PICLAW_LOG_LEVEL: "debug", LOG_LEVEL: undefined } });
+      expect(compat.snapshot["call:getLoggingConfig"]).toEqual({ level: "debug" });
+      expect(compat.snapshot["env-unchanged:PICLAW_LOG_LEVEL"]).toBe(true);
+      expectCompatWarningOnce(compat.stderr, "PICLAW_LOG_LEVEL");
     } finally {
       workspace.cleanup();
     }
@@ -536,6 +697,11 @@ describe("core config", () => {
             hardCeilingPercent: 98,
             warningThreshold: 4,
             backoffDecayFactor: 0.25,
+            systemPromptOverheadTokens: 5000,
+            compactionRequestOverheadTokens: 1200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: true,
+            smartCompactionReasoning: "low",
           },
         },
       });
@@ -552,6 +718,11 @@ describe("core config", () => {
         PICLAW_COMPACTION_HARD_CEILING_PERCENT: undefined,
         PICLAW_COMPACTION_WARNING_THRESHOLD: undefined,
         PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: undefined,
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: undefined,
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: undefined,
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: undefined,
+        PICLAW_PROGRESSIVE_COMPACTION: undefined,
+        PICLAW_SMART_COMPACTION_REASONING: undefined,
         PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: undefined,
       } }).snapshot;
       expect(persisted["call:getCompactionRuntimeConfig"]).toMatchObject({
@@ -559,6 +730,9 @@ describe("core config", () => {
         backoffBaseMs: 120000, backoffMaxMs: 600000, thresholdPercent: 70,
         maxThresholdTokens: 123456, autoCompactionScope: "body_after_prefix",
         hardCeilingPercent: 98, warningThreshold: 4, backoffDecayFactor: 0.25,
+        systemPromptOverheadTokens: 5000, compactionRequestOverheadTokens: 1200,
+        tokenEstimateSafetyMultiplier: 1.25, progressiveCompaction: true,
+        smartCompactionReasoning: "low",
       });
       expect(persisted["call:getMidTurnToolExecutionHardCeiling"]).toBe(72);
 
@@ -574,6 +748,11 @@ describe("core config", () => {
         PICLAW_COMPACTION_HARD_CEILING_PERCENT: "100",
         PICLAW_COMPACTION_WARNING_THRESHOLD: "5",
         PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR: "0.5",
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: "6000",
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: "1500",
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "1.5",
+        PICLAW_PROGRESSIVE_COMPACTION: "1",
+        PICLAW_SMART_COMPACTION_REASONING: "high",
         PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "9999",
       } });
       expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
@@ -581,6 +760,9 @@ describe("core config", () => {
         backoffBaseMs: 900000, backoffMaxMs: 900000, thresholdPercent: 70,
         maxThresholdTokens: 0, autoCompactionScope: "total", hardCeilingPercent: 100,
         warningThreshold: 5, backoffDecayFactor: 0.5,
+        systemPromptOverheadTokens: 6000, compactionRequestOverheadTokens: 1500,
+        tokenEstimateSafetyMultiplier: 1.5, progressiveCompaction: true,
+        smartCompactionReasoning: "high",
       });
       expect(snapshot["call:getMidTurnToolExecutionHardCeiling"]).toBe(512);
       for (const envKey of [
@@ -588,12 +770,422 @@ describe("core config", () => {
         "PICLAW_COMPACTION_BACKOFF_BASE_MS", "PICLAW_COMPACTION_BACKOFF_MAX_MS",
         "PICLAW_COMPACTION_MAX_THRESHOLD_TOKENS", "PICLAW_AUTO_COMPACTION_SCOPE",
         "PICLAW_COMPACTION_HARD_CEILING_PERCENT", "PICLAW_COMPACTION_WARNING_THRESHOLD",
-        "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
+        "PICLAW_COMPACTION_BACKOFF_DECAY_FACTOR", "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS", "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "PICLAW_PROGRESSIVE_COMPACTION", "PICLAW_SMART_COMPACTION_REASONING",
+        "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
       ]) expectCompatWarningOnce(stderr, envKey);
       expect(stderr).not.toContain('"envKey":"PICLAW_COMPACTION_THRESHOLD_PERCENT"');
     } finally {
       workspace.cleanup();
     }
+  });
+
+  test("C3 compaction compatibility aliases resolve from .env without mutating process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-c3-envfile-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          compaction: {
+            systemPromptOverheadTokens: 5_000,
+            compactionRequestOverheadTokens: 1_200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: false,
+            smartCompactionReasoning: "low",
+          },
+        },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS=6000",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS=1500",
+        "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER=1.5",
+        "PICLAW_PROGRESSIVE_COMPACTION=1",
+        "PICLAW_SMART_COMPACTION_REASONING=medium",
+      ].join("\n"), "utf8");
+      const names = [
+        "call:getCompactionRuntimeConfig",
+        "env:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "env:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "env:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "env:PICLAW_PROGRESSIVE_COMPACTION",
+        "env:PICLAW_SMART_COMPACTION_REASONING",
+        "env-unchanged:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "env-unchanged:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "env-unchanged:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "env-unchanged:PICLAW_PROGRESSIVE_COMPACTION",
+        "env-unchanged:PICLAW_SMART_COMPACTION_REASONING",
+      ];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: undefined,
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: undefined,
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "2",
+        PICLAW_PROGRESSIVE_COMPACTION: undefined,
+        PICLAW_SMART_COMPACTION_REASONING: undefined,
+      }, noEnvFile: true });
+
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+        systemPromptOverheadTokens: 6000,
+        compactionRequestOverheadTokens: 1500,
+        tokenEstimateSafetyMultiplier: 2,
+        progressiveCompaction: true,
+        smartCompactionReasoning: "medium",
+      });
+      expect(snapshot["env:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"]).toBeNull();
+      expect(snapshot["env:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"]).toBeNull();
+      expect(snapshot["env:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"]).toBe("2");
+      expect(snapshot["env:PICLAW_PROGRESSIVE_COMPACTION"]).toBeNull();
+      expect(snapshot["env:PICLAW_SMART_COMPACTION_REASONING"]).toBeNull();
+      expect(snapshot["env-unchanged:PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_PROGRESSIVE_COMPACTION"]).toBe(true);
+      expect(snapshot["env-unchanged:PICLAW_SMART_COMPACTION_REASONING"]).toBe(true);
+      for (const envKey of [
+        "PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS",
+        "PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS",
+        "PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER",
+        "PICLAW_PROGRESSIVE_COMPACTION",
+        "PICLAW_SMART_COMPACTION_REASONING",
+      ]) expectCompatWarningOnce(stderr, envKey);
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("C3 invalid compatibility aliases retain persisted and default config", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-c3-invalid-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          compaction: {
+            systemPromptOverheadTokens: 5_000,
+            compactionRequestOverheadTokens: 1_200,
+            tokenEstimateSafetyMultiplier: 1.25,
+            progressiveCompaction: true,
+            smartCompactionReasoning: "low",
+          },
+        },
+      });
+      const { snapshot, stderr } = runConfigSubprocess(workspace, ["call:getCompactionRuntimeConfig"], { env: {
+        PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS: "0",
+        PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS: "bad",
+        PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER: "0.5",
+        PICLAW_PROGRESSIVE_COMPACTION: "not-one",
+        PICLAW_SMART_COMPACTION_REASONING: "extreme",
+      } });
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({
+        systemPromptOverheadTokens: 5_000,
+        compactionRequestOverheadTokens: 1_200,
+        tokenEstimateSafetyMultiplier: 1.25,
+        // Legacy env semantics were exact enabled flag: only "1" means forced.
+        progressiveCompaction: false,
+        smartCompactionReasoning: "low",
+      });
+      expect(stderr).not.toContain('"envKey":"PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS"');
+      expect(stderr).not.toContain('"envKey":"PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER"');
+      expectCompatWarningOnce(stderr, "PICLAW_PROGRESSIVE_COMPACTION");
+      expect(stderr).not.toContain('"envKey":"PICLAW_SMART_COMPACTION_REASONING"');
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tools integration domain persists across restart with compatibility precedence", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-integration-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: {
+          tools: {
+            githubCopilotDynamicModels: false,
+            githubCopilotModelsTimeoutMs: 7_000,
+            mcpToolTimeoutMs: 0,
+          },
+        },
+      });
+      const names = ["call:getToolsIntegrationConfig"];
+      const persisted = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: undefined,
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
+        PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
+      } }).snapshot;
+      expect(persisted["call:getToolsIntegrationConfig"]).toMatchObject({
+        githubCopilotDynamicModels: false,
+        githubCopilotModelsTimeoutMs: 7_000,
+        mcpToolTimeoutMs: 0,
+      });
+
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: "yes",
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: "200",
+        PICLAW_MCP_TOOL_TIMEOUT_MS: "45000",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        // Preserve legacy semantics: only 0/false/no disable discovery.
+        githubCopilotDynamicModels: true,
+        // Preserve the existing 500ms lower clamp.
+        githubCopilotModelsTimeoutMs: 500,
+        mcpToolTimeoutMs: 45_000,
+      });
+      for (const envKey of [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ]) expectCompatWarningOnce(stderr, envKey);
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tools integration aliases resolve from .env without mutating process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-envfile-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: { tools: { githubCopilotDynamicModels: false, githubCopilotModelsTimeoutMs: 7_000, mcpToolTimeoutMs: 90_000 } },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS=yes",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS=6000",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS=0",
+      ].join("\n"), "utf8");
+      const names = [
+        "call:getToolsIntegrationConfig",
+        "env:PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "env:PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "env:PICLAW_MCP_TOOL_TIMEOUT_MS",
+        "env-unchanged:PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "env-unchanged:PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "env-unchanged:PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS: undefined,
+        PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS: undefined,
+        PICLAW_MCP_TOOL_TIMEOUT_MS: undefined,
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        githubCopilotDynamicModels: true,
+        githubCopilotModelsTimeoutMs: 6_000,
+        mcpToolTimeoutMs: 0,
+      });
+      for (const envKey of [
+        "PICLAW_GITHUB_COPILOT_DYNAMIC_MODELS",
+        "PICLAW_GITHUB_COPILOT_MODELS_TIMEOUT_MS",
+        "PICLAW_MCP_TOOL_TIMEOUT_MS",
+      ]) {
+        expect(snapshot[`env:${envKey}`]).toBeNull();
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("search match mode uses domains.tools precedence and no env mutation", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-search-match-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: { searchMatchMode: "or" } } });
+      const compat = runConfigSubprocess(workspace, [
+        "call:getSearchMatchMode",
+        "env-unchanged:PICLAW_SEARCH_MATCH_MODE",
+      ], { env: { PICLAW_SEARCH_MATCH_MODE: "and" } });
+      expect(compat.snapshot["call:getSearchMatchMode"]).toBe("and");
+      expect(compat.snapshot["env-unchanged:PICLAW_SEARCH_MATCH_MODE"]).toBe(true);
+      expectCompatWarningOnce(compat.stderr, "PICLAW_SEARCH_MATCH_MODE");
+
+      const persisted = runConfigSubprocess(workspace, ["call:getSearchMatchMode"], {
+        noEnvFile: true,
+        env: { PICLAW_SEARCH_MATCH_MODE: undefined },
+      });
+      expect(persisted.snapshot["call:getSearchMatchMode"]).toBe("or");
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tools workspace aliases preserve restart precedence and do not mutate process.env", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tools-workspace-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, {
+        domains: { tools: {
+          packageRoot: "/persisted/package",
+          unknownModelContextWindow: 80_000,
+          scopedModelsOnly: false,
+          workspaceSearchRoots: ["persisted"],
+          workspaceSearchExtensions: [".log"],
+        } },
+      });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_PACKAGE_ROOT=/dotenv/package",
+        "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW=90000",
+        "PICLAW_SCOPED_MODELS_ONLY=1",
+        "PICLAW_WORKSPACE_SEARCH_ROOTS=docs,notes",
+        "PICLAW_WORKSPACE_SEARCH_EXTENSIONS=.vtt,csv",
+      ].join("\n"), "utf8");
+      const envKeys = [
+        "PICLAW_PACKAGE_ROOT",
+        "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW",
+        "PICLAW_SCOPED_MODELS_ONLY",
+        "PICLAW_WORKSPACE_SEARCH_ROOTS",
+        "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
+      ];
+      const names = ["call:getToolsIntegrationConfig", ...envKeys.map((key) => `env:${key}`), ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW: "95000",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        packageRoot: "/dotenv/package",
+        unknownModelContextWindow: 95_000,
+        scopedModelsOnly: true,
+        workspaceSearchRoots: ["docs", "notes"],
+        workspaceSearchExtensions: [".vtt", "csv"],
+      });
+      for (const envKey of envKeys) {
+        expect(snapshot[`env:${envKey}`]).toBe(envKey === "PICLAW_UNKNOWN_MODEL_CONTEXT_WINDOW" ? "95000" : null);
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
+  test("tool output presentation domain preserves precedence and avoids env mutation", async () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tool-output-presentation-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: {
+        toolOutputStoreBytes: 7_000,
+        toolOutputStoreLines: 50,
+        toolOutputPreviewLines: 9,
+        toolOutputPreviewLineChars: 240,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_TOOL_OUTPUT_STORE_BYTES=8000",
+        "PICLAW_TOOL_OUTPUT_STORE_LINES=60",
+        "PICLAW_TOOL_OUTPUT_PREVIEW_LINES=10",
+        "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS=260",
+      ].join("\n"), "utf8");
+      const envKeys = ["PICLAW_TOOL_OUTPUT_STORE_BYTES", "PICLAW_TOOL_OUTPUT_STORE_LINES", "PICLAW_TOOL_OUTPUT_PREVIEW_LINES", "PICLAW_TOOL_OUTPUT_PREVIEW_LINE_CHARS"];
+      const names = ["call:getToolOutputPresentationConfig", ...envKeys.map((key) => `env:${key}`), ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_TOOL_OUTPUT_STORE_BYTES: "9000",
+      } });
+      expect(snapshot["call:getToolOutputPresentationConfig"]).toEqual({ storeBytes: 9_000, storeLines: 60, previewLines: 10, previewLineChars: 260 });
+      for (const envKey of envKeys) {
+        expect(snapshot[`env:${envKey}`]).toBe(envKey === "PICLAW_TOOL_OUTPUT_STORE_BYTES" ? "9000" : null);
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally { workspace.cleanup(); }
+
+    await withFreshConfig({ env: { PICLAW_TOOL_OUTPUT_STORE_BYTES: undefined } }, async ({ workspace, config }) => {
+      expect(config.setToolOutputStoreThreshold(12_345)).toBe(12_345);
+      expect(process.env.PICLAW_TOOL_OUTPUT_STORE_BYTES).toBeUndefined();
+      const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+      expect(persisted.domains?.tools?.toolOutputStoreBytes).toBe(12_345);
+    });
+  });
+
+  test("tool output policy domain preserves precedence and avoids env mutation", async () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-tool-output-policy-");
+    const envKeys = [
+      "PICLAW_TOOL_OUTPUT_RETENTION_MS", "PICLAW_TOOL_OUTPUT_RETENTION_DAYS", "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS",
+      "PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL", "PICLAW_TOOL_RESULT_COMPACTION_ENABLED", "PICLAW_TOOL_RESULT_COMPACTION_TOOLS",
+      "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS",
+      "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS", "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS",
+    ];
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: {
+        toolOutputRetentionMs: 123_000,
+        toolOutputCleanupIntervalMs: 45_000,
+        toolResultCompactionEnabled: false,
+        toolResultCompactionTools: ["bash"],
+        toolResultCompactionThresholdsByTool: { bash: { bytes: 7000 } },
+        toolResultSemanticSummaryEnabled: false,
+        toolResultSemanticSummaryMaxInputChars: 20_000,
+        toolResultSemanticSummaryMaxTokens: 512,
+        toolResultSemanticSummaryTimeoutMs: 20_000,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_TOOL_OUTPUT_RETENTION_DAYS=2",
+        "PICLAW_TOOL_OUTPUT_CLEANUP_INTERVAL_MS=60000",
+        'PICLAW_TOOL_OUTPUT_STORE_THRESHOLDS_BY_TOOL={"bash":{"bytes":8000,"lines":80}}',
+        "PICLAW_TOOL_RESULT_COMPACTION_ENABLED=1",
+        "PICLAW_TOOL_RESULT_COMPACTION_TOOLS=bash,exec_batch",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED=1",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS=24000",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS=640",
+        "PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS=30000",
+      ].join("\n"), "utf8");
+      const names = ["call:getToolsIntegrationConfig", "same:getToolOutputConfig:TOOL_OUTPUT_CONFIG", ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS: "768",
+      } });
+      expect(snapshot["call:getToolsIntegrationConfig"]).toMatchObject({
+        toolOutputRetentionMs: 2 * 24 * 60 * 60 * 1000,
+        toolOutputCleanupIntervalMs: 60_000,
+        toolResultCompactionEnabled: true,
+        toolResultCompactionTools: ["bash", "exec_batch"],
+        toolResultCompactionThresholdsByTool: { bash: { bytes: 8000, lines: 80 } },
+        toolResultSemanticSummaryEnabled: true,
+        toolResultSemanticSummaryMaxInputChars: 24_000,
+        toolResultSemanticSummaryMaxTokens: 768,
+        toolResultSemanticSummaryTimeoutMs: 30_000,
+      });
+      expect(snapshot["same:getToolOutputConfig:TOOL_OUTPUT_CONFIG"]).toBe(true);
+      for (const envKey of envKeys) {
+        expect(snapshot[`env-unchanged:${envKey}`]).toBe(true);
+        if (envKey !== "PICLAW_TOOL_OUTPUT_RETENTION_MS") expectCompatWarningOnce(stderr, envKey);
+      }
+    } finally { workspace.cleanup(); }
+
+    await withFreshConfig({ env: Object.fromEntries(envKeys.map((key) => [key, undefined])) }, async ({ workspace, config }) => {
+      config.setToolResultCompactionEnabled(false);
+      config.setToolResultCompactionTools(["bash", "proxmox"]);
+      config.setToolResultSemanticSummaryConfig({ enabled: true, maxInputChars: 500, maxTokens: 4096, timeoutMs: 300000 });
+      for (const envKey of envKeys) expect(process.env[envKey]).toBeUndefined();
+      const persisted = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
+      expect(persisted.domains?.tools).toMatchObject({
+        toolResultCompactionEnabled: false,
+        toolResultCompactionTools: ["bash", "proxmox"],
+        toolResultSemanticSummaryEnabled: true,
+        toolResultSemanticSummaryMaxInputChars: 500,
+        toolResultSemanticSummaryMaxTokens: 4096,
+        toolResultSemanticSummaryTimeoutMs: 300000,
+      });
+    });
+  });
+
+  test("remote domain preserves security defaults, precedence, and env immutability", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-remote-");
+    const envKeys = [
+      "PICLAW_REMOTE_INTEROP_ENABLED", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK",
+      "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED", "PICLAW_REMOTE_INSTANCE_NAME", "PICLAW_REMOTE_INTEROP_DECISION_MODEL",
+      "PICLAW_REMOTE_COMPACTION_ENABLED", "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
+    ];
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { remote: {
+        enabled: false, allowHttp: false, allowPrivateNetwork: false, shortCircuitEnabled: false,
+        instanceName: "persisted", decisionModel: "persisted/model", remoteCompactionEnabled: false, remoteCompactionTimeoutMs: 300000,
+      } } });
+      writeFileSync(join(workspace.workspace, ".env"), [
+        "PICLAW_REMOTE_INTEROP_ENABLED=1", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP=1", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK=0",
+        "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED=true", "PICLAW_REMOTE_INSTANCE_NAME=dotenv", "PICLAW_REMOTE_INTEROP_DECISION_MODEL=dotenv/model",
+        "PICLAW_REMOTE_COMPACTION_ENABLED=1", "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS=45000",
+      ].join("\n"), "utf8");
+      const names = ["call:getRemoteInteropConfig", "call:getCompactionRuntimeConfig", "same:getRemoteInteropConfig:REMOTE_INTEROP_CONFIG", ...envKeys.map((key) => `env-unchanged:${key}`)];
+      const { snapshot, stderr } = runConfigSubprocess(workspace, names, { noEnvFile: true, env: {
+        ...Object.fromEntries(envKeys.map((key) => [key, undefined])),
+        PICLAW_REMOTE_INSTANCE_NAME: "process",
+      } });
+      expect(snapshot["call:getRemoteInteropConfig"]).toEqual({ enabled: true, allowHttp: true, allowPrivateNetwork: false, shortCircuitEnabled: true, instanceName: "process", decisionModel: "dotenv/model" });
+      expect(snapshot["call:getCompactionRuntimeConfig"]).toMatchObject({ remoteCompactionEnabled: true, remoteCompactionTimeoutMs: 45000 });
+      expect(snapshot["same:getRemoteInteropConfig:REMOTE_INTEROP_CONFIG"]).toBe(true);
+      for (const key of envKeys) { expect(snapshot[`env-unchanged:${key}`]).toBe(true); expectCompatWarningOnce(stderr, key); }
+    } finally { workspace.cleanup(); }
   });
 
   test("compaction delay fields persist across restart with zero-valued compatibility aliases", () => {
@@ -1044,7 +1636,7 @@ describe("core config", () => {
     );
   });
 
-  test("scopedModelsOnly loads from config/env and persists under models", async () => {
+  test("scopedModelsOnly reads legacy config and persists under domains.tools without env mutation", async () => {
     const workspace = createTempWorkspace("piclaw-config-");
     try {
       writeWorkspaceConfig(workspace.workspace, { models: { scopedModelsOnly: true } });
@@ -1061,10 +1653,10 @@ describe("core config", () => {
       async ({ workspace, config }) => {
         expect(config.setScopedModelsOnly(false)).toBe(false);
         expect(config.getScopedModelsOnly()).toBe(false);
-        expect(process.env.PICLAW_SCOPED_MODELS_ONLY).toBe("0");
+        expect(process.env.PICLAW_SCOPED_MODELS_ONLY).toBeUndefined();
 
         const parsed = JSON.parse(readFileSync(join(workspace.workspace, ".piclaw", "config.json"), "utf8"));
-        expect(parsed.models).toEqual({ scopedModelsOnly: false });
+        expect(parsed.domains?.tools?.scopedModelsOnly).toBe(false);
       },
     );
   });

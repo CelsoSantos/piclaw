@@ -14,6 +14,7 @@ import {
   setCompactionSettlementGraceForTests,
 } from "../../src/agent-pool/compaction.js";
 import { getChatAutoCompactionWindow, getChatCompactionBackoff, initDatabase, setChatCompactionBackoff } from "../../src/db.js";
+import { resetCompactionRuntimeConfigForTests, setCompactionRuntimeConfigForTests } from "../../src/core/config.js";
 import { recordCompactionCancellationReason } from "../../src/agent-pool/compaction-cancel-reason.js";
 import { getActivePiclawCompactionTrigger } from "../../src/agent-pool/compaction-trigger-context.js";
 import { getSessionActivitySnapshot } from "../../src/extensions/session-status.js";
@@ -780,9 +781,8 @@ test("late cancellation cleanup cannot consume a replacement generation's reason
 
 test("maybeAutoCompactSessionBeforePrompt subtracts overhead before threshold checks", async () => {
   const previousThreshold = process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT;
-  const previousOverhead = process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
   process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT = "75";
-  process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = "4000";
+  setCompactionRuntimeConfigForTests({ systemPromptOverheadTokens: 4_000 });
   try {
     const events: any[] = [];
     let compactCalls = 0;
@@ -833,10 +833,9 @@ test("maybeAutoCompactSessionBeforePrompt subtracts overhead before threshold ch
       contextWindow: 100_000,
     }));
   } finally {
+    resetCompactionRuntimeConfigForTests();
     if (previousThreshold === undefined) delete process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT;
     else process.env.PICLAW_COMPACTION_THRESHOLD_PERCENT = previousThreshold;
-    if (previousOverhead === undefined) delete process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
-    else process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = previousOverhead;
   }
 });
 

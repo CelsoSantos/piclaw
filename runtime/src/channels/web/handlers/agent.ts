@@ -636,6 +636,10 @@ function fallbackAgentHandle(chatJid: string): string {
     .replace(/^-+|-+$/g, "") || "agent";
 }
 
+function shouldPersistSteerRequest(req: Request, payload: { persist_steer?: boolean } | undefined): boolean {
+  return payload?.persist_steer === true || req.headers.get("X-Piclaw-Persist-Steer") === "1";
+}
+
 /**
  * Handle a web `/agent/:agentId/message` request by storing user input and starting/queuing a run.
  * @param channel Web channel contract providing persistence, queueing, and broadcast helpers.
@@ -667,6 +671,7 @@ export async function handleAgentMessage(
   if (!hasPayload) return channel.json({ error: "Missing 'content' field" }, 400);
 
   const requestMode = normalized.mode ?? "auto";
+  const persistSteer = shouldPersistSteerRequest(req, parsed.payload);
   const mention = content.trim().length > 0 ? parseLeadingAgentMention(content) : null;
   const mentionTarget = mention
     ? (typeof (channel.agentPool as { findChatByAgentName?: (name: string) => { chat_jid: string; agent_name: string } | null }).findChatByAgentName === "function"
@@ -740,6 +745,7 @@ export async function handleAgentMessage(
         content_blocks: normalized.contentBlocks,
         link_previews: normalized.linkPreviews,
         mode: requestMode,
+        ...(persistSteer ? { persist_steer: true } : {}),
         screen_hint: normalized.screenHint,
       }),
     });
@@ -829,7 +835,7 @@ export async function handleAgentMessage(
     contentPreview: content.slice(0, 60),
   });
 
-  if (!command && !themeCommand && !metersCommand && !isSettingsCommand && isStreaming && requestMode === "steer") {
+  if (!persistSteer && !command && !themeCommand && !metersCommand && !isSettingsCommand && isStreaming && requestMode === "steer") {
     const steerResponse = await queueDeferredSteer(content, "compose");
     if (steerResponse) return steerResponse;
   }
@@ -1151,6 +1157,10 @@ export async function handleAgentMessage(
       return null;
     }
 
+    if (persistSteer && interaction.id) {
+      getDb().prepare("UPDATE messages SET is_steering_message = 1 WHERE rowid = ?").run(interaction.id);
+    }
+
     const inflightMessageId = getInflightMessageId(chatJid);
     const rootRowId = inflightMessageId ? getMessageRowIdById(chatJid, inflightMessageId) : null;
     if (rootRowId && rootRowId !== interaction.id) {
@@ -1400,6 +1410,7 @@ export async function handleAgentMessage(
   }
 
   if (requestMode === "steer") {
+    if (persistSteer) broadcastNewPost();
     const steerResponse = await queueSteerMessage("compose");
     if (steerResponse) {
       return steerResponse;

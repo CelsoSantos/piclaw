@@ -152,11 +152,13 @@ describe("github-copilot dynamic models overlay", () => {
     expect(calls).toEqual([{ url: "https://api.business.githubcopilot.com/models", auth: "Bearer tid=x;proxy-ep=proxy.business.githubcopilot.com;exp=1" }]);
     expect(overlay.getModels().map((model) => model.id)).toEqual(["gpt-5.6"]);
     expect(await store.read()).toMatchObject({
-      checkedAt: 123,
       lastModified: 456,
       etag: '"catalog"',
       models: [{ id: "gpt-5.6" }],
     });
+    // checkedAt must advance on a successful live refresh, otherwise the cached
+    // catalog is permanently treated as freshly validated.
+    expect((await store.read())!.checkedAt).toBeGreaterThan(123);
   });
 
   test("concurrent network refreshes coalesce", async () => {
@@ -313,7 +315,7 @@ describe("github-copilot dynamic models overlay", () => {
     expect(typeof registrations[0].refreshModels).toBe("function");
   });
 
-  test("keeps dynamic Copilot models visible when OAuth availableModelIds is stale", async () => {
+  test("keeps live-confirmed Copilot models visible when OAuth availableModelIds is stale, but drops cache-only models", async () => {
     const fable = makeModel({
       id: "claude-fable-5",
       name: "Claude Fable 5",
@@ -342,13 +344,34 @@ describe("github-copilot dynamic models overlay", () => {
     };
     const runtime = { getProvider: () => baseProvider } as any;
     const overlay = createGitHubCopilotDynamicModelsProvider(runtime)!;
+
+    // Offline: only the cached catalog is known, so upstream availability wins and
+    // the unavailable cache-only model must not be selectable.
     await overlay.refreshModels!({
       credential: oauth("token", { availableModelIds: ["claude-opus-4.8"] }),
       store: createStore({ models: [fable, opus], checkedAt: Date.now() }),
       allowNetwork: false,
     } as any);
 
-    expect(baseProvider.filterModels(baseProvider.getModels(), { availableModelIds: ["claude-opus-4.8"] }).map((model) => model.id)).toEqual(["claude-opus-4.8"]);
-    expect(overlay.filterModels?.(overlay.getModels(), { availableModelIds: ["claude-opus-4.8"] } as any).map((model) => model.id).sort()).toEqual(["claude-fable-5", "claude-opus-4.8"]);
+    expect(overlay.filterModels?.(overlay.getModels(), { availableModelIds: ["claude-opus-4.8"] } as any).map((model) => model.id))
+      .toEqual(["claude-opus-4.8"]);
+
+    // Live refresh confirms a model that the login-time availableModelIds snapshot
+    // does not list yet; that model stays visible, cache-only ones still do not.
+    setGitHubCopilotDynamicModelsFetchForTests((async () => new Response(
+      JSON.stringify({ data: [makeLiveModel("claude-opus-4.8"), makeLiveModel("claude-opus-5")] }),
+      { status: 200 },
+    )) as any);
+    await overlay.refreshModels!({
+      credential: oauth("token", { availableModelIds: ["claude-opus-4.8"] }),
+      store: createStore({ models: [fable, opus], checkedAt: Date.now() }),
+      allowNetwork: true,
+      force: true,
+    } as any);
+
+    const visible = overlay.filterModels?.(overlay.getModels(), { availableModelIds: ["claude-opus-4.8"] } as any)
+      .map((model) => model.id).sort();
+    expect(visible).toEqual(["claude-opus-4.8", "claude-opus-5"]);
+    expect(visible).not.toContain("claude-fable-5");
   });
 });

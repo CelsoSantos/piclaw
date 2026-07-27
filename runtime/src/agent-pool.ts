@@ -281,29 +281,36 @@ export class AgentPool {
 
   /** Run a prompt against the persistent session for `chatJid`. */
   async runAgent(prompt: string, chatJid: string, options: RunAgentOptions = {}): Promise<AgentOutput> {
-    const output = await runAgentPrompt(prompt, chatJid, options, {
-      getOrCreateRuntime: (nextChatJid) => this.getOrCreateRuntime(nextChatJid),
-      turnCoordinator: this.turnCoordinator,
-      clearAttachments: (nextChatJid) => this.attachments.clear(nextChatJid),
-      takeAttachments: (nextChatJid) => this.attachments.take(nextChatJid),
-      logsDir: this.logsDir,
-      setActiveForkBaseLeaf: (nextChatJid, leafId) => this.activeForkBaseLeafByChat.set(nextChatJid, leafId),
-      clearActiveForkBaseLeaf: (nextChatJid) => {
-        this.activeForkBaseLeafByChat.delete(nextChatJid);
-      },
-      onInfo: (message, details) => log.info(message, details),
-      onWarn: (message, details) => log.warn(message, details),
-      onError: (message, details) => log.error(message, details),
-    });
+    // Acquire before session lookup: the cleanup timer can run after getOrCreate
+    // returns but before AgentSession flips isStreaming at prompt start.
+    const releaseEvictionProtection = this.sessionManager.acquireEvictionProtection(chatJid);
+    try {
+      const output = await runAgentPrompt(prompt, chatJid, options, {
+        getOrCreateRuntime: (nextChatJid) => this.getOrCreateRuntime(nextChatJid),
+        turnCoordinator: this.turnCoordinator,
+        clearAttachments: (nextChatJid) => this.attachments.clear(nextChatJid),
+        takeAttachments: (nextChatJid) => this.attachments.take(nextChatJid),
+        logsDir: this.logsDir,
+        setActiveForkBaseLeaf: (nextChatJid, leafId) => this.activeForkBaseLeafByChat.set(nextChatJid, leafId),
+        clearActiveForkBaseLeaf: (nextChatJid) => {
+          this.activeForkBaseLeafByChat.delete(nextChatJid);
+        },
+        onInfo: (message, details) => log.info(message, details),
+        onWarn: (message, details) => log.warn(message, details),
+        onError: (message, details) => log.error(message, details),
+      });
 
-    const recovery = output.recovery;
-    if (recovery) {
-      this.recoveryStats.attemptsTotal += Math.max(0, recovery.attemptsUsed || 0);
-      if (recovery.recovered) this.recoveryStats.recoveredRuns += 1;
-      if (recovery.exhausted) this.recoveryStats.exhaustedRuns += 1;
+      const recovery = output.recovery;
+      if (recovery) {
+        this.recoveryStats.attemptsTotal += Math.max(0, recovery.attemptsUsed || 0);
+        if (recovery.recovered) this.recoveryStats.recoveredRuns += 1;
+        if (recovery.exhausted) this.recoveryStats.exhaustedRuns += 1;
+      }
+
+      return output;
+    } finally {
+      releaseEvictionProtection();
     }
-
-    return output;
   }
 
   async applyControlCommand(chatJid: string, command: AgentControlCommand): Promise<AgentControlResult> {

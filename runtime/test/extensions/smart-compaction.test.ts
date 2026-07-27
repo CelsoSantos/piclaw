@@ -1004,6 +1004,28 @@ describe("smart-compaction", () => {
     expect(getCompactionReasoningEffort({ provider: "github-copilot", id: "claude-opus-4.8", reasoning: true, contextWindow: 200_000, thinkingLevelMap: { xhigh: "xhigh" } }, "selective")).toBeUndefined();
   });
 
+  it("uses domain-backed smart-compaction reasoning fallback while preserving phase env precedence", () => {
+    const explicitCompactionMap = { minimal: "minimal", low: "low", medium: "medium", high: "high" };
+    const previousChunkReasoning = process.env.PICLAW_PROGRESSIVE_CHUNK_REASONING;
+    try {
+      delete process.env.PICLAW_PROGRESSIVE_CHUNK_REASONING;
+      setCompactionRuntimeConfigForTests({ smartCompactionReasoning: "high" });
+      expect(getCompactionReasoningEffort({ provider: "test", id: "domain-reasoning", reasoning: true, contextWindow: 512_000, thinkingLevelMap: explicitCompactionMap }, "progressive_chunk")).toBe("high");
+
+      process.env.PICLAW_PROGRESSIVE_CHUNK_REASONING = "minimal";
+      expect(getCompactionReasoningEffort({ provider: "test", id: "phase-env-reasoning", reasoning: true, contextWindow: 512_000, thinkingLevelMap: explicitCompactionMap }, "progressive_chunk")).toBe("minimal");
+    } finally {
+      if (previousChunkReasoning === undefined) delete process.env.PICLAW_PROGRESSIVE_CHUNK_REASONING;
+      else process.env.PICLAW_PROGRESSIVE_CHUNK_REASONING = previousChunkReasoning;
+      resetCompactionRuntimeConfigForTests();
+    }
+  });
+
+  it("uses domain-backed progressive force flag", () => {
+    setCompactionRuntimeConfigForTests({ progressiveCompaction: true });
+    expect(getProgressiveCompactionBudget({ contextWindow: 128_000 }).forceProgressive).toBe(true);
+  });
+
   it.each(["selective", "pipelined"])("cancels %s compaction on provider input overflow rather than retrying with omitted source", async (method) => {
     const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
     const previousProgressiveBudget = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
@@ -2394,11 +2416,9 @@ describe("smart-compaction", () => {
 
     it("gives Selective progressive exact source provenance and rolls split groups back atomically", async () => {
       const previousMethod = process.env.PICLAW_SMART_COMPACTION_METHOD;
-      const previousForced = process.env.PICLAW_PROGRESSIVE_COMPACTION;
       const previousPromptChars = process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
       const previousTimeout = process.env.PICLAW_COMPACTION_TIMEOUT_MS;
-      setCompactionRuntimeConfigForTests({ smartCompactionMethod: "selective" });
-      process.env.PICLAW_PROGRESSIVE_COMPACTION = "1";
+      setCompactionRuntimeConfigForTests({ smartCompactionMethod: "selective", progressiveCompaction: true });
       process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = "4000";
       process.env.PICLAW_COMPACTION_TIMEOUT_MS = "300000";
 
@@ -2504,8 +2524,7 @@ describe("smart-compaction", () => {
         dateSpy.mockRestore();
         if (previousMethod === undefined) delete process.env.PICLAW_SMART_COMPACTION_METHOD;
         else process.env.PICLAW_SMART_COMPACTION_METHOD = previousMethod;
-        if (previousForced === undefined) delete process.env.PICLAW_PROGRESSIVE_COMPACTION;
-        else process.env.PICLAW_PROGRESSIVE_COMPACTION = previousForced;
+        resetCompactionRuntimeConfigForTests();
         if (previousPromptChars === undefined) delete process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
         else process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = previousPromptChars;
         if (previousTimeout === undefined) delete process.env.PICLAW_COMPACTION_TIMEOUT_MS;
@@ -3284,26 +3303,20 @@ describe("smart-compaction", () => {
     });
 
     it("uses the shared overhead override and token-estimate safety multiplier at fit thresholds", () => {
-      const previousOverhead = process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
-      const previousMultiplier = process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER;
       try {
-        process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = "4000";
-        process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER = "1";
+        setCompactionRuntimeConfigForTests({ systemPromptOverheadTokens: 4_000, tokenEstimateSafetyMultiplier: 1 });
         const fourThousandOverhead = estimatePostCompactionFit("x".repeat(4_000), 1_000, 6_000);
         expect(fourThousandOverhead).toMatchObject({ estimatedTotal: 6_000, fits: false, overheadTokens: 4_000 });
 
-        process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = "1000";
+        setCompactionRuntimeConfigForTests({ systemPromptOverheadTokens: 1_000, tokenEstimateSafetyMultiplier: 1 });
         const overriddenOverhead = estimatePostCompactionFit("x".repeat(4_000), 1_000, 6_000);
         expect(overriddenOverhead).toMatchObject({ estimatedTotal: 3_000, fits: true, overheadTokens: 1_000 });
 
-        process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER = "1.25";
+        setCompactionRuntimeConfigForTests({ systemPromptOverheadTokens: 1_000, tokenEstimateSafetyMultiplier: 1.25 });
         const safetyAdjusted = estimatePostCompactionFit("x".repeat(4_000), 1_000, 3_500);
         expect(safetyAdjusted).toMatchObject({ estimatedTotal: 3_500, fits: false, summaryTokens: 1_250 });
       } finally {
-        if (previousOverhead === undefined) delete process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
-        else process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = previousOverhead;
-        if (previousMultiplier === undefined) delete process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER;
-        else process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER = previousMultiplier;
+        resetCompactionRuntimeConfigForTests();
       }
     });
 
@@ -3676,27 +3689,17 @@ describe("smart-compaction", () => {
     });
 
     it("uses isolated request framing—not full agent overhead—when sizing compaction output", () => {
-      const previousSystemOverhead = process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
-      const previousRequestOverhead = process.env.PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS;
-      const previousMultiplier = process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER;
       try {
-        process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = "4000";
-        process.env.PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS = "1000";
-        process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER = "1";
+        setCompactionRuntimeConfigForTests({ systemPromptOverheadTokens: 4_000, compactionRequestOverheadTokens: 1_000, tokenEstimateSafetyMultiplier: 1 });
         const safe = getSafeCompactionMaxTokens({ contextWindow: 8_000 }, "x".repeat(4_000), 16_000);
         expect(safe.promptTokens).toBe(2_000);
         expect(safe.maxTokens).toBeLessThan(16_000);
         expect(safe.promptTokens + safe.maxTokens).toBeLessThanOrEqual(8_000);
 
-        process.env.PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS = "2000";
+        setCompactionRuntimeConfigForTests({ compactionRequestOverheadTokens: 2_000, tokenEstimateSafetyMultiplier: 1 });
         expect(getSafeCompactionMaxTokens({ contextWindow: 8_000 }, "x".repeat(4_000), 16_000).promptTokens).toBe(3_000);
       } finally {
-        if (previousSystemOverhead === undefined) delete process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS;
-        else process.env.PICLAW_SYSTEM_PROMPT_OVERHEAD_TOKENS = previousSystemOverhead;
-        if (previousRequestOverhead === undefined) delete process.env.PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS;
-        else process.env.PICLAW_COMPACTION_REQUEST_OVERHEAD_TOKENS = previousRequestOverhead;
-        if (previousMultiplier === undefined) delete process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER;
-        else process.env.PICLAW_TOKEN_ESTIMATE_SAFETY_MULTIPLIER = previousMultiplier;
+        resetCompactionRuntimeConfigForTests();
       }
     });
 
