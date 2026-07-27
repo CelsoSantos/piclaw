@@ -14,6 +14,7 @@ import {
   readCliArg,
   webConfig,
 } from "./config-context.js";
+import { getWebSecretBootstrapConfig, setWebSecretCompatibilityValue } from "./config-secrets.js";
 import {
   boolField,
   integerField,
@@ -327,27 +328,14 @@ export function getWebServerConfig(): Readonly<WebServerConfig> {
 }
 
 /** Grouped web auth/session/runtime settings. `totpSecret` stays mutable for runtime resets. */
+const WEB_SECRET_BOOTSTRAP_CONFIG = getWebSecretBootstrapConfig();
 export const WEB_RUNTIME_CONFIG: WebRuntimeConfig = Object.seal({
   uiMode: WEB_ORDINARY_DOMAIN_CONFIG.uiMode,
-  totpSecret:
-    process.env.PICLAW_WEB_TOTP_SECRET ||
-    envConfig.PICLAW_WEB_TOTP_SECRET ||
-    configWebTotpSecret ||
-    "",
+  totpSecret: WEB_SECRET_BOOTSTRAP_CONFIG.totpSecret || configWebTotpSecret || "",
   totpWindow: WEB_ORDINARY_DOMAIN_CONFIG.totpWindow,
   sessionTtl: WEB_ORDINARY_DOMAIN_CONFIG.sessionTtl,
-  internalSecret:
-    process.env.PICLAW_INTERNAL_SECRET ||
-    process.env.PICLAW_WEB_INTERNAL_SECRET ||
-    envConfig.PICLAW_INTERNAL_SECRET ||
-    envConfig.PICLAW_WEB_INTERNAL_SECRET ||
-    configWebInternalSecret ||
-    "",
-  widgetToken:
-    process.env.PICLAW_WEB_WIDGET_TOKEN ||
-    envConfig.PICLAW_WEB_WIDGET_TOKEN ||
-    configWebWidgetToken ||
-    "",
+  internalSecret: WEB_SECRET_BOOTSTRAP_CONFIG.internalSecret || configWebInternalSecret || "",
+  widgetToken: WEB_SECRET_BOOTSTRAP_CONFIG.widgetToken || configWebWidgetToken || "",
   passkeyMode: WEB_ORDINARY_DOMAIN_CONFIG.passkeyMode,
   terminalEnabled: WEB_ORDINARY_DOMAIN_CONFIG.terminalEnabled,
   terminalImageProtocol: WEB_ORDINARY_DOMAIN_CONFIG.terminalImageProtocol,
@@ -463,11 +451,7 @@ export function setWebWidgetToken(token: string): string {
   writeJsonConfig(getConfigPath(), config);
 
   WEB_RUNTIME_CONFIG.widgetToken = next;
-  if (next) {
-    process.env.PICLAW_WEB_WIDGET_TOKEN = next;
-  } else {
-    delete process.env.PICLAW_WEB_WIDGET_TOKEN;
-  }
+  setWebSecretCompatibilityValue("PICLAW_WEB_WIDGET_TOKEN", next);
   return WEB_RUNTIME_CONFIG.widgetToken;
 }
 
@@ -522,11 +506,7 @@ export function setWebTotpSecret(secret: string): string {
   writeJsonConfig(getConfigPath(), config);
 
   WEB_RUNTIME_CONFIG.totpSecret = next;
-  if (next) {
-    process.env.PICLAW_WEB_TOTP_SECRET = next;
-  } else {
-    delete process.env.PICLAW_WEB_TOTP_SECRET;
-  }
+  setWebSecretCompatibilityValue("PICLAW_WEB_TOTP_SECRET", next);
 
   return WEB_RUNTIME_CONFIG.totpSecret;
 }

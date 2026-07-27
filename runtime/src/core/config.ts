@@ -24,6 +24,7 @@ export {
 } from "./config-context.js";
 export * from "./config-identity.js";
 export * from "./config-integrations.js";
+export * from "./config-secrets.js";
 export * from "./config-web.js";
 export * from "./config-tools.js";
 export * from "./config-runtime.js";

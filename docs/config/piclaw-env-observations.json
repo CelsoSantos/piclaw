@@ -6,24 +6,18 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 20 to 16",
+    "source": "accepted direct-reader reduction from 16 to 10",
     "names": [
       "PICLAW_CHAT_JID",
       "PICLAW_DB_IN_MEMORY",
-      "PICLAW_INTERNAL_SECRET",
-      "PICLAW_KEYCHAIN_KEY",
-      "PICLAW_KEYCHAIN_KEY_FILE",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_SKEL_DIR",
       "PICLAW_WEB_EXTERNAL_URL",
       "PICLAW_WEB_HOST",
-      "PICLAW_WEB_INTERNAL_SECRET",
       "PICLAW_WEB_PORT",
       "PICLAW_WEB_STATIC_DIR",
       "PICLAW_WEB_TLS_CERT",
-      "PICLAW_WEB_TLS_KEY",
-      "PICLAW_WEB_TOTP_SECRET",
-      "PICLAW_WEB_WIDGET_TOKEN"
+      "PICLAW_WEB_TLS_KEY"
     ],
     "added": [],
     "removed": []
@@ -63,30 +57,30 @@
   "current": {
     "production": {
       "referencedNames": 178,
-      "directReaderNames": 17,
-      "directReaderOccurrences": 34,
-      "helperReaderNames": 1,
-      "helperReaderOccurrences": 1,
+      "directReaderNames": 11,
+      "directReaderOccurrences": 20,
+      "helperReaderNames": 7,
+      "helperReaderOccurrences": 7,
       "semanticReaderNames": 18,
-      "semanticReaderOccurrences": 35
+      "semanticReaderOccurrences": 27
     },
     "runtimeSrc": {
       "referencedNames": 175,
-      "directReaderNames": 16,
-      "directReaderOccurrences": 29,
-      "helperReaderNames": 1,
-      "helperReaderOccurrences": 1,
+      "directReaderNames": 10,
+      "directReaderOccurrences": 17,
+      "helperReaderNames": 7,
+      "helperReaderOccurrences": 7,
       "semanticReaderNames": 17,
-      "semanticReaderOccurrences": 30
+      "semanticReaderOccurrences": 24
     },
     "extensions": {
-      "referencedNames": 9,
-      "directReaderNames": 5,
-      "directReaderOccurrences": 5,
+      "referencedNames": 7,
+      "directReaderNames": 3,
+      "directReaderOccurrences": 3,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 5,
-      "semanticReaderOccurrences": 5
+      "semanticReaderNames": 3,
+      "semanticReaderOccurrences": 3
     },
     "tooling": {
       "referencedNames": 75,
@@ -2195,33 +2189,6 @@
             "skel/.pi/skills/timeline-cleanup/cleanup.ts"
           ]
         },
-        "production": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-web.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ]
-        },
         "tooling": {
           "referenced": true,
           "directReaders": 4,
@@ -2241,17 +2208,32 @@
             "runtime/scripts/playwright/web-auth-bootstrap.ts"
           ]
         },
-        "runtimeSrc": {
+        "production": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
+            "runtime/src/core/config-secrets.ts"
+          ]
+        },
+        "runtimeSrc": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
+          "files": [
+            "runtime/src/core/config-secrets.ts",
+            "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
+          ],
+          "readerFiles": [
+            "runtime/src/core/config-secrets.ts"
           ]
         }
       }
@@ -2272,30 +2254,28 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/secure/keychain.ts"
           ],
           "readerFiles": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
-            "runtime/src/secure/keychain.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/secure/keychain.ts"
           ],
           "readerFiles": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
-            "runtime/src/secure/keychain.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "tooling": {
@@ -2326,30 +2306,28 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/secure/keychain.ts"
           ],
           "readerFiles": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
-            "runtime/src/secure/keychain.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/secure/keychain.ts"
           ],
           "readerFiles": [
-            "runtime/src/channels/web/http/dispatch-agent.ts",
-            "runtime/src/secure/keychain.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "tooling": {
@@ -6669,33 +6647,6 @@
             "skel/.pi/skills/timeline-cleanup/cleanup.ts"
           ]
         },
-        "production": {
-          "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config-web.ts"
-          ]
-        },
-        "extensions": {
-          "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
-          "semanticReaders": 1,
-          "files": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ],
-          "readerFiles": [
-            "runtime/extensions/experimental/azure-openai.harness.ts"
-          ]
-        },
         "tooling": {
           "referenced": true,
           "directReaders": 4,
@@ -6715,17 +6666,32 @@
             "runtime/scripts/playwright/web-auth-bootstrap.ts"
           ]
         },
-        "runtimeSrc": {
+        "production": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
+            "runtime/src/core/config-secrets.ts"
+          ]
+        },
+        "runtimeSrc": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
+          "files": [
+            "runtime/src/core/config-secrets.ts",
+            "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
+          ],
+          "readerFiles": [
+            "runtime/src/core/config-secrets.ts"
           ]
         }
       }
@@ -7307,30 +7273,32 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 3,
-          "helperReaders": 0,
-          "semanticReaders": 3,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
             "runtime/src/agent-control/handlers/totp.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
-          "helperReaders": 0,
-          "semanticReaders": 3,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
             "runtime/src/agent-control/handlers/totp.ts",
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         }
       }
@@ -7480,28 +7448,30 @@
       "scopes": {
         "production": {
           "referenced": true,
-          "directReaders": 3,
-          "helperReaders": 0,
-          "semanticReaders": 3,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 3,
-          "helperReaders": 0,
-          "semanticReaders": 3,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
+            "runtime/src/core/config-secrets.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-secrets.ts"
           ]
         }
       }
