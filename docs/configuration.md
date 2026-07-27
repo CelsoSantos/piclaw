@@ -689,11 +689,19 @@ Default windows:
 AutoDream is gated, but nightly cadence no longer waits for a full 24-hour gap.
 It runs when there has been activity since the last consolidation.
 
+Dream runtime settings are persisted under `domains.dream` in `.piclaw/config.json`. The legacy environment variables remain compatibility aliases until 3.0.0 and override persisted values without being mutated by runtime.
+
+| Typed setting | Compatibility variable | Default | Purpose |
+|---------------|------------------------|---------|---------|
+| `domains.dream.cron` | `PICLAW_DREAM_CRON` | `0 1 * * *` | Cron schedule for AutoDream. Evaluated in the runtime timezone (`TZ` / runtime timing config), so the default is 01:00 local runtime time. |
+| `domains.dream.model` | `PICLAW_DREAM_MODEL` | _(unset — inherits session model)_ | Pin Dream / AutoDream to a specific model label (e.g. `anthropic/claude-sonnet-4-20250514`). The Dream pass applies it to the temporary Dream chat, so it also covers manual `/dream` runs. |
+| `domains.dream.backupKeep` | `PICLAW_DREAM_BACKUP_KEEP` | `10` | Number of pre-Dream note backups to retain. |
+| `domains.dream.agentTimeoutMs` | `PICLAW_DREAM_AGENT_TIMEOUT_MS` | background-agent timeout, or `360000` | Positive timeout for the out-of-band Dream model turn. |
+
+Additional Dream cue tuning remains environment-only:
+
 | Variable | Default | Purpose |
-|----------|---------|---------||
-| `PICLAW_DREAM_CRON` | `0 1 * * *` | Cron schedule for AutoDream. Evaluated in the runtime timezone (`TZ` / runtime timing config), so the default is 01:00 local runtime time. |
-| `PICLAW_DREAM_MODEL` | _(unset — inherits session model)_ | Pin Dream / AutoDream to a specific model label (e.g. `anthropic/claude-sonnet-4-20250514`). The Dream pass applies it to the temporary Dream chat, so it also covers manual `/dream` runs. |
-| `PICLAW_DREAM_BACKUP_KEEP` | `10` | Number of pre-Dream note backups to retain |
+|----------|---------|---------|
 | `PICLAW_DREAM_CUE_FULL_SLICE_MAX_MESSAGES` | `50` | `DREAM_CUES` full-slice cutoff for day message count |
 | `PICLAW_DREAM_CUE_FULL_SLICE_MAX_SESSION_TREES` | `2` | `DREAM_CUES` full-slice cutoff for session-tree count |
 | `PICLAW_DREAM_CUE_SMALL_TREE_MAX_MESSAGES` | `10` | Per-session-tree cue cutoff under which all messages from that tree are included |

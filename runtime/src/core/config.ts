@@ -80,6 +80,10 @@ const envConfig = readEnvFile([
   "AGENT_TIMEOUT",
   "PICLAW_BACKGROUND_AGENT_TIMEOUT",
   "AGENT_TIMEOUT_BACKGROUND",
+  "PICLAW_DREAM_CRON",
+  "PICLAW_DREAM_BACKUP_KEEP",
+  "PICLAW_DREAM_MODEL",
+  "PICLAW_DREAM_AGENT_TIMEOUT_MS",
   "PUSHOVER_APP_TOKEN",
   "PUSHOVER_USER_KEY",
   "PUSHOVER_DEVICE",
@@ -628,6 +632,82 @@ const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
 });
 
 const AGENT_DOMAIN_CONFIG = readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions());
+
+/** Typed Dream/AutoDream scheduling and execution settings. */
+export interface DreamConfig {
+  cron: string;
+  backupKeep: number;
+  model: string;
+  agentTimeoutMs: number;
+}
+
+const DEFAULT_DREAM_AGENT_TIMEOUT_MS = 6 * 60 * 1000;
+const dreamAgentTimeoutFallback = AGENT_DOMAIN_CONFIG.backgroundTimeoutMs > 0
+  ? AGENT_DOMAIN_CONFIG.backgroundTimeoutMs
+  : DEFAULT_DREAM_AGENT_TIMEOUT_MS;
+
+const dreamDomainSchema = registerDomainConfig<DreamConfig>({
+  domain: "dream",
+  fields: {
+    cron: stringField({
+      key: "cron",
+      owner: "dream",
+      defaultValue: "0 1 * * *",
+      nonEmpty: true,
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_DREAM_CRON", replacement: "domains.dream.cron", removalVersion: "3.0.0", skipInvalid: true }],
+    }),
+    backupKeep: integerField({
+      key: "backupKeep",
+      owner: "dream",
+      defaultValue: 10,
+      min: 1,
+      bounds: "positive integer backups",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{
+        envKey: "PICLAW_DREAM_BACKUP_KEEP",
+        replacement: "domains.dream.backupKeep",
+        removalVersion: "3.0.0",
+        parse: (raw) => Math.max(1, Number.parseInt(raw, 10) || 10),
+      }],
+    }),
+    model: stringField({
+      key: "model",
+      owner: "dream",
+      defaultValue: "",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{ envKey: "PICLAW_DREAM_MODEL", replacement: "domains.dream.model", removalVersion: "3.0.0" }],
+    }),
+    agentTimeoutMs: integerField({
+      key: "agentTimeoutMs",
+      owner: "dream",
+      defaultValue: dreamAgentTimeoutFallback,
+      min: 1,
+      bounds: "positive integer ms",
+      persistence: "json-config",
+      precedence: ["compat-env", "persisted", "default"],
+      secretClass: "none",
+      compatibilityEnv: [{
+        envKey: "PICLAW_DREAM_AGENT_TIMEOUT_MS",
+        replacement: "domains.dream.agentTimeoutMs",
+        removalVersion: "3.0.0",
+        parse: (raw) => Number.parseInt(raw, 10),
+        skipInvalid: true,
+      }],
+    }),
+  },
+});
+
+/** Read current Dream settings without mutating compatibility environment aliases. */
+export function getDreamConfig(): Readonly<DreamConfig> {
+  return Object.freeze(readDomainConfig(dreamDomainSchema, getDomainConfigOptions()));
+}
 
 const legacyWorkspaceSearchRoots = pickStringArray(toolsConfig, [
   "workspaceSearchRoots",

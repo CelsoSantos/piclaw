@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 41 to 33",
+  "source": "accepted direct-reader reduction from 33 to 29",
   "names": [
     "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
     "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -8,10 +8,6 @@
     "PICLAW_CHAT_JID",
     "PICLAW_DATA",
     "PICLAW_DB_IN_MEMORY",
-    "PICLAW_DREAM_AGENT_TIMEOUT_MS",
-    "PICLAW_DREAM_BACKUP_KEEP",
-    "PICLAW_DREAM_CRON",
-    "PICLAW_DREAM_MODEL",
     "PICLAW_INTERNAL_SECRET",
     "PICLAW_KEYCHAIN_KEY",
     "PICLAW_KEYCHAIN_KEY_FILE",

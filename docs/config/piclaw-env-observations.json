@@ -6,7 +6,7 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 41 to 33",
+    "source": "accepted direct-reader reduction from 33 to 29",
     "names": [
       "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
@@ -14,10 +14,6 @@
       "PICLAW_CHAT_JID",
       "PICLAW_DATA",
       "PICLAW_DB_IN_MEMORY",
-      "PICLAW_DREAM_AGENT_TIMEOUT_MS",
-      "PICLAW_DREAM_BACKUP_KEEP",
-      "PICLAW_DREAM_CRON",
-      "PICLAW_DREAM_MODEL",
       "PICLAW_INTERNAL_SECRET",
       "PICLAW_KEYCHAIN_KEY",
       "PICLAW_KEYCHAIN_KEY_FILE",
@@ -80,21 +76,21 @@
   "current": {
     "production": {
       "referencedNames": 179,
-      "directReaderNames": 34,
-      "directReaderOccurrences": 79,
+      "directReaderNames": 30,
+      "directReaderOccurrences": 75,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 34,
-      "semanticReaderOccurrences": 79
+      "semanticReaderNames": 30,
+      "semanticReaderOccurrences": 75
     },
     "runtimeSrc": {
       "referencedNames": 176,
-      "directReaderNames": 33,
-      "directReaderOccurrences": 74,
+      "directReaderNames": 29,
+      "directReaderOccurrences": 70,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 33,
-      "semanticReaderOccurrences": 74
+      "semanticReaderNames": 29,
+      "semanticReaderOccurrences": 70
     },
     "extensions": {
       "referencedNames": 9,
@@ -115,7 +111,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 119,
+      "referencedNames": 120,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -1424,29 +1420,35 @@
     {
       "name": "PICLAW_DREAM_AGENT_TIMEOUT_MS",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -1465,27 +1467,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -1504,27 +1502,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -1683,27 +1677,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/dream.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/dream.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
