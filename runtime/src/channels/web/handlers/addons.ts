@@ -17,7 +17,7 @@
 
 import { existsSync, lstatSync, readFileSync, readdirSync, rmSync, mkdirSync, unlinkSync, writeFileSync, renameSync, symlinkSync } from "fs";
 import { join, dirname, extname, resolve } from "path";
-import { WORKSPACE_DIR } from "../../../core/config.js";
+import { getWorkspaceDir as getConfiguredWorkspaceDir } from "../../../core/config.js";
 import { requestGracefulShutdown } from "../../../runtime/shutdown-registry.js";
 import { createLogger } from "../../../utils/logger.js";
 import { handleRegisteredAddonConfigApiRequest } from "./addon-config-api.js";
@@ -96,7 +96,7 @@ interface SlashCommandInvoker {
 }
 
 function getWorkspaceDir(): string {
-  return process.env.PICLAW_WORKSPACE || WORKSPACE_DIR;
+  return getConfiguredWorkspaceDir();
 }
 
 function getAddonsDir(workspaceDir = getWorkspaceDir()): string {

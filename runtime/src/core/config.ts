@@ -12,6 +12,11 @@ export type { RuntimeTimingConfig } from "./config-helpers.js";
 export {
   DATA_DIR,
   getConfigPath,
+  getDataDir,
+  getRuntimeBootstrapPathOverrides,
+  getRuntimeConfigPaths,
+  getRuntimeRoot,
+  getStoreDir,
   getWorkspaceDir,
   PICLAW_CONFIG_PATH,
   STORE_DIR,

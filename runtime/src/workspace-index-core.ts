@@ -11,7 +11,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { getDb } from "./db.js";
-import { WORKSPACE_DIR, getWorkspaceSearchConfig } from "./core/config.js";
+import { getWorkspaceDir, getWorkspaceSearchConfig } from "./core/config.js";
 import { createLogger, debugSuppressedError } from "./utils/logger.js";
 
 const log = createLogger("workspace-index-core");
@@ -81,9 +81,7 @@ export const normalizeWorkspaceSearchScope = (scope: WorkspaceSearchScope | stri
   return "all";
 };
 
-const getWorkspaceRoot = (): string => {
-  return path.resolve(process.env.PICLAW_WORKSPACE || WORKSPACE_DIR);
-};
+const getWorkspaceRoot = (): string => getWorkspaceDir();
 
 const getBuiltInRoots = (): string[] => {
   const root = getWorkspaceRoot();

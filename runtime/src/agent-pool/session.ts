@@ -32,7 +32,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { getPiclawAgentDir } from "../core/agent-dir.js";
-import { SESSIONS_DIR, WORKSPACE_DIR, getRemoteInteropConfig, getSessionPersistenceConfig } from "../core/config.js";
+import { SESSIONS_DIR, getRemoteInteropConfig, getRuntimeRoot, getSessionPersistenceConfig, getWorkspaceDir } from "../core/config.js";
 import { buildChannelSystemPromptAppendix } from "../channels/formatting.js";
 import { detectChannel } from "../router.js";
 import { createBuiltinExtensionFactories } from "../extensions/index.js";
@@ -55,10 +55,6 @@ const CHANNEL_SYSTEM_PROMPT_APPENDIX_CACHE = new Map<string, string>();
 const APPEND_SYSTEM_PROMPT_OVERRIDE_CACHE = new Map<string, (base: string[]) => string[]>();
 let cachedExtensionNodeModulesDir: string | null | undefined;
 let ensuredExtensionNodeModulesLinkTarget: string | null | undefined;
-
-function getWorkspaceDir(): string {
-  return process.env.PICLAW_WORKSPACE || WORKSPACE_DIR;
-}
 
 function ensureValidProcessCwd(): void {
   try {
@@ -85,7 +81,7 @@ type AgentSessionCreateOptions = {
  * node_modules so that jiti's fallback resolution finds packages like
  * @earendil-works/pi-ai and its public API entrypoints.
  */
-const EXTENSIONS_DIR = resolve(process.env.PICLAW_RUNTIME_ROOT || resolve(__dirname, "../.."), "extensions");
+const EXTENSIONS_DIR = resolve(getRuntimeRoot(resolve(__dirname, "../..")), "extensions");
 const log = createLogger("agent-pool.session");
 
 type OptionalBundledExtension = {

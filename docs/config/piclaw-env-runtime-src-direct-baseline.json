@@ -1,17 +1,14 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 21 to 20",
+  "source": "accepted direct-reader reduction from 20 to 16",
   "names": [
     "PICLAW_CHAT_JID",
-    "PICLAW_DATA",
     "PICLAW_DB_IN_MEMORY",
     "PICLAW_INTERNAL_SECRET",
     "PICLAW_KEYCHAIN_KEY",
     "PICLAW_KEYCHAIN_KEY_FILE",
     "PICLAW_RUNTIME_DOCS_DIR",
-    "PICLAW_RUNTIME_ROOT",
     "PICLAW_SKEL_DIR",
-    "PICLAW_STORE",
     "PICLAW_WEB_EXTERNAL_URL",
     "PICLAW_WEB_HOST",
     "PICLAW_WEB_INTERNAL_SECRET",
@@ -20,7 +17,6 @@
     "PICLAW_WEB_TLS_CERT",
     "PICLAW_WEB_TLS_KEY",
     "PICLAW_WEB_TOTP_SECRET",
-    "PICLAW_WEB_WIDGET_TOKEN",
-    "PICLAW_WORKSPACE"
+    "PICLAW_WEB_WIDGET_TOKEN"
   ]
 }

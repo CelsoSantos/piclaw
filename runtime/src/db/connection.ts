@@ -20,7 +20,7 @@ import Database from "bun:sqlite";
 import fs from "fs";
 import path from "path";
 
-import { STORE_DIR, WORKSPACE_DIR } from "../core/config.js";
+import { STORE_DIR, WORKSPACE_DIR, getRuntimeBootstrapPathOverrides } from "../core/config.js";
 import { createLogger, debugSuppressedError } from "../utils/logger.js";
 import { recompressExistingMedia } from "./media-recompress.js";
 
@@ -886,14 +886,15 @@ function migrateChatCursors(database: Database): void {
  * Called by index.ts (the application entry point).
  */
 export function initDatabase(): void {
+  const pathOverrides = getRuntimeBootstrapPathOverrides();
   const useMemory =
     process.env.PICLAW_DB_IN_MEMORY === "1" ||
     process.env.PICLAW_DB_IN_MEMORY === "true" ||
-    process.env.PICLAW_STORE === ":memory:";
+    pathOverrides.store === ":memory:";
   const nextMode: "memory" | "file" = useMemory ? "memory" : "file";
   const nextPath = useMemory ? ":memory:" : path.join(STORE_DIR, "messages.db");
   const nextCacheKey = useMemory
-    ? `memory:${process.env.PICLAW_WORKSPACE ?? ""}:${process.env.PICLAW_STORE ?? ""}:${process.env.PICLAW_DATA ?? ""}`
+    ? `memory:${pathOverrides.workspace ?? ""}:${pathOverrides.store ?? ""}:${pathOverrides.data ?? ""}`
     : nextPath;
 
   if (shouldBlockLiveDatabaseOpenInTests({ useMemory, nextPath })) {
