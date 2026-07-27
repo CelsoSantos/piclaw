@@ -32,7 +32,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { getPiclawAgentDir } from "../core/agent-dir.js";
-import { SESSIONS_DIR, WORKSPACE_DIR, getSessionPersistenceConfig } from "../core/config.js";
+import { SESSIONS_DIR, WORKSPACE_DIR, getRemoteInteropConfig, getSessionPersistenceConfig } from "../core/config.js";
 import { buildChannelSystemPromptAppendix } from "../channels/formatting.js";
 import { detectChannel } from "../router.js";
 import { createBuiltinExtensionFactories } from "../extensions/index.js";
@@ -91,6 +91,7 @@ const log = createLogger("agent-pool.session");
 type OptionalBundledExtension = {
   path: string;
   envGate?: string;
+  enabled?: () => boolean;
   platforms?: NodeJS.Platform[];
   channels?: string[];
 };
@@ -107,7 +108,7 @@ const OPTIONAL_EXTENSIONS: OptionalBundledExtension[] = [
   // win-ui removed: now shipped as @rcarmo/piclaw-addon-win-ui
   // office-viewer-tool removed: now shipped as @rcarmo/piclaw-addon-office-viewer
   // office-tools-tool removed: now shipped as @rcarmo/piclaw-addon-office-tools
-  { path: resolve(EXTENSIONS_DIR, "integrations", "remote-pair", "index.ts"), envGate: "PICLAW_REMOTE_INTEROP_ENABLED" },
+  { path: resolve(EXTENSIONS_DIR, "integrations", "remote-pair", "index.ts"), enabled: () => getRemoteInteropConfig().enabled },
   { path: resolve(EXTENSIONS_DIR, "experimental", "m365", "index.ts"), envGate: "PICLAW_ENABLE_M365_EXPERIMENTAL" },
 ];
 
@@ -134,8 +135,8 @@ function getBundledExtensionEnvSignature(chatJid?: string): string {
     `channel=${channel}`,
     `workspace=${workspaceDir}`,
     `addonNodeModules=${getWorkspaceAddonNodeModulesFingerprint(workspaceDir)}`,
-    ...OPTIONAL_EXTENSIONS.map(({ envGate, platforms, channels }) => {
-      const envPart = envGate ? `${envGate}=${process.env[envGate] ? "1" : "0"}` : "always=1";
+    ...OPTIONAL_EXTENSIONS.map(({ envGate, enabled, platforms, channels }) => {
+      const envPart = envGate ? `${envGate}=${process.env[envGate] ? "1" : "0"}` : `enabled=${enabled ? (enabled() ? "1" : "0") : "1"}`;
       const platformPart = platforms?.length ? `platforms=${platforms.join(",")}` : "platforms=all";
       const channelPart = channels?.length ? `channels=${channels.join(",")}` : "channels=all";
       return `${envPart};${platformPart};${channelPart}`;
@@ -268,7 +269,7 @@ function getBundledExtensionPaths(chatJid?: string): string[] {
   const channel = chatJid ? detectChannel(chatJid) : undefined;
   const nodeModulesDir = getExtensionNodeModulesDir();
   const paths = OPTIONAL_EXTENSIONS
-    .filter(({ envGate }) => !envGate || !!process.env[envGate])
+    .filter(({ envGate, enabled }) => (!envGate || !!process.env[envGate]) && (!enabled || enabled()))
     .filter(({ platforms }) => !platforms || platforms.includes(process.platform))
     .filter(({ channels }) => !channels || !!channel && channels.includes(channel))
     .map(({ path }) => path);

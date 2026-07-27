@@ -1334,37 +1334,49 @@ export interface RemoteInteropConfig {
   decisionModel: string;
 }
 
-const remoteInteropEnabledRaw = pickBoolean(piclawConfig, ["remoteInteropEnabled", "PICLAW_REMOTE_INTEROP_ENABLED"]);
-const remoteInteropAllowHttpRaw = pickBoolean(piclawConfig, ["remoteInteropAllowHttp", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP"]);
-const remoteInteropAllowPrivateNetworkRaw = pickBoolean(piclawConfig, ["remoteInteropAllowPrivateNetwork", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK"]);
-const remoteShortCircuitRaw = pickBoolean(piclawConfig, ["remoteInteropShortCircuitEnabled", "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED"]);
+interface RemoteDomainConfig extends RemoteInteropConfig {
+  remoteCompactionEnabled: boolean;
+  remoteCompactionTimeoutMs: number;
+}
 
-/** Grouped remote interop settings with existing config/env precedence preserved. */
+const legacyRemoteInteropEnabled = pickBoolean(piclawConfig, ["remoteInteropEnabled", "PICLAW_REMOTE_INTEROP_ENABLED"]);
+const legacyRemoteAllowHttp = pickBoolean(piclawConfig, ["remoteInteropAllowHttp", "PICLAW_REMOTE_INTEROP_ALLOW_HTTP"]);
+const legacyRemoteAllowPrivate = pickBoolean(piclawConfig, ["remoteInteropAllowPrivateNetwork", "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK"]);
+const legacyRemoteShortCircuit = pickBoolean(piclawConfig, ["remoteInteropShortCircuitEnabled", "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED"]);
+const legacyRemoteInstanceName = pickString(piclawConfig, ["remoteInstanceName", "PICLAW_REMOTE_INSTANCE_NAME"]);
+const legacyRemoteDecisionModel = pickString(piclawConfig, ["remoteInteropDecisionModel", "PICLAW_REMOTE_INTEROP_DECISION_MODEL"]);
+const legacyRemoteCompactionEnabled = pickBoolean(compactionConfig, ["remoteCompactionEnabled", "remote_compaction_enabled", "PICLAW_REMOTE_COMPACTION_ENABLED"]);
+const legacyRemoteCompactionTimeoutMs = pickNumber(compactionConfig, ["remoteCompactionTimeoutMs", "remote_compaction_timeout_ms", "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS"]);
+const parseLegacyRemoteBoolean = (raw: string): boolean => ["1", "true"].includes(raw.trim().toLowerCase());
+
+const remoteDomainSchema = registerDomainConfig<RemoteDomainConfig>({
+  domain: "remote",
+  fields: {
+    enabled: boolField({ key: "enabled", owner: "remote-interop", defaultValue: legacyRemoteInteropEnabled ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_INTEROP_ENABLED", replacement: "domains.remote.enabled", removalVersion: "3.0.0", parse: parseLegacyRemoteBoolean, skipInvalid: true }] }),
+    allowHttp: boolField({ key: "allowHttp", owner: "remote-interop", defaultValue: legacyRemoteAllowHttp ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_INTEROP_ALLOW_HTTP", replacement: "domains.remote.allowHttp", removalVersion: "3.0.0", parse: parseLegacyRemoteBoolean, skipInvalid: true }] }),
+    allowPrivateNetwork: boolField({ key: "allowPrivateNetwork", owner: "remote-interop", defaultValue: legacyRemoteAllowPrivate ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK", replacement: "domains.remote.allowPrivateNetwork", removalVersion: "3.0.0", parse: parseLegacyRemoteBoolean, skipInvalid: true }] }),
+    shortCircuitEnabled: boolField({ key: "shortCircuitEnabled", owner: "remote-interop", defaultValue: legacyRemoteShortCircuit ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED", replacement: "domains.remote.shortCircuitEnabled", removalVersion: "3.0.0", parse: parseLegacyRemoteBoolean, skipInvalid: true }] }),
+    instanceName: stringField({ key: "instanceName", owner: "remote-interop", defaultValue: legacyRemoteInstanceName ?? "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_INSTANCE_NAME", replacement: "domains.remote.instanceName", removalVersion: "3.0.0" }] }),
+    decisionModel: stringField({ key: "decisionModel", owner: "remote-interop", defaultValue: legacyRemoteDecisionModel ?? "", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_INTEROP_DECISION_MODEL", replacement: "domains.remote.decisionModel", removalVersion: "3.0.0" }] }),
+    remoteCompactionEnabled: boolField({ key: "remoteCompactionEnabled", owner: "remote-interop", defaultValue: legacyRemoteCompactionEnabled ?? false, persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_COMPACTION_ENABLED", replacement: "domains.remote.remoteCompactionEnabled", removalVersion: "3.0.0", skipInvalid: true }] }),
+    remoteCompactionTimeoutMs: integerField({ key: "remoteCompactionTimeoutMs", owner: "remote-interop", defaultValue: Number.isFinite(legacyRemoteCompactionTimeoutMs) && (legacyRemoteCompactionTimeoutMs ?? 0) > 0 ? Math.round(Number(legacyRemoteCompactionTimeoutMs)) : 300_000, min: 1, bounds: "positive integer ms", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS", replacement: "domains.remote.remoteCompactionTimeoutMs", removalVersion: "3.0.0", skipInvalid: true }] }),
+  },
+});
+
+let remoteDomainConfigOverride: Partial<Pick<RemoteDomainConfig, "remoteCompactionEnabled" | "remoteCompactionTimeoutMs">> | null = null;
+
+function getRemoteDomainConfig(): RemoteDomainConfig {
+  return { ...readDomainConfig(remoteDomainSchema, getDomainConfigOptions()), ...(remoteDomainConfigOverride ?? {}) };
+}
+
+/** Stable public object with live typed-domain remote values. */
 export const REMOTE_INTEROP_CONFIG = Object.freeze<RemoteInteropConfig>({
-  enabled:
-    remoteInteropEnabledRaw ??
-    ((process.env.PICLAW_REMOTE_INTEROP_ENABLED || "").toLowerCase() === "true" ||
-      process.env.PICLAW_REMOTE_INTEROP_ENABLED === "1"),
-  allowHttp:
-    remoteInteropAllowHttpRaw ??
-    ((process.env.PICLAW_REMOTE_INTEROP_ALLOW_HTTP || "").toLowerCase() === "true" ||
-      process.env.PICLAW_REMOTE_INTEROP_ALLOW_HTTP === "1"),
-  allowPrivateNetwork:
-    remoteInteropAllowPrivateNetworkRaw ??
-    ((process.env.PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK || "").toLowerCase() === "true" ||
-      process.env.PICLAW_REMOTE_INTEROP_ALLOW_PRIVATE_NETWORK === "1"),
-  shortCircuitEnabled:
-    remoteShortCircuitRaw ??
-    ((process.env.PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED || "").toLowerCase() === "true" ||
-      process.env.PICLAW_REMOTE_SHORT_CIRCUIT_ENABLED === "1"),
-  instanceName:
-    pickString(piclawConfig, ["remoteInstanceName", "PICLAW_REMOTE_INSTANCE_NAME"]) ||
-    process.env.PICLAW_REMOTE_INSTANCE_NAME ||
-    "",
-  decisionModel:
-    pickString(piclawConfig, ["remoteInteropDecisionModel", "PICLAW_REMOTE_INTEROP_DECISION_MODEL"]) ||
-    process.env.PICLAW_REMOTE_INTEROP_DECISION_MODEL ||
-    "",
+  get enabled() { return getRemoteDomainConfig().enabled; },
+  get allowHttp() { return getRemoteDomainConfig().allowHttp; },
+  get allowPrivateNetwork() { return getRemoteDomainConfig().allowPrivateNetwork; },
+  get shortCircuitEnabled() { return getRemoteDomainConfig().shortCircuitEnabled; },
+  get instanceName() { return getRemoteDomainConfig().instanceName; },
+  get decisionModel() { return getRemoteDomainConfig().decisionModel; },
 });
 
 /** Return the grouped remote interop settings for service wiring and tests. */
@@ -1433,16 +1445,6 @@ const configSmartCompactionMethod = pickString(compactionConfig, [
   "smartCompactionMethod",
   "smart_compaction_method",
   "PICLAW_SMART_COMPACTION_METHOD",
-]);
-const configRemoteCompactionEnabled = pickBoolean(compactionConfig, [
-  "remoteCompactionEnabled",
-  "remote_compaction_enabled",
-  "PICLAW_REMOTE_COMPACTION_ENABLED",
-]);
-const configRemoteCompactionTimeoutMs = pickNumber(compactionConfig, [
-  "remoteCompactionTimeoutMs",
-  "remote_compaction_timeout_ms",
-  "PICLAW_REMOTE_COMPACTION_TIMEOUT_MS",
 ]);
 const configAutoCompactionEnabled = pickBoolean(compactionConfig, [
   "autoCompactionEnabled",
@@ -2081,56 +2083,11 @@ export function setToolUseMessageBudget(budget: number): number {
   return TOOL_USE_MESSAGE_BUDGET;
 }
 
-const DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS = 5 * 60_000;
-
 function parseOptionalNonNegativeInt(value: unknown, fallback: number): number {
   if (value === undefined || value === null || String(value).trim() === "") return fallback;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return Math.max(0, Math.round(parsed));
-}
-
-const INITIAL_COMPACTION_DOMAIN_CONFIG = getCompactionDomainConfig();
-
-let COMPACTION_RUNTIME_CONFIG: CompactionRuntimeConfig = Object.seal({
-  autoCompactionEnabled: INITIAL_COMPACTION_DOMAIN_CONFIG.autoCompactionEnabled,
-  smartCompactionMethod: INITIAL_COMPACTION_DOMAIN_CONFIG.smartCompactionMethod,
-  remoteCompactionEnabled: parseOptionalBooleanFlag(
-    process.env.PICLAW_REMOTE_COMPACTION_ENABLED
-      ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
-    configRemoteCompactionEnabled ?? false,
-  ),
-  remoteCompactionTimeoutMs: parsePositiveDurationMs(
-    process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
-    Number.isFinite(configRemoteCompactionTimeoutMs) && (configRemoteCompactionTimeoutMs ?? 0) > 0
-      ? Math.round(Number(configRemoteCompactionTimeoutMs))
-      : DEFAULT_REMOTE_COMPACTION_TIMEOUT_MS,
-  ),
-  timeoutMs: INITIAL_COMPACTION_DOMAIN_CONFIG.timeoutMs,
-  backoffBaseMs: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffBaseMs,
-  backoffMaxMs: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffMaxMs,
-  progressWatchdogEnabled: getProgressWatchdogConfig().enabled,
-  progressWatchdogTimeoutMs: getProgressWatchdogConfig().timeoutMs,
-  thresholdPercent: INITIAL_COMPACTION_DOMAIN_CONFIG.thresholdPercent,
-  maxThresholdTokens: INITIAL_COMPACTION_DOMAIN_CONFIG.maxThresholdTokens,
-  autoCompactionScope: INITIAL_COMPACTION_DOMAIN_CONFIG.autoCompactionScope,
-  hardCeilingPercent: INITIAL_COMPACTION_DOMAIN_CONFIG.hardCeilingPercent,
-  warningThreshold: INITIAL_COMPACTION_DOMAIN_CONFIG.warningThreshold,
-  backoffDecayFactor: INITIAL_COMPACTION_DOMAIN_CONFIG.backoffDecayFactor,
-  systemPromptOverheadTokens: INITIAL_COMPACTION_DOMAIN_CONFIG.systemPromptOverheadTokens,
-  compactionRequestOverheadTokens: INITIAL_COMPACTION_DOMAIN_CONFIG.compactionRequestOverheadTokens,
-  tokenEstimateSafetyMultiplier: INITIAL_COMPACTION_DOMAIN_CONFIG.tokenEstimateSafetyMultiplier,
-  progressiveCompaction: INITIAL_COMPACTION_DOMAIN_CONFIG.progressiveCompaction,
-  smartCompactionReasoning: INITIAL_COMPACTION_DOMAIN_CONFIG.smartCompactionReasoning,
-});
-
-function parseOptionalBooleanFlag(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") return value;
-  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (!normalized) return fallback;
-  if (["1", "true", "yes", "on", "enabled"].includes(normalized)) return true;
-  if (["0", "false", "no", "off", "disabled"].includes(normalized)) return false;
-  return fallback;
 }
 
 function parsePositiveDurationMs(value: unknown, fallback: number): number {
@@ -2187,14 +2144,8 @@ export function getCompactionRuntimeConfig(): Readonly<CompactionRuntimeConfig> 
   const resolved: CompactionRuntimeConfig = {
     autoCompactionEnabled: domain.autoCompactionEnabled,
     smartCompactionMethod: domain.smartCompactionMethod,
-    remoteCompactionEnabled: parseOptionalBooleanFlag(
-      process.env.PICLAW_REMOTE_COMPACTION_ENABLED ?? envConfig.PICLAW_REMOTE_COMPACTION_ENABLED,
-      COMPACTION_RUNTIME_CONFIG.remoteCompactionEnabled,
-    ),
-    remoteCompactionTimeoutMs: parsePositiveDurationMs(
-      process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS ?? envConfig.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS,
-      COMPACTION_RUNTIME_CONFIG.remoteCompactionTimeoutMs,
-    ),
+    remoteCompactionEnabled: getRemoteDomainConfig().remoteCompactionEnabled,
+    remoteCompactionTimeoutMs: getRemoteDomainConfig().remoteCompactionTimeoutMs,
     timeoutMs: domain.timeoutMs,
     backoffBaseMs: domain.backoffBaseMs,
     backoffMaxMs: domain.backoffMaxMs,
@@ -2391,14 +2342,14 @@ function applyCompactionRuntimeConfig(
       delete compaction[key];
       delete config[key];
     }
-    compaction.remoteCompactionEnabled = next.remoteCompactionEnabled;
-    compaction.remoteCompactionTimeoutMs = next.remoteCompactionTimeoutMs;
     config.compaction = compaction;
     writeJsonConfig(getConfigPath(), config);
+    writeDomainConfig(remoteDomainSchema, getDomainConfigOptions(), {
+      remoteCompactionEnabled: next.remoteCompactionEnabled,
+      remoteCompactionTimeoutMs: next.remoteCompactionTimeoutMs,
+    });
   }
 
-  process.env.PICLAW_REMOTE_COMPACTION_ENABLED = next.remoteCompactionEnabled ? "1" : "0";
-  process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS = String(next.remoteCompactionTimeoutMs);
   const compactionDomainPatch: CompactionDomainConfig = {
     autoCompactionEnabled: next.autoCompactionEnabled,
     smartCompactionMethod: next.smartCompactionMethod,
@@ -2462,7 +2413,6 @@ function applyCompactionRuntimeConfig(
     };
   }
 
-  COMPACTION_RUNTIME_CONFIG = Object.seal(next);
   return getCompactionRuntimeConfig();
 }
 
@@ -2479,6 +2429,7 @@ export function resetCompactionRuntimeConfigForTests(): void {
   }
   compactionDomainConfigOverride = null;
   progressWatchdogConfigOverride = null;
+  remoteDomainConfigOverride = null;
 }
 
 export function setCompactionRuntimeConfigForTests(
@@ -2497,9 +2448,15 @@ export function setCompactionRuntimeConfigForTests(
     "PICLAW_SMART_COMPACTION_REASONING",
   ];
   for (const key of envKeys) delete process.env[key];
+  if (patch.remoteCompactionEnabled !== undefined || patch.remoteCompactionTimeoutMs !== undefined) {
+    remoteDomainConfigOverride = {
+      ...(patch.remoteCompactionEnabled !== undefined ? { remoteCompactionEnabled: Boolean(patch.remoteCompactionEnabled) } : {}),
+      ...(patch.remoteCompactionTimeoutMs !== undefined ? { remoteCompactionTimeoutMs: parsePositiveDurationMs(patch.remoteCompactionTimeoutMs, getRemoteDomainConfig().remoteCompactionTimeoutMs) } : {}),
+    };
+  }
   const result = applyCompactionRuntimeConfig(patch, false);
   // Prevent process-env precedence from leaking this test override into later
-  // module reloads; in-memory tests use COMPACTION_RUNTIME_CONFIG directly.
+  // module reloads; in-memory tests use the domain overrides directly.
   for (const key of envKeys) delete process.env[key];
   return result;
 }

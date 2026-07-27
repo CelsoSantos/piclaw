@@ -81,8 +81,8 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
     });
     expect(process.env.PICLAW_AUTO_COMPACTION_ENABLED).toBeUndefined();
     expect(process.env.PICLAW_SMART_COMPACTION_METHOD).toBe('');
-    expect(process.env.PICLAW_REMOTE_COMPACTION_ENABLED).toBe('1');
-    expect(process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS).toBe('45000');
+    expect(process.env.PICLAW_REMOTE_COMPACTION_ENABLED).toBeUndefined();
+    expect(process.env.PICLAW_REMOTE_COMPACTION_TIMEOUT_MS).toBeUndefined();
     expect(process.env.PICLAW_COMPACTION_TIMEOUT_MS).toBe('');
     expect(process.env.PICLAW_COMPACTION_BACKOFF_BASE_MS).toBe('');
     expect(process.env.PICLAW_COMPACTION_BACKOFF_MAX_MS).toBe('');
@@ -94,11 +94,11 @@ test('saveCompactionSettings persists and applies compaction settings immediatel
 
     const persisted = JSON.parse(readFileSync(join(workspace.workspace, '.piclaw', 'config.json'), 'utf8'));
     expect(persisted).toMatchObject({
-      compaction: {
-        remoteCompactionEnabled: true,
-        remoteCompactionTimeoutMs: 45000,
-      },
       domains: {
+        remote: {
+          remoteCompactionEnabled: true,
+          remoteCompactionTimeoutMs: 45000,
+        },
         tools: {
           toolResultCompactionEnabled: false,
           toolResultCompactionTools: ['bash', 'exec_batch'],
