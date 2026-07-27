@@ -200,6 +200,7 @@ import {
   detectRecentTopicShift,
 } from "../../src/extensions/smart-compaction/selective-prompt.js";
 import { validateCompactionSummaryResponse } from "../../src/extensions/smart-compaction/summary-validation.js";
+import { runProgressiveCompaction } from "../../src/extensions/smart-compaction/progressive.js";
 import { canonicalizeFileLists } from "../../src/extensions/smart-compaction/noop.js";
 import { clearRemoteCompactionBackoffForTests } from "../../src/extensions/smart-compaction/remote-compaction.js";
 import {
@@ -3230,6 +3231,75 @@ describe("smart-compaction", () => {
         dateSpy.mockRestore();
         if (previousPromptChars === undefined) delete process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS;
         else process.env.PICLAW_PROGRESSIVE_COMPACTION_PROMPT_CHARS = previousPromptChars;
+      }
+    });
+
+    it("returns a bounded partial checkpoint when the final progressive merge runs out of time", async () => {
+      const sourceUnits = Array.from({ length: 6 }, (_, index) => ({
+        id: `unit-${index}`,
+        groupId: `group-${index}`,
+        renderedText: `SOURCE_${index} ${"s".repeat(6_000)}`,
+        sourceIndexes: [index],
+        sourceEntryIds: [`entry-${index}`],
+        segmentIndex: 1,
+        segmentCount: 1,
+      }));
+      const chunkSummary = (index: number) => `## Chunk Range\n- ${index}-${index}\n\n## Goals / User Intent\n- Preserve bounded fallback facts\n\n## Constraints & Preferences\n- Retain unsummarized source verbatim\n\n## Decisions\n- Use a bounded partial checkpoint\n\n## Files / Commands / Tool Outcomes\n- none\n\n## Progress\n- Done: chunk summarized\n- In progress: final merge\n- Blocked: time budget\n\n## Open Questions / Next Steps\n- Continue from the retained source boundary\n\n## Key Continuity Facts\n- CHUNK_${index} ${"x".repeat(6_500)}`;
+
+      let now = 1;
+      let chunkCalls = 0;
+      const dateSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+      (completeSimple as any).mockImplementation(async (_model: any, context: any) => {
+        const prompt = context.messages[0].content[0].text as string;
+        if (!prompt.includes("deterministic chunk")) {
+          throw new Error("the expired merge budget must not start another model request");
+        }
+        const index = chunkCalls;
+        chunkCalls += 1;
+        if (chunkCalls === sourceUnits.length) now = 270_000;
+        return {
+          content: [{ type: "text", text: chunkSummary(index) }],
+          stopReason: "stop",
+        };
+      });
+
+      try {
+        const result = await runProgressiveCompaction({
+          llmMessages: [],
+          sourceUnits,
+          humanUserIndexes: new Set<number>(),
+          model: { provider: "test", id: "bounded-merge-timeout", contextWindow: 128_000, reasoning: false },
+          auth: {},
+          settings: { reserveTokens: 8_192 },
+          fileOps: { read: new Set<string>(), written: new Set<string>(), edited: new Set<string>() },
+          budget: {
+            contextWindow: 128_000,
+            promptBudgetChars: 8_000,
+            chunkBudgetChars: 8_000,
+            mergeBudgetChars: 8_000,
+            forceProgressive: true,
+          },
+          abortSignal: new AbortController().signal,
+          ctx: { ui: { setStatus: vi.fn() } },
+          streamFn: compactionStreamFn,
+          timeoutMs: 300_000,
+          startedAt: 1,
+        });
+
+        expect(result.complete).toBe(false);
+        expect(result.processedChunkCount).toBeGreaterThan(0);
+        expect(result.processedChunkCount).toBeLessThan(result.totalChunkCount);
+        expect(result.nextUnprocessedSourceMessageIndex).toBe(result.processedChunkCount);
+        expect(result.nextUnprocessedEntryId).toBe(`entry-${result.processedChunkCount}`);
+        expect(result.summary.length).toBeLessThanOrEqual(8_192 * 4);
+        expect(validateCompactionSummaryResponse(
+          { content: [{ type: "text", text: result.summary }], stopReason: "stop" },
+          "final",
+          8_192 * 4,
+        ).ok).toBe(true);
+        expect(chunkCalls).toBe(sourceUnits.length);
+      } finally {
+        dateSpy.mockRestore();
       }
     });
 
