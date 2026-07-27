@@ -10,12 +10,8 @@
 
 import type { WebChannelLike } from "../core/web-channel-contracts.js";
 import {
-  getAgentRuntimeConfig,
   getIdentityConfig,
-  getPersistThinkingMaxChars,
-  getPrePromptCompactionForegroundMs,
   getRoutingConfig,
-  isPersistThinkingEnabled,
 } from "../../../core/config.js";
 import { parseControlCommand } from "../../../agent-control/index.js";
 import { isSlashCommandInvocation } from "../../../agent-pool/slash-command.js";
@@ -28,14 +24,10 @@ import { handleUiThemeCommand } from "../theming/ui-theme-commands.js";
 import { handleUiMetersCommand } from "../ui-meters-commands.js";
 import { getServerUiMetersConfig, setServerUiMetersConfig, setServerUiThemeConfig } from "../ui-state.js";
 import {
-  beginChatPreflight,
-  beginChatRun,
-  clearChatPreflight,
   getChatCursor,
   getInflightMessageId,
   getMessageRowIdById,
   getDb,
-  promoteChatPreflightToInflight,
   rollbackChatRunWithError,
   rollbackInflightRun,
   setChatCursor,
@@ -43,10 +35,11 @@ import {
 import { detectChannel, formatMessages, formatOutbound } from "../../../router.js";
 import { createAgentProfileBuilder } from "../agent/agent-utils.js";
 import { resolveAvatarUrl } from "../media/avatar-service.js";
-import { createAgentEventEmitter, createStreamingEventHandler } from "../sse/agent-events.js";
 import { broadcastInteractionUpdated } from "../cards/interaction-service.js";
 import { storeAgentTurn } from "../messaging/agent-message-store.js";
 import { finalizeSuccessfulProcessChatRun, persistIntermediateProcessChatTurn } from "../runtime/process-chat-finalization-runtime.js";
+import { createProcessChatStreamingRuntime } from "../runtime/process-chat-streaming-runtime.js";
+import { runProcessChatPreflight } from "../runtime/process-chat-preflight-runtime.js";
 import {
   MODEL_COMMAND_TYPES,
   executeDeferredControlCommand,
@@ -63,20 +56,14 @@ import "../../../extensions/generic-tool-status-hints.js";
 import { createUuid } from "../../../utils/ids.js";
 import { createLogger, debugSuppressedError } from "../../../utils/logger.js";
 import type { AttachmentInfo } from "../../../agent-pool/attachments.js";
-import { cancelScheduledIdleAutoCompaction, isCompactionCancellationError, maybeAutoCompactSessionBeforePrompt } from "../../../agent-pool/compaction.js";
+import { cancelScheduledIdleAutoCompaction } from "../../../agent-pool/compaction.js";
 import { DEFAULT_BASE_RETRY_MS, getRetryAtIso } from "../../../queue/retry-policy.js";
-import { storeThinkingContent } from "../../../db/messages.js";
-import { safeTruncateUtf16 } from "../../../utils/safe-truncate.js";
 import { formatProviderError } from "./provider-error-format.js";
-import {
-  beginTrackedPhase,
-  heartbeatTrackedPhase,
-  endTrackedPhase,
-} from "../../../runtime/progress-watchdog.js";
+import { endTrackedPhase } from "../../../runtime/progress-watchdog.js";
 
 const log = createLogger("web.handlers.agent");
 
-type BrowserObservabilityContext = {
+export type BrowserObservabilityContext = {
   userId?: string;
   sessionId?: string;
   clientId?: string;
@@ -106,20 +93,6 @@ function getBrowserObservabilityContext(req: Request): BrowserObservabilityConte
     ...(sessionId ? { sessionId } : {}),
     ...(clientId ? { clientId } : {}),
   };
-}
-
-function withObservabilityMetadata(details: Record<string, unknown>, turnId: string, browserContext?: BrowserObservabilityContext): Record<string, unknown> {
-  return {
-    ...details,
-    turnId,
-    ...(browserContext?.userId ? { userId: browserContext.userId } : {}),
-    ...(browserContext?.sessionId ? { sessionId: browserContext.sessionId } : {}),
-    ...(browserContext?.clientId ? { clientId: browserContext.clientId } : {}),
-  };
-}
-
-function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function enqueueProcessChatAfterCompaction(
@@ -1505,426 +1478,26 @@ export async function processChat(
   const runStartedAt = new Date().toISOString();
   const threadId = lastMessage.timestamp;
 
-  const THOUGHT_PREVIEW_LINES = 8;
-  const DRAFT_PREVIEW_LINES = 8;
-  const PREVIEW_MAX_CHARS_PER_LINE = 160;
-
   const turnId = createUuid("turn");
-  const shouldPersistThinking = isPersistThinkingEnabled() && !chatJid.startsWith("dream:");
-  let pendingThinkingText = "";
-  let pendingThinkingLines = 0;
-  let pendingThinkingDurationMs = 0;
-  let currentModel: string | null = null;
-  const identity = getIdentityConfig();
-  const withAgentProfile = createAgentProfileBuilder(
-    chatJid,
-    identity.assistantName,
-    resolveAvatarUrl("agent", identity.assistantAvatar),
-    identity.userName || null,
-    resolveAvatarUrl("user", identity.userAvatar),
-    identity.userAvatarBackground || null
-  );
-  const emitter = createAgentEventEmitter(channel, withAgentProfile);
-  const trackedEmitter = {
-    ...emitter,
-    status: (payload: Record<string, unknown>) => {
-      const isToolStatus = payload?.type === "tool_call" || payload?.type === "tool_status";
-      const toolName = typeof payload?.tool_name === "string" ? payload.tool_name.trim() : "";
-      let nextPayload = payload;
-      if (isToolStatus && toolName) {
-        nextPayload = withResolvedToolStatusHints(chatJid, payload);
-      }
-      nextPayload = withAgentStatusProgressMetadata(nextPayload, channel.getAgentStatus(chatJid));
-      channel.updateAgentStatus(chatJid, nextPayload);
-      emitter.status(nextPayload);
-    },
-    modelChanged: (payload: Record<string, unknown>) => {
-      const nextModel = typeof payload?.model === "string" ? payload.model.trim() : "";
-      if (nextModel) currentModel = nextModel;
-      emitter.modelChanged(payload);
-    },
-  };
-
-  if (shouldPersistThinking) {
-    try {
-      const modelState = await channel.agentPool.getAvailableModels(chatJid);
-      currentModel = modelState.current ?? null;
-    } catch (err) {
-      debugSuppressedError(log, "Failed to read current model for thinking persistence.", err, { operation: "persist_thinking.init_model" });
-      currentModel = null;
-    }
-  }
-
-  const hasActiveClients = channel.sse.clients.size > 0;
-  const agentRuntimeConfig = getAgentRuntimeConfig();
-  const timeoutMs = hasActiveClients
-    ? agentRuntimeConfig.timeoutMs
-    : (agentRuntimeConfig.backgroundTimeoutMs > 0 ? agentRuntimeConfig.backgroundTimeoutMs : agentRuntimeConfig.timeoutMs);
-
+  const streamRuntime = await createProcessChatStreamingRuntime({
+    channel, chatJid, agentId, threadId, turnId, runStartedAt, sourceMessageId: lastMessage.id ?? null,
+    withResolvedToolStatusHints, withAgentStatusProgressMetadata,
+  });
+  const { emitter, trackedEmitter, streamingHandler: trackedStreamingHandler, clearCommittedDraft, timeoutMs } = streamRuntime;
+  const streamState = streamRuntime.state;
   let turnCount = 0;
   let hadIntermediateOutput = false;
   let persistedIntermediateOutput = false;
   let intermediatePersistFailed = false;
-  let lastRecoveryMeta: { attemptsUsed?: number; recovered?: boolean; exhausted?: boolean; lastClassifier?: string | null } | null = null;
-  let sawCompactionEvent = false;
-  let sawRecoveryEvent = false;
-  let lastCompactionErrorMessage: string | null = null;
-  let lastCompactionSuppressed = false;
-  let lastRecoveryOutcome: string | null = null;
+  const resolvedThreadRootId = resolveThreadRootId(channel, chatJid, currentMessage.id ?? "", effectiveThreadRootId);
 
-  const resolvedThreadRootId = resolveThreadRootId(
-    channel,
-    chatJid,
-    currentMessage.id ?? "",
-    effectiveThreadRootId
-  );
-
-  const liveThinkingLevelLabels = new Map<string, string>();
-  try {
-    const modelState = await channel.agentPool.getAvailableModels(chatJid);
-    modelState.available_thinking_levels.forEach((level, index) => {
-      liveThinkingLevelLabels.set(level, modelState.available_thinking_level_labels[index] ?? level);
-    });
-    if (modelState.thinking_level && modelState.thinking_level_label) {
-      liveThinkingLevelLabels.set(modelState.thinking_level, modelState.thinking_level_label);
-    }
-  } catch (err) {
-    debugSuppressedError(log, "Failed to prepare live thinking-level labels.", err, {
-      operation: "process_chat.init_thinking_labels",
-      chatJid,
-    });
-  }
-
-  const streamingHandler = createStreamingEventHandler({
-    emitter: trackedEmitter,
-    agentId,
-    threadId,
-    turnId,
-    formatThinkingLevel: (level) => liveThinkingLevelLabels.get(level) ?? level,
-    thoughtPreviewLines: THOUGHT_PREVIEW_LINES,
-    draftPreviewLines: DRAFT_PREVIEW_LINES,
-    previewMaxCharsPerLine: PREVIEW_MAX_CHARS_PER_LINE,
-    includeThoughtFull: () => channel.isPanelExpanded(turnId, "thought"),
-    includeDraftFull: () => channel.isPanelExpanded(turnId, "draft"),
-    onThoughtBuffer: (text, totalLines) => channel.updateThoughtBuffer(turnId, text, totalLines),
-    onThinkingComplete: (text, totalLines, durationMs) => {
-      const realLines = text ? text.split("\n").length : 0;
-      log.info("Thinking block complete", {
-        operation: "persist_thinking.block_complete",
-        chatJid,
-        chars: text?.length ?? 0,
-        softLines: totalLines,
-        realLines,
-        durationMs,
-        shouldPersist: shouldPersistThinking,
-      });
-      if (!shouldPersistThinking || !text) return;
-      pendingThinkingText = pendingThinkingText ? `${pendingThinkingText}\n\n---\n\n${text}` : text;
-      pendingThinkingLines += realLines;
-      pendingThinkingDurationMs += durationMs;
-    },
-    onDraftBuffer: (text, totalLines) => channel.updateDraftBuffer(turnId, text, totalLines),
+  const preflight = await runProcessChatPreflight({
+    channel, chatJid, agentId, message: { id: lastMessage.id, timestamp: lastMessage.timestamp }, prevCursor, effectiveThreadRootId: effectiveThreadRootId ?? null, turnId, runStartedAt, browserObservability,
+    streamingHandler: trackedStreamingHandler, compactionState: streamState,
+    enqueueResume: (root) => enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, root, browserObservability),
   });
-  const clearCommittedDraft = () => {
-    channel.updateDraftBuffer(turnId, "", 0);
-    trackedEmitter.draft({
-      thread_id: threadId,
-      agent_id: agentId,
-      turn_id: turnId,
-      text: "",
-      total_lines: 0,
-      kind: "draft",
-      mode: "replace",
-    });
-    if (channel.isPanelExpanded(turnId, "draft")) {
-      trackedEmitter.draftDelta({
-        thread_id: threadId,
-        agent_id: agentId,
-        turn_id: turnId,
-        delta: "",
-        reset: true,
-      });
-    }
-  };
-  const trackedStreamingHandler = (event: Record<string, unknown>) => {
-    const type = typeof event?.type === "string" ? event.type : "";
-    if (type === "message_update") {
-      heartbeatTrackedPhase(chatJid, "streaming", { eventType: type });
-    } else if (type === "tool_execution_start" || type === "tool_execution_update" || type === "tool_execution_end") {
-      heartbeatTrackedPhase(chatJid, "tool_execution", {
-        eventType: type,
-        toolName: event.toolName,
-      });
-    } else if (type === "compaction_start") {
-      heartbeatTrackedPhase(chatJid, "preprompt_compaction", { eventType: type });
-    } else if (type === "compaction_end") {
-      heartbeatTrackedPhase(chatJid, "prompt", { eventType: type });
-    } else if (type === "recovery_start" || type === "recovery_end") {
-      heartbeatTrackedPhase(chatJid, "recovery", { eventType: type });
-    }
-    if (type === "compaction_start" || type === "compaction_end") {
-      sawCompactionEvent = true;
-    }
-    if (type === "compaction_end") {
-      const errorMessage = typeof event.errorMessage === "string" ? event.errorMessage.trim() : "";
-      if (errorMessage) lastCompactionErrorMessage = errorMessage;
-    }
-    if (type === "compaction_suppressed") {
-      const errorMessage = typeof event.errorMessage === "string" ? event.errorMessage.trim() : "";
-      if (errorMessage) lastCompactionErrorMessage = errorMessage;
-      lastCompactionSuppressed = true;
-    }
-    if (type === "recovery_start" || type === "recovery_end") {
-      sawRecoveryEvent = true;
-    }
-    if (type === "recovery_start") {
-      // I6: a previous attempt's thinking is associated with the failed run.
-      // Reset the per-turn thinking buffer so only the successful attempt's
-      // reasoning ends up persisted alongside the eventual message. Without
-      // this, the stored thinking would concatenate failed-attempt reasoning
-      // with successful-attempt reasoning and inflate both the line count
-      // and duration. The structural correctness of pendingThinkingText is
-      // preserved by relying on the same accumulator that onThinkingComplete
-      // populates after each thinking_end block.
-      if (shouldPersistThinking && pendingThinkingText) {
-        log.info("Discarding thinking buffer at recovery_start", {
-          operation: "persist_thinking.discard_on_recovery",
-          chatJid,
-          discardedChars: pendingThinkingText.length,
-          discardedLines: pendingThinkingLines,
-          discardedDurationMs: pendingThinkingDurationMs,
-        });
-      }
-      pendingThinkingText = "";
-      pendingThinkingLines = 0;
-      pendingThinkingDurationMs = 0;
-    }
-    if (type === "recovery_end") {
-      lastRecoveryOutcome = typeof event.outcome === "string" ? event.outcome : null;
-    }
-    streamingHandler(event as any);
-  };
+  if (preflight === "deferred") return;
 
-  trackedEmitter.status({
-    thread_id: threadId,
-    agent_id: agentId,
-    type: "thinking",
-    title: "Thinking...",
-    turn_id: turnId,
-  });
-
-  const maybeEmergencyRotateAfterPrePromptCompaction = async (source: "foreground" | "background"): Promise<boolean> => {
-    const detail = lastCompactionErrorMessage?.trim();
-    if (!detail || isCompactionCancellationError(detail)) return false;
-    log.warn("Pre-prompt compaction failed or was suppressed; emergency-rotating session before prompt", withObservabilityMetadata({
-      operation: "process_chat.preprompt_compaction_emergency_rotate",
-      chatJid,
-      source,
-      suppressed: lastCompactionSuppressed,
-      errorMessage: detail,
-    }, turnId, browserObservability));
-    const result = await channel.agentPool.emergencyRotateSession(chatJid, detail);
-    if (result.status !== "success") {
-      log.warn("Emergency rotation after pre-prompt compaction failure failed", withObservabilityMetadata({
-        operation: "process_chat.preprompt_compaction_emergency_rotate_failed",
-        chatJid,
-        source,
-        reason: result.message,
-      }, turnId, browserObservability));
-      return false;
-    }
-    log.info("Emergency-rotated session after pre-prompt compaction failure", withObservabilityMetadata({
-      operation: "process_chat.preprompt_compaction_emergency_rotate_success",
-      chatJid,
-      source,
-      archivePath: result.archivePath ?? null,
-      newSessionFile: result.newSessionFile ?? null,
-      previousSize: result.previousSize ?? null,
-      nextSize: result.nextSize ?? null,
-    }, turnId, browserObservability));
-    return true;
-  };
-
-  if (typeof channel.agentPool.getSessionForIntrospection === "function") {
-    const session = await channel.agentPool.getSessionForIntrospection(chatJid);
-    beginTrackedPhase(chatJid, "preprompt_compaction", {
-      source: "web.process_chat.preflight",
-      messageId: lastMessage.id,
-    });
-    beginChatPreflight(chatJid, {
-      prevTs: prevCursor,
-      messageId: lastMessage.id,
-      startedAt: runStartedAt,
-    });
-    const compactionPromise = maybeAutoCompactSessionBeforePrompt(
-      session,
-      chatJid,
-      {
-        onInfo: (message, details) => log.info(message, withObservabilityMetadata(details || {}, turnId, browserObservability)),
-        onWarn: (message, details) => log.warn(message, withObservabilityMetadata(details || {}, turnId, browserObservability)),
-      },
-      trackedStreamingHandler,
-    );
-    let deferredForCompaction = false;
-    try {
-      const foregroundMs = getPrePromptCompactionForegroundMs();
-      const foregroundResult = await Promise.race([
-        compactionPromise.then(() => "done" as const),
-        sleepMs(foregroundMs).then(() => "defer" as const),
-      ]);
-      if (foregroundResult === "defer") {
-        deferredForCompaction = true;
-        log.info("Pre-prompt compaction continuing in background", withObservabilityMetadata({
-          operation: "process_chat.preprompt_compaction_deferred",
-          chatJid,
-          messageId: lastMessage.id,
-          foregroundMs,
-        }, turnId, browserObservability));
-        compactionPromise
-          .then(async () => {
-            if (await maybeEmergencyRotateAfterPrePromptCompaction("background")) {
-              clearChatPreflight(chatJid);
-              endTrackedPhase(chatJid);
-            }
-          })
-          .catch((error) => {
-            log.warn("Background pre-prompt compaction failed before chat resume", withObservabilityMetadata({
-              operation: "process_chat.preprompt_compaction_deferred_failed",
-              chatJid,
-              messageId: lastMessage.id,
-              err: error,
-            }, turnId, browserObservability));
-          })
-          .finally(() => {
-            enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId ?? undefined, browserObservability);
-          });
-        return;
-      }
-    } catch (error) {
-      clearChatPreflight(chatJid);
-      endTrackedPhase(chatJid);
-      throw error;
-    } finally {
-      if (!deferredForCompaction) {
-        await compactionPromise;
-      }
-    }
-
-    if (await maybeEmergencyRotateAfterPrePromptCompaction("foreground")) {
-      clearChatPreflight(chatJid);
-      endTrackedPhase(chatJid);
-      enqueueProcessChatAfterCompaction(channel, chatJid, agentId, lastMessage.id, effectiveThreadRootId ?? undefined, browserObservability);
-      return;
-    }
-
-    heartbeatTrackedPhase(chatJid, "prompt", { eventType: "preflight_promoted" });
-    promoteChatPreflightToInflight(chatJid, lastMessage.timestamp, {
-      prevTs: prevCursor,
-      messageId: lastMessage.id,
-      startedAt: runStartedAt,
-    });
-  } else {
-    beginChatRun(chatJid, lastMessage.timestamp, {
-      prevTs: prevCursor,
-      messageId: lastMessage.id,
-      startedAt: runStartedAt,
-    });
-  }
-
-  const getActiveRecoveryIntent = (): "compaction" | "recovery" | null => {
-    const status = channel.getAgentStatus(chatJid);
-    if (!status || typeof status !== "object") return null;
-    const intentKey = status.intent_key ?? status.intentKey;
-    if (status.type !== "intent") return null;
-    if (intentKey === "compaction" || intentKey === "recovery") return intentKey;
-    return null;
-  };
-  const normalizeAgentUsageForTiming = (usage: unknown): Record<string, unknown> | null => {
-    if (!usage || typeof usage !== "object") return null;
-    const record = usage as Record<string, unknown>;
-    const readNumber = (...keys: string[]) => {
-      for (const key of keys) {
-        const value = Number(record[key]);
-        if (Number.isFinite(value) && value >= 0) return value;
-      }
-      return 0;
-    };
-    const inputTokens = readNumber("input", "inputTokens", "promptTokens");
-    const outputTokens = readNumber("output", "outputTokens", "completionTokens");
-    const reasoningTokens = readNumber("reasoning", "reasoningTokens", "reasoning_tokens");
-    const cacheReadTokens = readNumber("cacheRead", "cacheReadTokens");
-    const cacheWriteTokens = readNumber("cacheWrite", "cacheWriteTokens");
-    const explicitTotal = readNumber("totalTokens", "total", "total_tokens");
-    const totalTokens = explicitTotal || inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
-    if (!totalTokens && !inputTokens && !outputTokens && !reasoningTokens && !cacheReadTokens && !cacheWriteTokens) return null;
-    const cost = record.cost && typeof record.cost === "object" ? record.cost as Record<string, unknown> : null;
-    const costTotal = cost ? Number(cost.total) : Number(record.costTotal ?? record.cost_total);
-    return {
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
-      reasoning_tokens: reasoningTokens,
-      cache_read_tokens: cacheReadTokens,
-      cache_write_tokens: cacheWriteTokens,
-      total_tokens: totalTokens,
-      ...(Number.isFinite(costTotal) && costTotal > 0 ? { cost_total: costTotal } : {}),
-    };
-  };
-
-  const buildAgentTimingBlock = (usage?: unknown) => {
-    const completedAt = new Date().toISOString();
-    const startedMs = Date.parse(runStartedAt);
-    const completedMs = Date.parse(completedAt);
-    const normalizedUsage = normalizeAgentUsageForTiming(usage);
-    return {
-      type: "agent_timing",
-      started_at: runStartedAt,
-      completed_at: completedAt,
-      duration_ms: Number.isFinite(startedMs) && Number.isFinite(completedMs)
-        ? Math.max(0, completedMs - startedMs)
-        : null,
-      turn_id: turnId,
-      source_message_id: lastMessage.id ?? null,
-      ...(normalizedUsage ? { usage: normalizedUsage } : {}),
-    };
-  };
-
-  const buildThinkingRefBlocks = (): Array<Record<string, unknown>> => (
-    shouldPersistThinking && pendingThinkingText
-      ? [{ type: "thinking_ref", lines: pendingThinkingLines, duration_ms: pendingThinkingDurationMs }]
-      : []
-  );
-  // Persist accumulated thinking text against a known message rowid (returned
-  // from storeAgentTurn). This replaces the previous content-LIKE rediscovery
-  // which was both fragile (failed on duplicate content / retries) and O(N)
-  // per turn (full table scan of messages_fts predicate). The rowid is the
-  // authoritative identifier returned by the message persistence layer.
-  const persistThinkingForRow = (messageRowId: number | null): void => {
-    if (!shouldPersistThinking || !pendingThinkingText) return;
-    if (!messageRowId || messageRowId <= 0) {
-      log.warn("Skipping thinking persistence — no message rowid available", {
-        operation: "persist_thinking.no_rowid",
-        chatJid,
-      });
-      return;
-    }
-    const maxChars = getPersistThinkingMaxChars();
-    const truncated = pendingThinkingText.length > maxChars;
-    const textToStore = truncated ? safeTruncateUtf16(pendingThinkingText, maxChars) : pendingThinkingText;
-    storeThinkingContent(String(messageRowId), textToStore, pendingThinkingLines, pendingThinkingDurationMs, currentModel ?? undefined, truncated);
-    log.info("Persisted thinking content", {
-      operation: "persist_thinking.persist",
-      chatJid,
-      messageRowid: messageRowId,
-      lines: pendingThinkingLines,
-      durationMs: pendingThinkingDurationMs,
-      chars: textToStore.length,
-      truncated,
-      model: currentModel,
-    });
-    pendingThinkingText = "";
-    pendingThinkingLines = 0;
-    pendingThinkingDurationMs = 0;
-  };
   const persistTerminalOutcome = (
     text: string,
     marker: Record<string, unknown> | null,
@@ -1942,12 +1515,12 @@ export async function processChat(
       skipPlaceholder: turnCount === 0,
       isTerminalAgentReply: true,
       extraContentBlocks: [
-        buildAgentTimingBlock(options.usage),
+        streamRuntime.buildAgentTimingBlock(options.usage),
         ...(marker ? [marker] : []),
         ...(Array.isArray(options.additionalBlocks) ? options.additionalBlocks : []),
-        ...buildThinkingRefBlocks(),
+        ...streamRuntime.buildThinkingRefBlocks(),
       ],
-      onMessageStored: persistThinkingForRow,
+      onMessageStored: streamRuntime.persistThinkingForRow,
     });
   };
   const persistVisibleFailureOutcome = (
@@ -2012,8 +1585,8 @@ export async function processChat(
       : reason === "rate-limit"
         ? buildErrorOutcomeMarker(detail || "rate limit", {
             draftRecovered: Boolean(draftText),
-            attemptsUsed: lastRecoveryMeta?.attemptsUsed,
-            classifier: lastRecoveryMeta?.lastClassifier ?? null,
+            attemptsUsed: streamState.lastRecoveryMeta?.attemptsUsed,
+            classifier: streamState.lastRecoveryMeta?.lastClassifier ?? null,
             ...options.markerOptions,
           })
         : reason === "empty-final"
@@ -2021,16 +1594,16 @@ export async function processChat(
               kind: "blank_final",
               label: "no reply",
               title: "No final reply produced",
-              detail: lastRecoveryMeta?.lastClassifier ? `Last recovery classifier: ${lastRecoveryMeta.lastClassifier}.` : undefined,
+              detail: streamState.lastRecoveryMeta?.lastClassifier ? `Last recovery classifier: ${streamState.lastRecoveryMeta.lastClassifier}.` : undefined,
               severity: "warning",
               draftRecovered: Boolean(draftText),
-              attemptsUsed: lastRecoveryMeta?.attemptsUsed,
-              classifier: lastRecoveryMeta?.lastClassifier ?? null,
+              attemptsUsed: streamState.lastRecoveryMeta?.attemptsUsed,
+              classifier: streamState.lastRecoveryMeta?.lastClassifier ?? null,
             })
           : buildErrorOutcomeMarker(detail || "Response ended with an error before finalization", {
               draftRecovered: Boolean(draftText),
-              attemptsUsed: lastRecoveryMeta?.attemptsUsed,
-              classifier: lastRecoveryMeta?.lastClassifier ?? null,
+              attemptsUsed: streamState.lastRecoveryMeta?.attemptsUsed,
+              classifier: streamState.lastRecoveryMeta?.lastClassifier ?? null,
               ...options.markerOptions,
             });
 
@@ -2045,7 +1618,7 @@ export async function processChat(
     turnId,
     threadId,
     prevCursor,
-    recovery: lastRecoveryMeta,
+    recovery: streamState.lastRecoveryMeta,
   });
 
   const output = await channel.agentPool.runAgent(prompt, chatJid, {
@@ -2079,7 +1652,7 @@ export async function processChat(
           channelName,
           threadId: resolvedThreadRootId,
           skipPlaceholder: isFirstTurn,
-          timingBlock: buildAgentTimingBlock(turn.usage),
+          timingBlock: streamRuntime.buildAgentTimingBlock(turn.usage),
           followedByToolUse: turn.followedByToolUse,
           clearCommittedDraft,
         });
@@ -2099,7 +1672,7 @@ export async function processChat(
     },
   });
 
-  lastRecoveryMeta = output.recovery || null;
+  streamState.lastRecoveryMeta = output.recovery || null;
 
   if (output.status === "tool_complete") {
     // Provider stopped cleanly after tool use with no closing text reply.
@@ -2236,11 +1809,11 @@ export async function processChat(
         skipPlaceholder: turnCount === 0,
         isTerminalAgentReply: true,
         extraContentBlocks: [
-          buildAgentTimingBlock(output.usage),
+          streamRuntime.buildAgentTimingBlock(output.usage),
           ...(buildRecoveryMarkerBlocks(output.recovery) ?? []),
-          ...buildThinkingRefBlocks(),
+          ...streamRuntime.buildThinkingRefBlocks(),
         ],
-        onMessageStored: persistThinkingForRow,
+        onMessageStored: streamRuntime.persistThinkingForRow,
       })
     : hasDraftFallback
       ? publishDraftFallback("empty-final")
@@ -2324,47 +1897,47 @@ export async function processChat(
     const preview = originalContent.length > 120
       ? originalContent.slice(0, 120) + "…"
       : originalContent;
-    const recoveryIntent = getActiveRecoveryIntent();
-    const recoveryLooksStalled = Boolean(lastRecoveryMeta?.exhausted)
-      || lastRecoveryOutcome === "exhausted"
-      || sawCompactionEvent
-      || sawRecoveryEvent
+    const recoveryIntent = streamRuntime.getActiveRecoveryIntent();
+    const recoveryLooksStalled = Boolean(streamState.lastRecoveryMeta?.exhausted)
+      || streamState.lastRecoveryOutcome === "exhausted"
+      || streamState.sawCompactionEvent
+      || streamState.sawRecoveryEvent
       || recoveryIntent !== null
-      || !!lastCompactionErrorMessage;
+      || !!streamState.lastCompactionErrorMessage;
 
     if (recoveryLooksStalled) {
-      const title = lastRecoveryMeta?.exhausted || lastRecoveryOutcome === "exhausted"
+      const title = streamState.lastRecoveryMeta?.exhausted || streamState.lastRecoveryOutcome === "exhausted"
         ? "Automatic recovery exhausted"
-        : lastCompactionErrorMessage
+        : streamState.lastCompactionErrorMessage
           ? "Context compaction failed"
           : recoveryIntent === "compaction"
             ? "Context compaction did not complete"
             : "Context recovery did not complete";
-      const detail = lastCompactionErrorMessage
-        ? lastCompactionErrorMessage
-        : lastRecoveryMeta?.lastClassifier
-          ? `Last recovery classifier: ${lastRecoveryMeta.lastClassifier}.`
+      const detail = streamState.lastCompactionErrorMessage
+        ? streamState.lastCompactionErrorMessage
+        : streamState.lastRecoveryMeta?.lastClassifier
+          ? `Last recovery classifier: ${streamState.lastRecoveryMeta.lastClassifier}.`
           : "The turn ended without a persisted reply while compaction or automatic recovery was in flight.";
 
       log.warn("Agent completed without output after compaction/recovery activity", {
         operation: "process_chat.no_output_recovery_stalled",
         chatJid,
         title,
-        sawCompactionEvent,
-        sawRecoveryEvent,
+        sawCompactionEvent: streamState.sawCompactionEvent,
+        sawRecoveryEvent: streamState.sawRecoveryEvent,
         recoveryIntent,
-        lastCompactionErrorMessage,
-        recovery: lastRecoveryMeta,
+        lastCompactionErrorMessage: streamState.lastCompactionErrorMessage,
+        recovery: streamState.lastRecoveryMeta,
       });
 
       const marker = buildTurnOutcomeMarker({
-        kind: lastCompactionErrorMessage ? "context" : "recovery",
-        label: lastCompactionErrorMessage ? "context" : "recovery",
+        kind: streamState.lastCompactionErrorMessage ? "context" : "recovery",
+        label: streamState.lastCompactionErrorMessage ? "context" : "recovery",
         title,
         detail,
         severity: "warning",
-        attemptsUsed: lastRecoveryMeta?.attemptsUsed,
-        classifier: lastRecoveryMeta?.lastClassifier ?? null,
+        attemptsUsed: streamState.lastRecoveryMeta?.attemptsUsed,
+        classifier: streamState.lastRecoveryMeta?.lastClassifier ?? null,
       });
       const persisted = persistVisibleFailureOutcome(marker);
       if (persisted) {
@@ -2402,7 +1975,7 @@ export async function processChat(
       hadIntermediateOutput,
       persistedIntermediateOutput,
       hadDraft,
-      recovery: lastRecoveryMeta,
+      recovery: streamState.lastRecoveryMeta,
     });
 
     const marker = buildTurnOutcomeMarker({
@@ -2411,8 +1984,8 @@ export async function processChat(
       title,
       detail: preview ? `${detail} Prompt: ${preview}` : detail,
       severity: "warning",
-      attemptsUsed: lastRecoveryMeta?.attemptsUsed,
-      classifier: lastRecoveryMeta?.lastClassifier ?? null,
+      attemptsUsed: streamState.lastRecoveryMeta?.attemptsUsed,
+      classifier: streamState.lastRecoveryMeta?.lastClassifier ?? null,
     });
     const persisted = persistVisibleFailureOutcome(marker);
     if (persisted) {
