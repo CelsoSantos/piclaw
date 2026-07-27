@@ -49,6 +49,7 @@ type MigrationDisposition =
   | "retain-experimental-emergency-override"
   | "retain-experimental-extension-gate"
   | "retain-harness-compatibility"
+  | "retain-network-bootstrap"
   | "retain-per-invocation-context"
   | "retain-secret-bootstrap"
   | "retain-secret-compatibility"

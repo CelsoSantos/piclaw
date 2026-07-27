@@ -6,18 +6,15 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 16 to 10",
+    "source": "accepted direct-reader reduction from 10 to 7",
     "names": [
       "PICLAW_CHAT_JID",
       "PICLAW_DB_IN_MEMORY",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_SKEL_DIR",
-      "PICLAW_WEB_EXTERNAL_URL",
       "PICLAW_WEB_HOST",
       "PICLAW_WEB_PORT",
-      "PICLAW_WEB_STATIC_DIR",
-      "PICLAW_WEB_TLS_CERT",
-      "PICLAW_WEB_TLS_KEY"
+      "PICLAW_WEB_STATIC_DIR"
     ],
     "added": [],
     "removed": []
@@ -57,30 +54,30 @@
   "current": {
     "production": {
       "referencedNames": 178,
-      "directReaderNames": 11,
-      "directReaderOccurrences": 20,
-      "helperReaderNames": 7,
-      "helperReaderOccurrences": 7,
+      "directReaderNames": 8,
+      "directReaderOccurrences": 16,
+      "helperReaderNames": 10,
+      "helperReaderOccurrences": 10,
       "semanticReaderNames": 18,
-      "semanticReaderOccurrences": 27
+      "semanticReaderOccurrences": 26
     },
     "runtimeSrc": {
       "referencedNames": 175,
-      "directReaderNames": 10,
-      "directReaderOccurrences": 17,
-      "helperReaderNames": 7,
-      "helperReaderOccurrences": 7,
+      "directReaderNames": 7,
+      "directReaderOccurrences": 14,
+      "helperReaderNames": 10,
+      "helperReaderOccurrences": 10,
       "semanticReaderNames": 17,
       "semanticReaderOccurrences": 24
     },
     "extensions": {
       "referencedNames": 7,
-      "directReaderNames": 3,
-      "directReaderOccurrences": 3,
+      "directReaderNames": 2,
+      "directReaderOccurrences": 2,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 3,
-      "semanticReaderOccurrences": 3
+      "semanticReaderNames": 2,
+      "semanticReaderOccurrences": 2
     },
     "tooling": {
       "referencedNames": 75,
@@ -6497,44 +6494,43 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 2,
-          "helperReaders": 0,
-          "semanticReaders": 2,
+          "directReaders": 0,
+          "helperReaders": 1,
+          "semanticReaders": 1,
           "files": [
             "runtime/extensions/integrations/remote-pair/index.ts",
             "runtime/src/agent-control/handlers/remote.ts",
+            "runtime/src/core/config-network-bootstrap.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/remote/service.ts"
           ],
           "readerFiles": [
-            "runtime/extensions/integrations/remote-pair/index.ts",
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "extensions": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
             "runtime/extensions/integrations/remote-pair/index.ts"
           ],
-          "readerFiles": [
-            "runtime/extensions/integrations/remote-pair/index.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
             "runtime/src/agent-control/handlers/remote.ts",
+            "runtime/src/core/config-network-bootstrap.ts",
             "runtime/src/core/config-sources.ts",
             "runtime/src/remote/service.ts"
           ],
           "readerFiles": [
-            "runtime/src/remote/service.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "tooling": {
@@ -7171,28 +7167,28 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts",
+            "runtime/src/core/config-sources.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts",
+            "runtime/src/core/config-sources.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "tooling": {
@@ -7222,28 +7218,28 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts",
+            "runtime/src/core/config-sources.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
-          "helperReaders": 0,
+          "directReaders": 0,
+          "helperReaders": 1,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts",
+            "runtime/src/core/config-sources.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config-web.ts"
+            "runtime/src/core/config-network-bootstrap.ts"
           ]
         },
         "tooling": {

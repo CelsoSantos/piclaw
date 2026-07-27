@@ -6,7 +6,6 @@ import { pickBoolean, pickNumber, pickString } from "./config-helpers.js";
 import {
   DEFAULT_TLS_CERT_PATH,
   DEFAULT_TLS_KEY_PATH,
-  envConfig,
   getConfigPath,
   getDomainConfigOptions,
   HAS_DEFAULT_TLS,
@@ -14,6 +13,7 @@ import {
   readCliArg,
   webConfig,
 } from "./config-context.js";
+import { getNetworkBootstrapConfig } from "./config-network-bootstrap.js";
 import { getWebSecretBootstrapConfig, setWebSecretCompatibilityValue } from "./config-secrets.js";
 import {
   boolField,
@@ -306,20 +306,13 @@ const webOrdinaryDomainSchema = registerDomainConfig<WebOrdinaryDomainConfig>({
 const WEB_ORDINARY_DOMAIN_CONFIG = readDomainConfig(webOrdinaryDomainSchema, getWebOrdinaryDomainConfigOptions());
 
 /** Grouped web server network/TLS settings. */
+const NETWORK_BOOTSTRAP_CONFIG = getNetworkBootstrapConfig();
 export const WEB_SERVER_CONFIG = Object.freeze<WebServerConfig>({
   port: parsePort(CLI_WEB_PORT, ENV_WEB_PORT),
   host: CLI_WEB_HOST || process.env.PICLAW_WEB_HOST || "0.0.0.0",
   idleTimeout: WEB_ORDINARY_DOMAIN_CONFIG.idleTimeout,
-  tlsCert:
-    CLI_WEB_TLS_CERT ||
-    process.env.PICLAW_WEB_TLS_CERT ||
-    envConfig.PICLAW_WEB_TLS_CERT ||
-    (HAS_DEFAULT_TLS ? DEFAULT_TLS_CERT_PATH : ""),
-  tlsKey:
-    CLI_WEB_TLS_KEY ||
-    process.env.PICLAW_WEB_TLS_KEY ||
-    envConfig.PICLAW_WEB_TLS_KEY ||
-    (HAS_DEFAULT_TLS ? DEFAULT_TLS_KEY_PATH : ""),
+  tlsCert: CLI_WEB_TLS_CERT || NETWORK_BOOTSTRAP_CONFIG.tlsCert || (HAS_DEFAULT_TLS ? DEFAULT_TLS_CERT_PATH : ""),
+  tlsKey: CLI_WEB_TLS_KEY || NETWORK_BOOTSTRAP_CONFIG.tlsKey || (HAS_DEFAULT_TLS ? DEFAULT_TLS_KEY_PATH : ""),
 });
 
 /** Return grouped web server settings for WebChannel wiring and tests. */
