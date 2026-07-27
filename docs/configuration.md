@@ -280,6 +280,7 @@ Piclaw's `/login` provider picker uses Earendil's runtime provider catalog plus 
 - Radius (`radius`) — supports OAuth subscription login and API-key gateways.
 - NVIDIA (`nvidia`) and Together (`together`) — API-key providers.
 - Ant Ling (`ant-ling`) — API-key provider.
+- Amazon Bedrock (`amazon-bedrock`) — external AWS credential chain or Bedrock bearer token; see [Amazon Bedrock](providers/amazon-bedrock.md) for Claude Opus 5 inference profiles, regions, caching, and the opt-in smoke command.
 
 Use `/login <provider-id>` to configure one of these providers directly. Provider composition details are available in the `/agent/models` payload under `provider_diagnostics`; the payload includes non-secret auth source/label and composition flags.
 
