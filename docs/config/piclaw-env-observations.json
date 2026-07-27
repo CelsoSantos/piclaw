@@ -66,7 +66,7 @@
   },
   "current": {
     "production": {
-      "referencedNames": 177,
+      "referencedNames": 178,
       "directReaderNames": 21,
       "directReaderOccurrences": 59,
       "helperReaderNames": 1,
@@ -75,7 +75,7 @@
       "semanticReaderOccurrences": 60
     },
     "runtimeSrc": {
-      "referencedNames": 174,
+      "referencedNames": 175,
       "directReaderNames": 20,
       "directReaderOccurrences": 54,
       "helperReaderNames": 1,
@@ -102,7 +102,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 128,
+      "referencedNames": 129,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -6168,6 +6168,43 @@
     {
       "name": "PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS",
       "scopes": {
+        "production": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "runtime/src/core/config-sources.ts",
+            "runtime/src/core/config.ts"
+          ],
+          "readerFiles": []
+        },
+        "runtimeSrc": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "runtime/src/core/config-sources.ts",
+            "runtime/src/core/config.ts"
+          ],
+          "readerFiles": []
+        }
+      }
+    },
+    {
+      "name": "PICLAW_TURN_MAX_TOOL_EXECUTIONS",
+      "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
           "directReaders": 0,

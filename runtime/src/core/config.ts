@@ -372,11 +372,17 @@ interface AgentDomainConfig extends AgentRuntimeConfig {
 }
 
 const legacyTurnMaxToolUseMessages = pickNumber(piclawConfig, [
+  "turnMaxToolExecutions",
+  "turn_max_tool_executions",
   "turnMaxToolUseMessages",
   "turn_max_tool_use_messages",
   "toolUseBudget",
   "tool_use_budget",
+  "PICLAW_TURN_MAX_TOOL_EXECUTIONS",
   "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
+  "midTurnToolExecutionHardCeiling",
+  "mid_turn_tool_execution_hard_ceiling",
+  "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
 ]);
 const configMidTurnToolExecutionHardCeiling = pickNumber(piclawConfig, [
   "midTurnToolExecutionHardCeiling",
@@ -421,11 +427,15 @@ const agentRuntimeDomainSchema = registerDomainConfig<AgentDomainConfig>({
       defaultValue: legacyTurnMaxToolUseMessages ?? 64,
       min: 1,
       max: 512,
-      bounds: "1..512 messages (Settings writes clamp to >=8)",
+      bounds: "1..512 completed tool executions (Settings writes clamp to >=8)",
       persistence: "json-config",
       precedence: ["compat-env", "persisted", "default"],
       secretClass: "none",
-      compatibilityEnv: [{ envKey: "PICLAW_TURN_MAX_TOOL_USE_MESSAGES", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0" }],
+      compatibilityEnv: [
+        { envKey: "PICLAW_TURN_MAX_TOOL_EXECUTIONS", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0", skipInvalid: true },
+        { envKey: "PICLAW_TURN_MAX_TOOL_USE_MESSAGES", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0", skipInvalid: true },
+        { envKey: "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING", replacement: "domains.agent.toolUseMessageBudget", removalVersion: "3.0.0", parse: (raw) => { const value = Number(raw); return Number.isFinite(value) && value > 0 ? Math.min(512, Math.max(1, Math.round(value))) : undefined; }, skipInvalid: true },
+      ],
     }),
     midTurnToolExecutionHardCeiling: integerField({
       key: "midTurnToolExecutionHardCeiling",
@@ -1826,8 +1836,10 @@ export function getProgressWatchdogConfig(): Readonly<ProgressWatchdogConfig> {
   });
 }
 
-/** Current per-turn tool-use budget used by the agent orchestrator. */
-export let TOOL_USE_MESSAGE_BUDGET = AGENT_DOMAIN_CONFIG.toolUseMessageBudget;
+/** Authoritative completed tool-execution budget for one user turn. */
+export let TOOL_USE_BUDGET = AGENT_DOMAIN_CONFIG.toolUseMessageBudget;
+/** @deprecated Use TOOL_USE_BUDGET; retained for API compatibility. */
+export let TOOL_USE_MESSAGE_BUDGET = TOOL_USE_BUDGET;
 
 /** Max tool result chars before auto-externalization. Default 5000. */
 export let TOOL_OUTPUT_STORE_THRESHOLD = getToolsIntegrationConfig().toolOutputStoreBytes;
@@ -2037,20 +2049,25 @@ export function setToolResultCompactionEnabled(enabled: boolean): boolean {
   return TOOL_RESULT_COMPACTION_ENABLED;
 }
 
+export function getToolUseBudget(): number {
+  return readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions()).toolUseMessageBudget;
+}
+
+/** @deprecated Use getToolUseBudget(); the setting counts completed tool executions. */
 export function getToolUseMessageBudget(): number {
-  return TOOL_USE_MESSAGE_BUDGET;
+  return getToolUseBudget();
 }
 
-/** Return the hard ceiling for executed tools inside one prompt attempt. */
+/** @deprecated The former per-attempt ceiling is now the authoritative per-turn budget. */
 export function getMidTurnToolExecutionHardCeiling(): number {
-  return readDomainConfig(agentRuntimeDomainSchema, getDomainConfigOptions()).midTurnToolExecutionHardCeiling;
+  return getToolUseBudget();
 }
 
-/** Persist and apply the tool-use budget so subsequent turns use it immediately. */
-export function setToolUseMessageBudget(budget: number): number {
+/** Persist and apply the authoritative tool-execution budget for subsequent turns. */
+export function setToolUseBudget(budget: number): number {
   const nextBudget = Number.isFinite(budget)
     ? Math.min(512, Math.max(8, Math.round(Number(budget))))
-    : TOOL_USE_MESSAGE_BUDGET;
+    : TOOL_USE_BUDGET;
   const resolved = writeDomainConfigField(
     agentRuntimeDomainSchema,
     getDomainConfigOptions(),
@@ -2058,8 +2075,14 @@ export function setToolUseMessageBudget(budget: number): number {
     nextBudget,
   );
   Object.assign(AGENT_DOMAIN_CONFIG, resolved);
-  TOOL_USE_MESSAGE_BUDGET = resolved.toolUseMessageBudget;
-  return TOOL_USE_MESSAGE_BUDGET;
+  TOOL_USE_BUDGET = resolved.toolUseMessageBudget;
+  TOOL_USE_MESSAGE_BUDGET = TOOL_USE_BUDGET;
+  return TOOL_USE_BUDGET;
+}
+
+/** @deprecated Use setToolUseBudget(); retained for API compatibility. */
+export function setToolUseMessageBudget(budget: number): number {
+  return setToolUseBudget(budget);
 }
 
 function parseOptionalNonNegativeInt(value: unknown, fallback: number): number {
