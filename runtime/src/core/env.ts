@@ -19,6 +19,16 @@ export function readMergedEnvValue(name: string, envValues: Record<string, strin
   return readEnvValue(name) ?? envValues[name];
 }
 
+/** Update one process-scoped compatibility value at call time. */
+export function writeEnvValue(name: string, value: string): void {
+  process.env[name] = value;
+}
+
+/** Clear one process-scoped compatibility value at call time. */
+export function clearEnvValue(name: string): void {
+  delete process.env[name];
+}
+
 /**
  * Parse a `.env` file from `process.cwd()` and return a map of the requested keys.
  *

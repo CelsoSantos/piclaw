@@ -33,6 +33,7 @@ import {
 import { streamSimple as streamSimpleOpenAICompletions } from "@earendil-works/pi-ai/api/openai-completions";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { getWebSecretBootstrapConfig } from "../../src/core/config-secrets.js";
 
 import {
   tryNormalizeFoundryServiceBase,
@@ -941,11 +942,7 @@ function saveImages(prefix: string, prompt: string, images: Array<{ b64_json?: s
 
 const PICLAW_PORT = process.env.PICLAW_WEB_PORT || process.env.PICLAW_PORT || "8080";
 const PICLAW_BASE = `http://localhost:${PICLAW_PORT}`;
-const INTERNAL_SECRET =
-  process.env.PICLAW_INTERNAL_SECRET ||
-  process.env.PICLAW_WEB_INTERNAL_SECRET ||
-  process.env.WEB_INTERNAL_SECRET ||
-  "";
+const INTERNAL_SECRET = getWebSecretBootstrapConfig().internalSecret || process.env.WEB_INTERNAL_SECRET || "";
 
 async function postPlaceholder(content: string, threadId?: number): Promise<number | string | null> {
   try {

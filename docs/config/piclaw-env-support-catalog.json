@@ -1264,11 +1264,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": "PICLAW_WEB_INTERNAL_SECRET",
-      "deprecation": null,
+      "deprecation": "retained process/.env secret bootstrap alias; not persisted by typed domain config",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-secrets.ts internal-secret primary bootstrap alias (#810B)",
+      "migrationDisposition": "retain-secret-bootstrap"
     },
     {
       "name": "PICLAW_KEYCHAIN_KEY",
@@ -1286,11 +1286,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained process-only keychain master-key bootstrap; never persisted to JSON",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-secrets.ts keychain process-env bootstrap (#810B)",
+      "migrationDisposition": "retain-secret-bootstrap"
     },
     {
       "name": "PICLAW_KEYCHAIN_KEY_FILE",
@@ -1308,11 +1308,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained process-only keychain key-file bootstrap; never persisted to JSON",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-secrets.ts keychain key-file bootstrap (#810B)",
+      "migrationDisposition": "retain-secret-bootstrap"
     },
     {
       "name": "PICLAW_LOG_LEVEL",
@@ -3805,11 +3805,11 @@
       ],
       "status": "compatibility",
       "compatibilityAliasFor": "PICLAW_WEB_TOTP_SECRET",
-      "deprecation": "compatibility alias",
-      "removalVersion": null,
+      "deprecation": "legacy TOTP alias; prefer PICLAW_WEB_TOTP_SECRET or keychain/service environment",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-web.ts legacy TOTP alias compatibility",
+      "migrationDisposition": "retain-secret-compatibility"
     },
     {
       "name": "PICLAW_TRUST_PROXY",
@@ -4299,11 +4299,11 @@
       ],
       "status": "bootstrap",
       "compatibilityAliasFor": null,
-      "deprecation": null,
+      "deprecation": "retained process/.env secret bootstrap alias; not persisted by typed domain config",
       "removalVersion": null,
       "bootstrapAllowed": true,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "investigate"
+      "source": "runtime/src/core/config-secrets.ts internal-secret web alias (#810B)",
+      "migrationDisposition": "retain-secret-bootstrap"
     },
     {
       "name": "PICLAW_WEB_MAX_CONTENT_CHARS",
@@ -4752,7 +4752,7 @@
       "deprecation": "plaintext JSON is a legacy compatibility path; new deployment secrets use keychain/service environment",
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "web authentication secret compatibility path; legacy runtime setters predate #747",
+      "source": "runtime/src/core/config-secrets.ts web TOTP secret bootstrap and config-web runtime rotation (#810B)",
       "migrationDisposition": "retain-secret-compatibility",
       "supportedPersistence": [
         "env",
@@ -4904,7 +4904,7 @@
       "deprecation": "plaintext JSON is a legacy compatibility path; new deployment secrets use keychain/service environment",
       "removalVersion": null,
       "bootstrapAllowed": false,
-      "source": "web widget token compatibility path; legacy runtime setters predate #747",
+      "source": "runtime/src/core/config-secrets.ts widget-token secret bootstrap and config-web runtime rotation (#810B)",
       "migrationDisposition": "retain-secret-compatibility",
       "supportedPersistence": [
         "env",
