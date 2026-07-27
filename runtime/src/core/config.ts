@@ -26,7 +26,7 @@ import { readEnvFile } from "./env.js";
 import { readJsonConfig, writeJsonConfig } from "./config-store.js";
 import { createLogger } from "../utils/logger.js";
 import { parseLogLevel, setConfiguredLogLevelFallback, type LogLevel } from "../utils/log-level.js";
-import { DAY_MS, DEFAULT_LOG_RETENTION_CAP_MS, clampLogRetentionMs } from "../utils/log-layout.js";
+import { DAY_MS, DEFAULT_LOG_RETENTION_CAP_MS } from "../utils/log-layout.js";
 import { parsePositiveIntStrict } from "../utils/strict-int.js";
 import {
   boolField,
@@ -709,6 +709,11 @@ const legacyWorkspaceSearchExtensions = pickStringArray(toolsConfig, [
   "workspace_search_extensions",
   "PICLAW_WORKSPACE_SEARCH_EXTENSIONS",
 ]);
+const legacySearchMatchMode = pickString(toolsConfig, [
+  "searchMatchMode",
+  "search_match_mode",
+  "PICLAW_SEARCH_MATCH_MODE",
+]);
 const legacyScopedModelsOnly = pickBoolean(modelsConfig, [
   "scopedModelsOnly",
   "scoped_models_only",
@@ -722,6 +727,8 @@ export interface ToolResultCompactionThresholdPolicy {
 }
 
 /** Typed provider/tool integration settings migrated from runtime env support. */
+export type SearchMatchMode = "or" | "and";
+
 export interface ToolsIntegrationConfig {
   githubCopilotDynamicModels: boolean;
   githubCopilotModelsTimeoutMs: number;
@@ -731,6 +738,7 @@ export interface ToolsIntegrationConfig {
   scopedModelsOnly: boolean;
   workspaceSearchRoots: string[];
   workspaceSearchExtensions: string[];
+  searchMatchMode: SearchMatchMode;
   toolOutputStoreBytes: number;
   toolOutputStoreLines: number;
   toolOutputPreviewLines: number;
@@ -858,6 +866,12 @@ const toolsIntegrationDomainSchema = registerDomainConfig<ToolsIntegrationConfig
       secretClass: "none",
       compatibilityEnv: [{ envKey: "PICLAW_WORKSPACE_SEARCH_EXTENSIONS", replacement: "domains.tools.workspaceSearchExtensions", removalVersion: "3.0.0", parse: (raw) => raw.split(","), skipInvalid: true }],
     },
+    searchMatchMode: {
+      ...stringField({ key: "searchMatchMode", owner: "workspace", defaultValue: legacySearchMatchMode === "and" ? "and" : "or", allowedValues: ["or", "and"], persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_SEARCH_MATCH_MODE", replacement: "domains.tools.searchMatchMode", removalVersion: "3.0.0", parse: (raw) => raw.trim().toLowerCase(), skipInvalid: true }] }),
+      validate(value: unknown) {
+        return String(value).trim().toLowerCase() === "and" ? "and" : "or";
+      },
+    } as DomainConfigField<SearchMatchMode>,
     toolOutputStoreBytes: integerField({ key: "toolOutputStoreBytes", owner: "tools", defaultValue: 5_000, min: 500, max: 100_000, bounds: "500..100000 bytes", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_BYTES", replacement: "domains.tools.toolOutputStoreBytes", removalVersion: "3.0.0", skipInvalid: true }] }),
     toolOutputStoreLines: integerField({ key: "toolOutputStoreLines", owner: "tools", defaultValue: 40, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_STORE_LINES", replacement: "domains.tools.toolOutputStoreLines", removalVersion: "3.0.0", skipInvalid: true }] }),
     toolOutputPreviewLines: integerField({ key: "toolOutputPreviewLines", owner: "tools", defaultValue: 8, min: 1, bounds: "positive integer lines", persistence: "json-config", precedence: ["compat-env", "persisted", "default"], secretClass: "none", compatibilityEnv: [{ envKey: "PICLAW_TOOL_OUTPUT_PREVIEW_LINES", replacement: "domains.tools.toolOutputPreviewLines", removalVersion: "3.0.0", skipInvalid: true }] }),
@@ -1629,12 +1643,6 @@ const configAdditionalDefaultTools = pickStringArray(toolsConfig, [
   "additional_default_tools",
   "PICLAW_ADDITIONAL_DEFAULT_TOOLS",
 ]);
-const configSearchMatchMode = pickString(toolsConfig, [
-  "searchMatchMode",
-  "search_match_mode",
-  "PICLAW_SEARCH_MATCH_MODE",
-]);
-
 /** Typed session-file safeguards grouped for runtime/session wiring. */
 export interface SessionStorageConfig {
   maxSizeMb: number;
@@ -2003,11 +2011,6 @@ export let TOOL_USE_MESSAGE_BUDGET = AGENT_DOMAIN_CONFIG.toolUseMessageBudget;
 /** Max tool result chars before auto-externalization. Default 5000. */
 export let TOOL_OUTPUT_STORE_THRESHOLD = getToolsIntegrationConfig().toolOutputStoreBytes;
 
-export interface ToolResultCompactionThresholdPolicy {
-  bytes?: number;
-  lines?: number;
-}
-
 function normalizeToolPolicyThreshold(value: unknown): number | undefined {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
@@ -2050,8 +2053,6 @@ function parseToolResultCompactionThresholdsByTool(
   return normalizeToolResultCompactionThresholdsByTool(raw);
 }
 
-const DEFAULT_TOOL_RESULT_COMPACTION_TOOLS = ["bash", "powershell", "exec_batch"];
-
 function normalizeToolResultCompactionTools(input: unknown): string[] {
   if (!input) return [];
   const source = Array.isArray(input)
@@ -2090,11 +2091,6 @@ export interface ToolResultSemanticSummaryConfig {
   maxTokens: number;
   timeoutMs: number;
 }
-
-const DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_ENABLED = true;
-const DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_INPUT_CHARS = 12_000;
-const DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_MAX_TOKENS = 320;
-const DEFAULT_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS = 12_000;
 
 function parsePositiveIntegerWithBounds(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value);
@@ -2637,9 +2633,6 @@ export const TOOL_ACTIVATION_CONFIG = Object.freeze<ToolActivationConfig>({
   additionalDefaultTools: configAdditionalDefaultTools ?? [],
 });
 
-/** FTS match mode for multi-word queries: "or" = any keyword, "and" = all keywords. */
-export type SearchMatchMode = "or" | "and";
-
 /** Typed workspace-search config grouped for FTS root and extension selection. */
 export interface WorkspaceSearchConfig {
   roots: string[];
@@ -2668,42 +2661,14 @@ export function getWorkspaceSearchConfig(): Readonly<WorkspaceSearchConfig> {
 // Search match mode – controls whether multi-word FTS queries use OR or AND.
 // ---------------------------------------------------------------------------
 
-function parseSearchMatchMode(raw: string | null | undefined): SearchMatchMode {
-  const lower = (raw ?? "").trim().toLowerCase();
-  return lower === "and" ? "and" : "or";
-}
-
-let SEARCH_MATCH_MODE: SearchMatchMode = parseSearchMatchMode(
-  process.env.PICLAW_SEARCH_MATCH_MODE ?? configSearchMatchMode,
-);
-
 /** Return the current FTS match mode ("or" = any keyword, "and" = all keywords). */
 export function getSearchMatchMode(): SearchMatchMode {
-  // Read dynamically so test env overrides take effect.
-  const envOverride = process.env.PICLAW_SEARCH_MATCH_MODE?.trim().toLowerCase();
-  if (envOverride === "and" || envOverride === "or") return envOverride;
-  return SEARCH_MATCH_MODE;
+  return getToolsIntegrationConfig().searchMatchMode;
 }
 
 /** Persist and apply the search match mode. */
 export function setSearchMatchMode(mode: SearchMatchMode): SearchMatchMode {
-  const nextMode: SearchMatchMode = mode === "and" ? "and" : "or";
-  const config = readJsonConfig(getConfigPath());
-  const tools =
-    config.tools && typeof config.tools === "object"
-      ? { ...(config.tools as Record<string, unknown>) }
-      : {};
-  const clearKeys = ["searchMatchMode", "search_match_mode", "PICLAW_SEARCH_MATCH_MODE"];
-  for (const key of clearKeys) {
-    delete tools[key];
-  }
-  tools.searchMatchMode = nextMode;
-  config.tools = tools;
-  writeJsonConfig(getConfigPath(), config);
-
-  process.env.PICLAW_SEARCH_MATCH_MODE = nextMode;
-  SEARCH_MATCH_MODE = nextMode;
-  return SEARCH_MATCH_MODE;
+  return writeDomainConfigField(toolsIntegrationDomainSchema, getDomainConfigOptions(), "searchMatchMode", mode === "and" ? "and" : "or").searchMatchMode;
 }
 
 // ---------------------------------------------------------------------------
@@ -2898,17 +2863,6 @@ export interface RetentionCleanupConfig {
 function parsePositiveInteger(value: string | undefined): number | undefined {
   const parsed = parsePositiveIntStrict(value, 0);
   return parsed > 0 ? parsed : undefined;
-}
-
-function parseRetentionMs(msValue: string | undefined, daysValue: string | undefined): number | undefined {
-  const explicitMs = parsePositiveInteger(msValue);
-  if (explicitMs !== undefined) return explicitMs;
-  const explicitDays = parsePositiveInteger(daysValue);
-  return explicitDays !== undefined ? explicitDays * DAY_MS : undefined;
-}
-
-function parseCleanupIntervalMs(value: string | undefined, fallback: number): number {
-  return parsePositiveInteger(value) ?? fallback;
 }
 
 const DEFAULT_RETENTION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;

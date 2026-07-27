@@ -79,6 +79,7 @@ Bootstrap environment variables are reviewed as an allowlist in the inventory. T
 | `PICLAW_WEB_TLS_CERT` | _(empty)_ | Path to TLS certificate; enables HTTPS |
 | `PICLAW_WEB_TLS_KEY` | _(empty)_ | Path to TLS private key; enables HTTPS |
 | `PICLAW_WEB_MAX_CONTENT_CHARS` | `262144` | Compatibility alias for `domains.web.contentMaxChars`; max message size in characters, with oversized messages truncated with metadata. |
+| `PICLAW_SEARCH_MATCH_MODE` | `or` | Compatibility alias for `domains.tools.searchMatchMode`; choose `or` (any keyword) or `and` (all keywords) for multi-word FTS queries. |
 | `PICLAW_WEB_PREVIEW_CHARS` | `16000` | Compatibility alias for `domains.web.contentPreviewChars`; preview threshold, capped at the hard content limit. |
 | `PICLAW_TRUST_PROXY` | `0` | Trust `Forwarded` / `X-Forwarded-*` headers from a reverse proxy for origin, host, proto, and client IP handling |
 
@@ -751,7 +752,7 @@ You can gate the entire web UI behind a 6-digit TOTP challenge and optionally en
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `PICLAW_WEB_TOTP_SECRET` | _(empty)_ | Base32 TOTP secret. When set, `/login` requires a 6-digit code before issuing a `piclaw_session` cookie. Leave unset to keep the UI open until you initialize TOTP with `/totp`. |
+| `PICLAW_WEB_TOTP_SECRET` | _(empty)_ | Base32 TOTP secret. When set, `/login` requires a 6-digit code before issuing a `piclaw_session` cookie. Prefer keychain/service-environment storage; plaintext JSON remains a legacy compatibility path for the existing `/totp` flow. |
 | `PICLAW_WEB_PASSKEY_MODE` | `totp-fallback` | Passkey mode: `totp-fallback`, `passkey-only`, or `totp-only`. |
 | `PICLAW_WEB_TOTP_WINDOW` | `1` | TOTP step skew (number of 30s windows to accept on either side). |
 | `PICLAW_WEB_SESSION_TTL` | `604800` (7 days) | Session cookie lifetime in seconds. |

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "accepted direct-reader reduction from 23 to 21",
+  "source": "accepted direct-reader reduction from 21 to 20",
   "names": [
     "PICLAW_CHAT_JID",
     "PICLAW_DATA",
@@ -10,7 +10,6 @@
     "PICLAW_KEYCHAIN_KEY_FILE",
     "PICLAW_RUNTIME_DOCS_DIR",
     "PICLAW_RUNTIME_ROOT",
-    "PICLAW_SEARCH_MATCH_MODE",
     "PICLAW_SKEL_DIR",
     "PICLAW_STORE",
     "PICLAW_WEB_EXTERNAL_URL",

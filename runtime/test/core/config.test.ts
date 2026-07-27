@@ -981,6 +981,28 @@ describe("core config", () => {
     }
   });
 
+  test("search match mode uses domains.tools precedence and no env mutation", () => {
+    const workspace = createTempWorkspace("piclaw-domain-config-search-match-");
+    try {
+      writeWorkspaceConfig(workspace.workspace, { domains: { tools: { searchMatchMode: "or" } } });
+      const compat = runConfigSubprocess(workspace, [
+        "call:getSearchMatchMode",
+        "env-unchanged:PICLAW_SEARCH_MATCH_MODE",
+      ], { env: { PICLAW_SEARCH_MATCH_MODE: "and" } });
+      expect(compat.snapshot["call:getSearchMatchMode"]).toBe("and");
+      expect(compat.snapshot["env-unchanged:PICLAW_SEARCH_MATCH_MODE"]).toBe(true);
+      expectCompatWarningOnce(compat.stderr, "PICLAW_SEARCH_MATCH_MODE");
+
+      const persisted = runConfigSubprocess(workspace, ["call:getSearchMatchMode"], {
+        noEnvFile: true,
+        env: { PICLAW_SEARCH_MATCH_MODE: undefined },
+      });
+      expect(persisted.snapshot["call:getSearchMatchMode"]).toBe("or");
+    } finally {
+      workspace.cleanup();
+    }
+  });
+
   test("tools workspace aliases preserve restart precedence and do not mutate process.env", () => {
     const workspace = createTempWorkspace("piclaw-domain-config-tools-workspace-");
     try {
