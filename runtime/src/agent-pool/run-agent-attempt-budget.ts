@@ -142,6 +142,7 @@ export function createAttemptToolBudgetController(options: {
       } else if (pendingSoftStopAnonymousToolCallCount > 0) {
         pendingSoftStopAnonymousToolCallCount -= 1;
       }
+      maybeApplyPendingToolBudgetSoftStop(options.toolUseMessageBudget);
       if (isError === true) {
         if (state.toolUseSoftStopApplied) state.hadToolFailureAfterSoftStop = true;
         else state.hadToolFailureBeforeSoftStop = true;
