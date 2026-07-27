@@ -11,14 +11,14 @@ import {
   getIdentityConfig,
   getOrCreateWebWidgetToken,
   getSessionStorageConfig,
-  getToolUseMessageBudget,
+  getToolUseBudget,
   getWebRuntimeConfig,
   getSearchMatchMode,
   getScopedModelsOnly,
   setAssistantAvatar,
   setAssistantName,
   setSessionStorageConfig,
-  setToolUseMessageBudget,
+  setToolUseBudget,
   getToolOutputStoreThreshold,
   setToolOutputStoreThreshold,
   setSearchMatchMode,
@@ -196,7 +196,7 @@ export function getGeneralSettingsData(): GeneralSettingsData {
     webTerminalEnabled: web.terminalEnabled,
     composeUploadLimitMb: web.composeUploadLimitMb,
     workspaceUploadLimitMb: web.workspaceUploadLimitMb,
-    toolUseBudget: getToolUseMessageBudget(),
+    toolUseBudget: getToolUseBudget(),
     toolOutputStoreThreshold: getToolOutputStoreThreshold(),
     sessionMaxCompactions: session.maxCompactionsBeforeRotation,
     instanceTotp: buildTotpSettingsData(),
@@ -277,7 +277,7 @@ export async function saveGeneralSettings(input: GeneralSettingsInput): Promise<
 
   const nextToolUseBudget = normalizeOptionalInt(input.toolUseBudget, 8, 512);
   if (nextToolUseBudget !== undefined) {
-    setToolUseMessageBudget(nextToolUseBudget);
+    setToolUseBudget(nextToolUseBudget);
   }
 
   const nextToolOutputThreshold = normalizeOptionalInt(input.toolOutputStoreThreshold, 500, 100000);

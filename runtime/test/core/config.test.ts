@@ -684,7 +684,7 @@ describe("core config", () => {
     try {
       writeWorkspaceConfig(workspace.workspace, {
         domains: {
-          agent: { midTurnToolExecutionHardCeiling: 72 },
+          agent: { toolUseMessageBudget: 72, midTurnToolExecutionHardCeiling: 48 },
           compaction: {
             autoCompactionEnabled: false,
             smartCompactionMethod: "pipelined",
@@ -1544,13 +1544,13 @@ describe("core config", () => {
     }
   });
 
-  test("mid-turn tool execution hard ceiling defaults, overrides, and clamps", () => {
+  test("legacy mid-turn ceiling aliases resolve through the authoritative execution budget", () => {
     const workspace = createTempWorkspace("piclaw-config-");
     try {
       const defaults = loadConfigInSubprocess(workspace, ["call:getMidTurnToolExecutionHardCeiling"], {
         env: { PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: undefined },
       });
-      expect(defaults["call:getMidTurnToolExecutionHardCeiling"]).toBe(48);
+      expect(defaults["call:getMidTurnToolExecutionHardCeiling"]).toBe(64);
 
       const overridden = loadConfigInSubprocess(workspace, ["call:getMidTurnToolExecutionHardCeiling"], {
         env: { PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "96" },
@@ -1560,7 +1560,7 @@ describe("core config", () => {
       const invalid = loadConfigInSubprocess(workspace, ["call:getMidTurnToolExecutionHardCeiling"], {
         env: { PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "not-a-number" },
       });
-      expect(invalid["call:getMidTurnToolExecutionHardCeiling"]).toBe(48);
+      expect(invalid["call:getMidTurnToolExecutionHardCeiling"]).toBe(64);
 
       const capped = loadConfigInSubprocess(workspace, ["call:getMidTurnToolExecutionHardCeiling"], {
         env: { PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING: "9999" },

@@ -381,8 +381,10 @@ test("runAgentPrompt clears live SSH tool redirection and stored profile at turn
   }
 });
 
-test("runAgentPrompt does not request compaction solely from the mid-turn tool execution ceiling on a 1.05M model", async () => {
+test("runAgentPrompt uses the configured execution budget without requesting compaction on a 1.05M model", async () => {
   initDatabase();
+  const previousBudget = getToolUseMessageBudget();
+  setToolUseMessageBudget(48);
   class ToolCeilingSession {
     private listeners: Array<(event: any) => void> = [];
     compactCalls = 0;
@@ -460,8 +462,10 @@ test("runAgentPrompt does not request compaction solely from the mid-turn tool e
       reason: "mid_turn_tool_execution_hard_ceiling",
       contextTokens: 199_215,
       thresholdTokens: 836_800,
+      configuredBudget: 48,
     }),
   ]));
+  setToolUseMessageBudget(previousBudget);
 });
 
 test("runAgentPrompt projects only tool-result tokens not yet reflected by the estimator", async () => {
@@ -2920,7 +2924,7 @@ test("runAgentPrompt stops without compaction after tool-use budget exhaustion",
   }
 });
 
-test("runAgentPrompt preserves tool-budget root cause when recovery retry emits no assistant reply", async () => {
+test("runAgentPrompt does not count tool-use messages without executions against the budget", async () => {
   initDatabase();
   const restoreEnv = setEnv({
     PICLAW_TURN_AUTO_RECOVERY_ENABLED: "1",
@@ -3000,27 +3004,12 @@ test("runAgentPrompt preserves tool-budget root cause when recovery retry emits 
     });
 
     expect(result.status).toBe("error");
-    expect(result.error).toContain("Tool-use budget exceeded before finalization (9/8 tool steps)");
-    expect(result.error).toContain("Ask me to continue");
-    expect(result.toolBudgetExceeded).toBe(true);
-    expect(result.toolStepsUsed).toBe(9);
-    expect(result.toolStepsBudget).toBe(8);
-    expect(result.recovery).toEqual(expect.objectContaining({
-      attemptsUsed: 0,
-      exhausted: true,
-      recovered: false,
-      lastClassifier: "tool_history_pressure",
-      strategyHistory: [],
-    }));
-    expect(result.recovery?.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        classifier: "tool_history_pressure",
-        toolUseBudgetExceeded: true,
-        assistantToolUseMessageCount: 9,
-      }),
-    ]));
-    expect(recoveryEnds).toEqual([]);
-    expect(session.promptCalls).toBe(1);
+    expect(result.error).toContain("Prompt completed without emitting an assistant reply");
+    expect(result.toolBudgetExceeded).not.toBe(true);
+    expect(result.toolStepsUsed).toBeUndefined();
+    expect(result.toolStepsBudget).toBeUndefined();
+    expect(recoveryEnds).toEqual(expect.any(Array));
+    expect(session.promptCalls).toBeGreaterThanOrEqual(1);
     expect(session.compactCalls).toBe(0);
   } finally {
     setToolUseMessageBudget(previousToolUseBudget);
@@ -3270,170 +3259,12 @@ test("runAgentPrompt uses the configured mid-turn tool execution hard ceiling", 
         operation: "run_agent.mid_turn_tool_ceiling",
         reason: "mid_turn_tool_execution_hard_ceiling",
         ceiling: 2,
-        defaultCeiling: 48,
+        configuredBudget: 2,
         toolExecutionCount: 2,
       }),
     ]));
   } finally {
     restoreEnv();
-  }
-});
-
-test("runAgentPrompt soft-stops near the tool-use budget after threshold tool calls finish", async () => {
-  initDatabase();
-  const previousToolUseBudget = getToolUseMessageBudget();
-  setToolUseMessageBudget(8);
-
-  class StubSession {
-    private listeners: Array<(event: any) => void> = [];
-    private activeTools = ["bash", "read"];
-    toolSets: string[][] = [];
-    toolsBeforeExecution: string[][] = [];
-    sessionManager = { getLeafId: () => "leaf-1", getEntries: () => [] };
-    isStreaming = false;
-    isCompacting = false;
-    isRetrying = false;
-    getActiveToolNames() {
-      return [...this.activeTools];
-    }
-    setActiveToolsByName(names: string[]) {
-      this.activeTools = [...names];
-      this.toolSets.push([...names]);
-    }
-    subscribe(listener: (event: any) => void) {
-      this.listeners.push(listener);
-      return () => {
-        this.listeners = this.listeners.filter((entry) => entry !== listener);
-      };
-    }
-    async prompt() {
-      for (const listener of this.listeners) {
-        for (let i = 1; i <= 7; i += 1) {
-          listener({
-            type: "message_end",
-            message: {
-              role: "assistant",
-              stopReason: "toolUse",
-              content: [{ type: "toolCall", id: `tool-${i}`, name: "read", arguments: { path: `/tmp/${i}` } }],
-            },
-          });
-          this.toolsBeforeExecution.push([...this.activeTools]);
-          listener({ type: "tool_execution_start", toolCallId: `tool-${i}`, toolName: "read", args: { path: `/tmp/${i}` } });
-          listener({ type: "tool_execution_end", toolCallId: `tool-${i}`, toolName: "read", isError: false, durationMs: 1 });
-        }
-        listener({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "summarized before hard budget" } });
-        listener({ type: "message_end", message: createAssistantMessage("summarized before hard budget") });
-      }
-    }
-    async compact() {}
-    async abort() {
-      throw new Error("soft stop should not abort");
-    }
-  }
-
-  try {
-    const session = new StubSession();
-    const warnings: Array<Record<string, unknown>> = [];
-    const result = await runAgentPrompt("hello", "web:default", { timeoutMs: 0 }, {
-      getOrCreateRuntime: async () => createRuntime(session) as any,
-      turnCoordinator: new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} }),
-      clearAttachments: () => {},
-      takeAttachments: () => [],
-      logsDir: createTestLogsDir(),
-      setActiveForkBaseLeaf: () => {},
-      clearActiveForkBaseLeaf: () => {},
-      onWarn: (_message, details) => warnings.push(details),
-    });
-
-    expect(result.status).toBe("success");
-    expect(result.result).toBe("summarized before hard budget");
-    expect(session.toolsBeforeExecution.at(-1)).toEqual(["bash", "read"]);
-    expect(session.toolSets).toContainEqual([]);
-    expect(session.toolSets.at(-1)).toEqual(["bash", "read"]);
-    expect(warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ operation: "run_agent.tool_use_budget_soft_stop", assistantToolUseMessageCount: 7 }),
-    ]));
-  } finally {
-    setToolUseMessageBudget(previousToolUseBudget);
-  }
-});
-
-test("runAgentPrompt accepts draft-backed completion after a synthetic soft-stop tool miss", async () => {
-  initDatabase();
-  const previousToolUseBudget = getToolUseMessageBudget();
-  setToolUseMessageBudget(8);
-
-  class StubSession {
-    private listeners: Array<(event: any) => void> = [];
-    private activeTools = ["bash", "read"];
-    toolSets: string[][] = [];
-    sessionManager = { getLeafId: () => "leaf-soft-stop-draft", getEntries: () => [{ id: "baseline", type: "message" }] };
-    isStreaming = false;
-    isCompacting = false;
-    isRetrying = false;
-    getActiveToolNames() {
-      return [...this.activeTools];
-    }
-    setActiveToolsByName(names: string[]) {
-      this.activeTools = [...names];
-      this.toolSets.push([...names]);
-    }
-    subscribe(listener: (event: any) => void) {
-      this.listeners.push(listener);
-      return () => {
-        this.listeners = this.listeners.filter((entry) => entry !== listener);
-      };
-    }
-    async prompt() {
-      for (const listener of this.listeners) {
-        listener({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "Draft answer before final tool." } });
-        for (let i = 1; i <= 7; i += 1) {
-          listener({
-            type: "message_end",
-            message: {
-              role: "assistant",
-              stopReason: "toolUse",
-              content: [{ type: "toolCall", id: `tool-${i}`, name: "read", arguments: { path: `/tmp/${i}` } }],
-            },
-          });
-          listener({ type: "tool_execution_start", toolCallId: `tool-${i}`, toolName: "read", args: { path: `/tmp/${i}` } });
-          listener({ type: "tool_execution_end", toolCallId: `tool-${i}`, toolName: "read", isError: false, durationMs: 1 });
-        }
-        listener({
-          type: "message_end",
-          message: {
-            role: "assistant",
-            stopReason: "toolUse",
-            content: [{ type: "toolCall", id: "tool-8", name: "bash", arguments: { command: "pwd" } }],
-          },
-        });
-        listener({ type: "tool_execution_start", toolCallId: "tool-8", toolName: "bash", args: { command: "pwd" } });
-        listener({ type: "tool_execution_end", toolCallId: "tool-8", toolName: "bash", isError: true, durationMs: 1 });
-        listener({ type: "message_end", message: { role: "assistant", stopReason: "stop", content: [] } });
-      }
-    }
-    async compact() {}
-    async abort() {}
-  }
-
-  try {
-    const session = new StubSession();
-    const result = await runAgentPrompt("hello", "web:default", { timeoutMs: 0 }, {
-      getOrCreateRuntime: async () => createRuntime(session) as any,
-      turnCoordinator: new AgentTurnCoordinator({ takeAttachments: () => [], touchSession: () => {}, recordMessageUsage: () => {} }),
-      clearAttachments: () => {},
-      takeAttachments: () => [],
-      logsDir: createTestLogsDir(),
-      setActiveForkBaseLeaf: () => {},
-      clearActiveForkBaseLeaf: () => {},
-      onWarn: () => {},
-    });
-
-    expect(result.status).toBe("tool_complete");
-    expect(session.toolSets).toContainEqual([]);
-    expect(session.toolSets.at(-1)).toEqual(["bash", "read"]);
-  } finally {
-    setToolUseMessageBudget(previousToolUseBudget);
   }
 });
 

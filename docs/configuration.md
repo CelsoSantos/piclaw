@@ -318,8 +318,7 @@ For the packaged Azure managed-identity/static-key path and its additional token
 | `PICLAW_USER_AVATAR_BACKGROUND` | _(empty)_ | CSS background colour for the user avatar circle |
 | `PICLAW_SESSION_MAX_SIZE_MB` | `32` | Session file size threshold (MB) for auto-rotation warnings and pre-prompt rotation |
 | `PICLAW_SESSION_AUTO_ROTATE` | `1` | Automatically rotate oversized session files before the next prompt |
-| `PICLAW_TURN_MAX_TOOL_USE_MESSAGES` | `64` | Per-turn assistant tool-use message budget before soft-stop/recovery handling |
-| `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` | `48` | Last-resort executed-tool safety ceiling inside one prompt attempt; values above `512` are clamped. Reaching it does not itself imply context pressure or trigger compaction. |
+| `PICLAW_TURN_MAX_TOOL_EXECUTIONS` | `64` | Authoritative per-turn completed tool-execution budget. Settings persists `domains.agent.toolUseMessageBudget`; values are clamped to `8..512`. Legacy `PICLAW_TURN_MAX_TOOL_USE_MESSAGES` and `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` are lower-priority compatibility aliases. |
 | `PICLAW_SMART_COMPACTION_METHOD` | `selective` | Smart-compaction local processing method: `selective` or `pipelined` |
 | `PICLAW_REMOTE_COMPACTION_ENABLED` | `0` | Opt in to provider-native compaction before the selected local method |
 | `PICLAW_REMOTE_COMPACTION_TIMEOUT_MS` | `300000` | Provider-native compaction request deadline before deterministic local fallback; aligned with Codex's long-running compact endpoint |
@@ -350,7 +349,7 @@ For the packaged Azure managed-identity/static-key path and its additional token
 
 Notes:
 
-- `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` is separate from `PICLAW_TURN_MAX_TOOL_USE_MESSAGES`: the former counts executed tools inside one prompt attempt as a safety abort, while the latter is the visible per-turn tool-use budget.
+- The Settings **Tool use budget** is authoritative and counts completed tool executions across all attempts in one user turn. Piclaw warns near the limit without changing the advertised tool set, admits at most the configured number of executions (including parallel batches), and blocks additional calls before execution. The former `PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING` setting is ignored and removed when Settings saves the budget.
 - Tool output retention defaults to **30 days** and is capped at 30 days. `PICLAW_TOOL_OUTPUT_RETENTION_MS` overrides the legacy `PICLAW_TOOL_OUTPUT_RETENTION_DAYS`.
 - Tool-result compaction supports both a global gate (`PICLAW_TOOL_RESULT_COMPACTION_ENABLED`) and per-tool allowlisting (`PICLAW_TOOL_RESULT_COMPACTION_TOOLS`).
 - Semantic summaries are enabled by default for compacted tool results; if generation fails or times out (`PICLAW_TOOL_RESULT_SEMANTIC_SUMMARY_TIMEOUT_MS`), Piclaw falls back to preview-based summaries.

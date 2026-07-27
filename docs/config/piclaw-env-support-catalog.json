@@ -1576,8 +1576,8 @@
       "name": "PICLAW_MID_TURN_TOOL_EXECUTION_HARD_CEILING",
       "owner": "agent-runtime",
       "type": "integer",
-      "default": 48,
-      "bounds": "1..512 executed tools",
+      "default": 64,
+      "bounds": "1..512 completed tool executions",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -1591,12 +1591,12 @@
         "json-config",
         "defaults"
       ],
-      "status": "supported",
-      "compatibilityAliasFor": "domains.agent.midTurnToolExecutionHardCeiling",
-      "deprecation": "compatibility env alias for domains.agent.midTurnToolExecutionHardCeiling",
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.agent.toolUseMessageBudget",
+      "deprecation": "legacy per-attempt ceiling; now a lowest-priority alias for the per-turn completed-execution budget",
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "runtime/src/core/config.ts domain schema (#753C1)",
+      "source": "runtime/src/core/config.ts compatibility alias to domains.agent.toolUseMessageBudget",
       "migrationDisposition": "migrated-to-domain-config"
     },
     {
@@ -3938,11 +3938,42 @@
       "migrationDisposition": "migrated-to-domain-config"
     },
     {
-      "name": "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
-      "owner": "agent",
+      "name": "PICLAW_TURN_MAX_TOOL_EXECUTIONS",
+      "owner": "agent-runtime",
       "type": "integer",
       "default": 64,
-      "bounds": "1..512 messages (Settings writes clamp to >=8)",
+      "bounds": "1..512 completed tool executions (Settings writes clamp to >=8)",
+      "allowedValues": [],
+      "secret": false,
+      "persistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ],
+      "precedence": [
+        "compat-env",
+        "persisted",
+        "default"
+      ],
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.agent.toolUseMessageBudget",
+      "deprecation": "canonical environment compatibility alias for the typed per-turn execution budget",
+      "removalVersion": "3.0.0",
+      "bootstrapAllowed": false,
+      "source": "runtime/src/core/config.ts domains.agent.toolUseMessageBudget",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
+    },
+    {
+      "name": "PICLAW_TURN_MAX_TOOL_USE_MESSAGES",
+      "owner": "agent-runtime",
+      "type": "integer",
+      "default": 64,
+      "bounds": "1..512 completed tool executions (Settings writes clamp to >=8)",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -3956,12 +3987,12 @@
         "json-config",
         "defaults"
       ],
-      "status": "supported",
+      "status": "compatibility",
       "compatibilityAliasFor": "domains.agent.toolUseMessageBudget",
-      "deprecation": "compatibility env alias for domains.agent.toolUseMessageBudget",
+      "deprecation": "legacy message-count name; now maps to the authoritative completed-execution budget",
       "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "runtime/src/core/config.ts domain schema (#753A1)",
+      "source": "runtime/src/core/config.ts domains.agent.toolUseMessageBudget (authoritative execution budget)",
       "migrationDisposition": "migrated-to-domain-config"
     },
     {

@@ -24,7 +24,7 @@ import {
   type RecoveryClassifier,
   type RecoveryStrategy,
 } from "./automatic-recovery.js";
-import { getAgentRuntimeConfig, getMidTurnToolExecutionHardCeiling, getRecoveryPolicyConfig, getSessionStorageConfig, getToolUseMessageBudget } from "../core/config.js";
+import { getAgentRuntimeConfig, getRecoveryPolicyConfig, getSessionStorageConfig, getToolUseBudget } from "../core/config.js";
 import { detectChannel } from "../router.js";
 import { pruneOrphanToolResults } from "./orphan-tool-results.js";
 import { writeAgentLog } from "./logging.js";
@@ -98,13 +98,6 @@ const MAX_TOOL_EXECUTION_WATCHDOG_HEARTBEAT_MS = 15_000;
 const MID_TURN_CONTEXT_CHECK_MIN_INTERVAL_MS = 1_000;
 const CONTEXT_USAGE_UPDATE_MIN_INTERVAL_MS = 250;
 const MAX_RECOVERY_LOOP_GUARD_CHATS = 512;
-
-/**
- * Default hard ceiling on tool executions within a single prompt attempt before
- * forcing an abort for compaction. The effective value is runtime-configurable
- * via getMidTurnToolExecutionHardCeiling().
- */
-const DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING = 48;
 
 /** Approximate characters-per-token ratio for projecting tool-result size onto context tokens. */
 const TOOL_RESULT_CHARS_PER_TOKEN = 4;
@@ -465,6 +458,7 @@ interface PromptAttemptResult {
   snapshot: RecoveryAttemptSnapshot;
   promptWasPersisted: boolean;
   timedOut: boolean;
+  toolExecutionCount: number;
 }
 
 function buildRecoveryDiagnosticEntry(
@@ -501,7 +495,7 @@ function buildRecoveryDiagnosticEntry(
   };
 }
 
-function resolveToolBudgetSoftStopThreshold(budget: number): number {
+function resolveToolBudgetWarningThreshold(budget: number): number {
   const normalized = Math.max(1, Math.floor(Number.isFinite(budget) ? budget : 1));
   const margin = Math.min(8, Math.max(1, Math.ceil(normalized * 0.125)));
   return Math.max(1, normalized - margin);
@@ -725,6 +719,7 @@ async function runPromptAttempt(
   options: RunAgentOrchestratorOptions,
   totalRunStartedAt: number,
   modelLabel: string | null,
+  toolExecutionCountAtStart: number,
 ): Promise<PromptAttemptResult> {
   let hadToolActivity = false;
   let hadPartialOutput = false;
@@ -735,13 +730,12 @@ async function runPromptAttempt(
   let sawAssistantToolCallMessage = false;
   let onlyReadOnlyToolActivity = true;
   let assistantToolUseMessageCount = 0;
-  let toolExecutionCount = 0;
+  let toolExecutionCount = toolExecutionCountAtStart;
   let midTurnToolResultChars = 0;
   let midTurnProjectionBaselineRawTokens: number | null = null;
   let midTurnProjectionBaselineToolResultChars = 0;
   let midTurnProjectionModelResponseSequence = -1;
   let toolUseBudgetExceeded = false;
-  let toolExecutionCeilingExceeded = false;
   let modelResponseSequence = 0;
   let activeModelResponse: { sequence: number; startedAt: number } | null = null;
   let lastMidTurnContextUpdateAt = 0;
@@ -749,9 +743,11 @@ async function runPromptAttempt(
   let midTurnContextAbortRequested = false;
   const sessionEntryBaseline = snapshotSessionEntryCount(session);
   const baselineLeafId = getSessionLeafId(session);
-  const toolUseMessageBudget = getToolUseMessageBudget();
-  const toolUseSoftStopThreshold = resolveToolBudgetSoftStopThreshold(toolUseMessageBudget);
-  const midTurnToolExecutionHardCeiling = getMidTurnToolExecutionHardCeiling();
+  const toolUseMessageBudget = getToolUseBudget();
+  const toolUseSoftStopThreshold = toolUseMessageBudget;
+  const toolUseWarningThreshold = resolveToolBudgetWarningThreshold(toolUseMessageBudget);
+  let toolUseWarningEmitted = false;
+  const midTurnToolExecutionHardCeiling = toolUseMessageBudget;
   let toolUseSoftStopRequested = false;
   let toolUseSoftStopApplied = false;
   let softStopSavedToolNames: string[] | null = null;
@@ -759,6 +755,42 @@ async function runPromptAttempt(
   let pendingSoftStopAnonymousToolCallCount = 0;
   let hadToolFailureBeforeSoftStop = false;
   let hadToolFailureAfterSoftStop = false;
+  const agent = (session as unknown as { agent?: AgentSession["agent"] }).agent;
+  const originalBeforeToolCall = agent?.beforeToolCall;
+  let reservedToolExecutionCount = toolExecutionCountAtStart;
+  const reservedToolCallIds = new Set<string>();
+  const blockedToolCallIds = new Set<string>();
+  const toolBudgetBeforeToolCall: NonNullable<AgentSession["agent"]["beforeToolCall"]> = async (context, signal) => {
+    const prior = await originalBeforeToolCall?.(context, signal);
+    if (prior?.block) return prior;
+    if (!toolUseWarningEmitted && reservedToolExecutionCount >= toolUseWarningThreshold) {
+      toolUseWarningEmitted = true;
+      options.onWarn?.("Tool-use budget warning threshold reached", {
+        operation: "run_agent.tool_use_budget_warning",
+        chatJid,
+        reservedToolExecutionCount,
+        toolUseBudget: toolUseMessageBudget,
+        toolUseWarningThreshold,
+        toolName: context.toolCall.name,
+        ...getRunObservabilityDetails(runOptions),
+      });
+    }
+    if (reservedToolExecutionCount >= toolUseMessageBudget) {
+      blockedToolCallIds.add(context.toolCall.id);
+      toolUseBudgetExceeded = true;
+      return {
+        block: true,
+        reason: `Per-turn tool execution budget exhausted (${toolUseMessageBudget}/${toolUseMessageBudget}). Ask the user to continue before calling more tools.`,
+      };
+    }
+    reservedToolExecutionCount += 1;
+    reservedToolCallIds.add(context.toolCall.id);
+    return prior;
+  };
+  if (agent) agent.beforeToolCall = toolBudgetBeforeToolCall;
+  const restoreToolBudgetGuard = () => {
+    if (agent?.beforeToolCall === toolBudgetBeforeToolCall) agent.beforeToolCall = originalBeforeToolCall;
+  };
   const applyToolBudgetSoftStop = () => {
     if (toolUseSoftStopApplied) return;
     toolUseSoftStopApplied = true;
@@ -915,7 +947,6 @@ async function runPromptAttempt(
 
   const abortForToolExecutionCeiling = (toolName: unknown, contextDetails: Record<string, unknown> = {}): void => {
     toolUseBudgetExceeded = true;
-    toolExecutionCeilingExceeded = true;
     midTurnContextAbortRequested = true;
     options.onWarn?.("Configured mid-turn tool execution hard ceiling reached without context pressure; aborting turn without requesting compaction", {
       operation: "run_agent.mid_turn_tool_ceiling",
@@ -923,7 +954,7 @@ async function runPromptAttempt(
       chatJid,
       toolExecutionCount,
       ceiling: midTurnToolExecutionHardCeiling,
-      defaultCeiling: DEFAULT_MID_TURN_TOOL_EXECUTION_HARD_CEILING,
+      configuredBudget: toolUseMessageBudget,
       midTurnToolResultChars,
       toolName: typeof toolName === "string" ? toolName : null,
       ...contextDetails,
@@ -1157,7 +1188,12 @@ async function runPromptAttempt(
     ) {
       hadToolActivity = true;
       if (event.type === "tool_execution_end") {
-        toolExecutionCount += 1;
+        const toolCallId = (event as { toolCallId?: unknown }).toolCallId;
+        const normalizedToolCallId = typeof toolCallId === "string" ? toolCallId : null;
+        const wasBlockedByBudget = normalizedToolCallId ? blockedToolCallIds.delete(normalizedToolCallId) : false;
+        if (normalizedToolCallId) reservedToolCallIds.delete(normalizedToolCallId);
+        if (!wasBlockedByBudget) toolExecutionCount += 1;
+        if (!wasBlockedByBudget && toolExecutionCount >= toolUseMessageBudget) toolUseBudgetExceeded = true;
         // Accumulate tool-result content size for mid-turn context projection.
         const toolResult = (event as { result?: unknown }).result;
         if (toolResult && typeof toolResult === "object") {
@@ -1260,8 +1296,10 @@ async function runPromptAttempt(
               });
             });
           }
-          requestToolBudgetSoftStop(toolCallBlocks);
-          if (!toolUseBudgetExceeded && assistantToolUseMessageCount > toolUseMessageBudget) {
+          if (toolExecutionCount >= toolUseMessageBudget || reservedToolExecutionCount >= toolUseMessageBudget) {
+            requestToolBudgetSoftStop(toolCallBlocks);
+          }
+          if (!toolUseBudgetExceeded && toolExecutionCount > toolUseMessageBudget) {
             toolUseBudgetExceeded = true;
             void session.abort().catch((err) => {
               options.onWarn?.("Failed to abort tool-loop budget overflow", {
@@ -1345,6 +1383,7 @@ async function runPromptAttempt(
   } catch (error) {
     promptThrownError = error instanceof Error ? error.message : String(error);
   } finally {
+    restoreToolBudgetGuard();
     restoreToolBudgetSoftStop();
     restoreUpstreamAutoCompaction();
     finishPromptTimeout();
@@ -1380,10 +1419,8 @@ async function runPromptAttempt(
   } else if (timedOut) {
     output = { status: "error", result: null, error: `Timed out after ${formatTimeoutDuration(timeoutMs)}` };
   } else if (toolUseBudgetExceeded && !finalText && finalAttachments.length === 0) {
-    const reportedToolSteps = toolExecutionCeilingExceeded
-      ? toolExecutionCount
-      : assistantToolUseMessageCount > 0 ? assistantToolUseMessageCount : toolExecutionCount;
-    const reportedToolBudget = toolExecutionCeilingExceeded ? midTurnToolExecutionHardCeiling : toolUseMessageBudget;
+    const reportedToolSteps = toolExecutionCount > 0 ? toolExecutionCount : assistantToolUseMessageCount;
+    const reportedToolBudget = toolUseMessageBudget;
     output = {
       status: "error",
       result: null,
@@ -1506,6 +1543,7 @@ async function runPromptAttempt(
     output,
     promptWasPersisted: didPromptAdvanceSession(session, baselineLeafId),
     timedOut,
+    toolExecutionCount,
     snapshot: {
       hadToolActivity,
       hadPartialOutput,
@@ -1729,6 +1767,7 @@ export async function runAgentPrompt(
     const runResult: AgentOutput = await withChatContext(chatJid, channel, async () => {
       let attemptPrompt = prompt;
       let recoveryContinuationWithoutTools = false;
+      let turnToolExecutionCount = 0;
       while (true) {
         // Yield to the event loop on every iteration. Prevents synchronous-
         // throw + catch + retry from starving the event loop when the error
@@ -1797,7 +1836,9 @@ export async function runAgentPrompt(
             options,
             startTime,
             modelLabel,
+            turnToolExecutionCount,
           );
+          turnToolExecutionCount = attempt.toolExecutionCount;
         } finally {
           if (recoverySavedToolNames && sessionCtrl && typeof sessionCtrl.setActiveToolsByName === "function") {
             sessionCtrl.setActiveToolsByName(recoverySavedToolNames);
