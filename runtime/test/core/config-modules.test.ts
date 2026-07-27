@@ -14,6 +14,16 @@ import {
   WORKSPACE_DIR,
 } from "../../src/core/config-context.js";
 import {
+  getAgentLogConfig,
+  getLoggingConfig,
+  getPushoverConfig,
+} from "../../src/core/config-integrations.js";
+import {
+  getIdentityConfig,
+  getRoutingConfig,
+  getUiThemeConfig,
+} from "../../src/core/config-identity.js";
+import {
   getAgentRuntimeConfig,
   getCompactionRuntimeConfig,
   getDreamConfig,
@@ -110,6 +120,15 @@ test("config runtime module preserves grouped session and recovery contracts", (
   expect(getProgressWatchdogConfig().timeoutMs).toBeGreaterThanOrEqual(0);
   expect(getRecoveryPolicyConfig().automaticRecoveryTotalBudgetMs).toBeGreaterThan(0);
   expect(typeof getRemoteInteropConfig().enabled).toBe("boolean");
+});
+
+test("identity and integration modules preserve grouped facade contracts", () => {
+  expect(getIdentityConfig().assistantName).toBeTruthy();
+  expect(getRoutingConfig().triggerPattern).toBeInstanceOf(RegExp);
+  expect(getUiThemeConfig().theme).toBeTruthy();
+  expect(["debug", "info", "warn", "error"]).toContain(getLoggingConfig().level);
+  expect(getAgentLogConfig().retentionMs).toBeGreaterThan(0);
+  expect(Number.isFinite(getPushoverConfig().priority)).toBe(true);
 });
 
 test("loadPiclawEnvConfig reads only Piclaw's allowlisted dotenv keys", () => {
