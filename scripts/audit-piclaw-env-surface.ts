@@ -50,6 +50,7 @@ type MigrationDisposition =
   | "retain-experimental-extension-gate"
   | "retain-harness-compatibility"
   | "retain-network-bootstrap"
+  | "retain-path-bootstrap"
   | "retain-per-invocation-context"
   | "retain-secret-bootstrap"
   | "retain-secret-compatibility"
