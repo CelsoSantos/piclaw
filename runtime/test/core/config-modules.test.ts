@@ -5,6 +5,21 @@ import { join } from "node:path";
 import { createCliArgReader } from "../../src/core/config-cli.js";
 import { resolveConfigPath, resolveRuntimeConfigPaths } from "../../src/core/config-paths.js";
 import { loadPiclawEnvConfig, nestedConfig } from "../../src/core/config-sources.js";
+import {
+  DATA_DIR,
+  getConfigPath,
+  getDomainConfigOptions,
+  PICLAW_CONFIG_PATH,
+  STORE_DIR,
+  WORKSPACE_DIR,
+} from "../../src/core/config-context.js";
+import {
+  getWebContentConfig,
+  getWebRuntimeConfig,
+  getWebServerConfig,
+  isDefaultWebTerminalEnabled,
+  isDefaultWebVncDirectEnabled,
+} from "../../src/core/config-web.js";
 
 test("createCliArgReader supports separated, assigned, and aliased flags", () => {
   const read = createCliArgReader(["--port", "8081", "--host=127.0.0.1", "-w", "/tmp/ws"]);
@@ -38,6 +53,24 @@ test("resolveConfigPath and source helpers stay stateless", () => {
   const root = { web: { terminalEnabled: true }, other: 1 };
   expect(nestedConfig(root, "web")).toEqual({ terminalEnabled: true });
   expect(nestedConfig(root, "missing")).toBe(root);
+});
+
+test("config context exposes one coherent bootstrap snapshot", () => {
+  expect(WORKSPACE_DIR).toBeTruthy();
+  expect(STORE_DIR).toStartWith(WORKSPACE_DIR);
+  expect(DATA_DIR).toStartWith(WORKSPACE_DIR);
+  expect(PICLAW_CONFIG_PATH).toStartWith(WORKSPACE_DIR);
+  expect(getConfigPath()).toBeTruthy();
+  expect(getDomainConfigOptions().configPath).toBe(getConfigPath());
+});
+
+test("config web module preserves grouped runtime and platform defaults", () => {
+  expect(getWebServerConfig().port).toBeGreaterThan(0);
+  expect(getWebRuntimeConfig().sessionTtl).toBeGreaterThan(0);
+  expect(getWebContentConfig().previewChars).toBeLessThanOrEqual(getWebContentConfig().maxChars);
+  expect(isDefaultWebTerminalEnabled("linux")).toBe(true);
+  expect(isDefaultWebTerminalEnabled("win32")).toBe(false);
+  expect(isDefaultWebVncDirectEnabled("win32")).toBe(true);
 });
 
 test("loadPiclawEnvConfig reads only Piclaw's allowlisted dotenv keys", () => {

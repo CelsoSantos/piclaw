@@ -1137,6 +1137,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
+            "runtime/src/core/config-context.ts",
             "runtime/src/core/config.ts"
           ],
           "readerFiles": []
@@ -1147,6 +1148,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
+            "runtime/src/core/config-context.ts",
             "runtime/src/core/config.ts"
           ],
           "readerFiles": []
@@ -1338,7 +1340,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -1349,7 +1351,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -2223,11 +2225,11 @@
           "files": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "extensions": {
@@ -2268,10 +2270,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -5413,7 +5415,7 @@
           "files": [
             "runtime/src/channels/web/terminal/terminal-session-service.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -5425,7 +5427,7 @@
           "files": [
             "runtime/src/channels/web/terminal/terminal-session-service.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6057,7 +6059,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6067,7 +6069,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6094,7 +6096,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6105,7 +6107,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6446,7 +6448,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6457,7 +6459,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6484,7 +6486,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6495,7 +6497,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6526,7 +6528,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6537,7 +6539,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6631,10 +6633,10 @@
           "helperReaders": 0,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "runtimeSrc": {
@@ -6643,10 +6645,10 @@
           "helperReaders": 0,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -6671,7 +6673,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6682,7 +6684,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6717,11 +6719,11 @@
           "files": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "extensions": {
@@ -6762,10 +6764,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -6790,7 +6792,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6801,7 +6803,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6828,7 +6830,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6839,7 +6841,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6865,7 +6867,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6876,7 +6878,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6903,7 +6905,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6914,7 +6916,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6941,7 +6943,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -6952,7 +6954,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -6987,11 +6989,11 @@
           "semanticReaders": 2,
           "files": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
             "runtime/extensions/experimental/azure-openai.harness.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "extensions": {
@@ -7022,10 +7024,10 @@
           "helperReaders": 0,
           "semanticReaders": 1,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -7050,7 +7052,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7061,7 +7063,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7077,7 +7079,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7088,7 +7090,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7104,7 +7106,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7115,7 +7117,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7141,7 +7143,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7152,7 +7154,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7213,7 +7215,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7224,7 +7226,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7250,10 +7252,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "runtimeSrc": {
@@ -7263,10 +7265,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "tooling": {
@@ -7301,10 +7303,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "runtimeSrc": {
@@ -7314,10 +7316,10 @@
           "semanticReaders": 1,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "tooling": {
@@ -7353,10 +7355,10 @@
           "files": [
             "runtime/src/agent-control/handlers/totp.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "runtimeSrc": {
@@ -7367,10 +7369,10 @@
           "files": [
             "runtime/src/agent-control/handlers/totp.ts",
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -7395,7 +7397,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7406,7 +7408,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7421,7 +7423,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7431,7 +7433,7 @@
           "helperReaders": 0,
           "semanticReaders": 0,
           "files": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7460,7 +7462,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7471,7 +7473,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7498,7 +7500,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7509,7 +7511,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7525,10 +7527,10 @@
           "semanticReaders": 3,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         },
         "runtimeSrc": {
@@ -7538,10 +7540,10 @@
           "semanticReaders": 3,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": [
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ]
         }
       }
@@ -7556,7 +7558,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         },
@@ -7567,7 +7569,7 @@
           "semanticReaders": 0,
           "files": [
             "runtime/src/core/config-sources.ts",
-            "runtime/src/core/config.ts"
+            "runtime/src/core/config-web.ts"
           ],
           "readerFiles": []
         }
@@ -7642,7 +7644,6 @@
             "runtime/src/channels/web/handlers/addon-config-api.ts",
             "runtime/src/channels/web/handlers/addons.ts",
             "runtime/src/core/config-paths.ts",
-            "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/extensions/env-tools.ts",
             "runtime/src/extensions/file-attachments.ts",
@@ -7706,7 +7707,6 @@
             "runtime/src/channels/web/handlers/addon-config-api.ts",
             "runtime/src/channels/web/handlers/addons.ts",
             "runtime/src/core/config-paths.ts",
-            "runtime/src/core/config.ts",
             "runtime/src/db/connection.ts",
             "runtime/src/extensions/env-tools.ts",
             "runtime/src/extensions/file-attachments.ts",
