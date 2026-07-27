@@ -25,10 +25,10 @@
   "entries": [
     {
       "name": "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
-      "owner": "core",
+      "owner": "agent-control",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 1000,
+      "bounds": "0..10000 ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -36,17 +36,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.agentControl.abortSettleTimeoutMs",
+      "deprecation": "migrated to typed domains.agentControl.abortSettleTimeoutMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed operational domain configuration (#755C)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_ADDITIONAL_DEFAULT_TOOLS",
@@ -75,10 +80,10 @@
     },
     {
       "name": "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
-      "owner": "core",
+      "owner": "addons",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 60000,
+      "bounds": "positive integer ms",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -86,17 +91,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.addons.apiFailureBackoffMs",
+      "deprecation": "migrated to typed domains.addons.apiFailureBackoffMs config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed operational domain configuration (#755C)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_AGENT_DIR_ENV",
@@ -2100,10 +2110,10 @@
     },
     {
       "name": "PICLAW_RECORDINGS_DIR",
-      "owner": "core",
+      "owner": "storage",
       "type": "path",
-      "default": null,
-      "bounds": null,
+      "default": "<PICLAW_DATA>/session-recordings",
+      "bounds": "non-empty path",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -2111,17 +2121,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.sessionRecordings.directory",
+      "deprecation": "migrated to typed domains.sessionRecordings.directory config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed operational domain configuration (#755C)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_RECOVERY_LOOP_GUARD_ENABLED",
@@ -4344,10 +4359,10 @@
     },
     {
       "name": "PICLAW_WEB_MAX_CONTENT_CHARS",
-      "owner": "storage",
+      "owner": "web",
       "type": "integer",
-      "default": null,
-      "bounds": null,
+      "default": 262144,
+      "bounds": "positive integer characters",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -4355,17 +4370,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.web.contentMaxChars",
+      "deprecation": "migrated to typed domains.web.contentMaxChars config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed operational domain configuration (#755C)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_WEB_NOTIFICATION_DEBUG_LABELS",
@@ -4524,10 +4544,10 @@
     },
     {
       "name": "PICLAW_WEB_PREVIEW_CHARS",
-      "owner": "storage",
-      "type": "string",
-      "default": null,
-      "bounds": null,
+      "owner": "web",
+      "type": "integer",
+      "default": 16000,
+      "bounds": "positive integer characters; capped at contentMaxChars",
       "allowedValues": [],
       "secret": false,
       "persistence": [
@@ -4535,17 +4555,22 @@
         "dotenv"
       ],
       "precedence": [
-        "process.env",
-        ".env",
-        "defaults"
+        "compat-env",
+        "persisted",
+        "default"
       ],
-      "status": "undocumented-runtime",
-      "compatibilityAliasFor": null,
-      "deprecation": null,
-      "removalVersion": null,
+      "status": "compatibility",
+      "compatibilityAliasFor": "domains.web.contentPreviewChars",
+      "deprecation": "migrated to typed domains.web.contentPreviewChars config; compatibility environment alias remains until 3.0.0",
+      "removalVersion": "3.0.0",
       "bootstrapAllowed": false,
-      "source": "reviewed-tranche1-observation",
-      "migrationDisposition": "move-to-domain-config"
+      "source": "runtime/src/core/config.ts typed operational domain configuration (#755C)",
+      "migrationDisposition": "migrated-to-domain-config",
+      "supportedPersistence": [
+        "env",
+        "dotenv",
+        "json-config"
+      ]
     },
     {
       "name": "PICLAW_WEB_PUSH_SUBSCRIPTION_CAP",

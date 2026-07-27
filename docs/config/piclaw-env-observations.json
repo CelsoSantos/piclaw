@@ -6,10 +6,8 @@
     "literalProductionReaders": 151
   },
   "runtimeSrcDirectBaseline": {
-    "source": "accepted direct-reader reduction from 33 to 29",
+    "source": "accepted direct-reader reduction from 29 to 24",
     "names": [
-      "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
-      "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
       "PICLAW_ALLOW_LIVE_DB_IN_TESTS",
       "PICLAW_CHAT_JID",
       "PICLAW_DATA",
@@ -18,7 +16,6 @@
       "PICLAW_KEYCHAIN_KEY",
       "PICLAW_KEYCHAIN_KEY_FILE",
       "PICLAW_LOG_LEVEL",
-      "PICLAW_RECORDINGS_DIR",
       "PICLAW_RUNTIME_DOCS_DIR",
       "PICLAW_RUNTIME_ROOT",
       "PICLAW_SEARCH_MATCH_MODE",
@@ -28,9 +25,7 @@
       "PICLAW_WEB_EXTERNAL_URL",
       "PICLAW_WEB_HOST",
       "PICLAW_WEB_INTERNAL_SECRET",
-      "PICLAW_WEB_MAX_CONTENT_CHARS",
       "PICLAW_WEB_PORT",
-      "PICLAW_WEB_PREVIEW_CHARS",
       "PICLAW_WEB_STATIC_DIR",
       "PICLAW_WEB_TLS_CERT",
       "PICLAW_WEB_TLS_KEY",
@@ -76,21 +71,21 @@
   "current": {
     "production": {
       "referencedNames": 179,
-      "directReaderNames": 30,
-      "directReaderOccurrences": 75,
-      "helperReaderNames": 0,
-      "helperReaderOccurrences": 0,
-      "semanticReaderNames": 30,
-      "semanticReaderOccurrences": 75
-    },
-    "runtimeSrc": {
-      "referencedNames": 176,
-      "directReaderNames": 29,
+      "directReaderNames": 25,
       "directReaderOccurrences": 70,
       "helperReaderNames": 0,
       "helperReaderOccurrences": 0,
-      "semanticReaderNames": 29,
+      "semanticReaderNames": 25,
       "semanticReaderOccurrences": 70
+    },
+    "runtimeSrc": {
+      "referencedNames": 176,
+      "directReaderNames": 24,
+      "directReaderOccurrences": 65,
+      "helperReaderNames": 0,
+      "helperReaderOccurrences": 0,
+      "semanticReaderNames": 24,
+      "semanticReaderOccurrences": 65
     },
     "extensions": {
       "referencedNames": 9,
@@ -111,7 +106,7 @@
       "semanticReaderOccurrences": 67
     },
     "docsDeploy": {
-      "referencedNames": 120,
+      "referencedNames": 124,
       "directReaderNames": 16,
       "directReaderOccurrences": 32,
       "helperReaderNames": 0,
@@ -124,29 +119,35 @@
     {
       "name": "PICLAW_ABORT_SETTLE_TIMEOUT_MS",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/control.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/agent-control/handlers/control.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/agent-control/handlers/control.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -189,29 +190,35 @@
     {
       "name": "PICLAW_ADDON_API_FAILURE_BACKOFF_MS",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/addons/addon-api-health.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/addons/addon-api-health.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/addons/addon-api-health.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/addons/addon-api-health.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -3470,29 +3477,35 @@
     {
       "name": "PICLAW_RECORDINGS_DIR",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/session-recordings/session-recordings.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/session-recordings/session-recordings.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/session-recordings/session-recordings.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/session-recordings/session-recordings.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -6548,27 +6561,23 @@
         },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/db/web-content.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/db/web-content.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/db/web-content.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/db/web-content.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
@@ -6790,29 +6799,35 @@
     {
       "name": "PICLAW_WEB_PREVIEW_CHARS",
       "scopes": {
+        "docsDeploy": {
+          "referenced": true,
+          "directReaders": 0,
+          "helperReaders": 0,
+          "semanticReaders": 0,
+          "files": [
+            "docs/configuration.md"
+          ],
+          "readerFiles": []
+        },
         "production": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/db/web-content.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/db/web-content.ts"
-          ]
+          "readerFiles": []
         },
         "runtimeSrc": {
           "referenced": true,
-          "directReaders": 1,
+          "directReaders": 0,
           "helperReaders": 0,
-          "semanticReaders": 1,
+          "semanticReaders": 0,
           "files": [
-            "runtime/src/db/web-content.ts"
+            "runtime/src/core/config.ts"
           ],
-          "readerFiles": [
-            "runtime/src/db/web-content.ts"
-          ]
+          "readerFiles": []
         }
       }
     },
