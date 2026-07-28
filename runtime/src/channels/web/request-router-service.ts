@@ -124,17 +124,6 @@ export class RequestRouterService {
       return response ?? this.channel.json({ error: "Not found" }, 404);
     }
 
-    if (pathname.startsWith("/api/remote/")) {
-      try {
-        return await this.channel.handleRemote(req);
-      } catch {
-        return new Response(JSON.stringify({ error: "Internal server error." }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-
     const widgetStateResponse = await handleWidgetStateRoutes(this.channel, req, pathname);
     if (widgetStateResponse) {
       return widgetStateResponse;

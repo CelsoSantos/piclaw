@@ -73,7 +73,7 @@ describe("add-on runtime messaging handlers", () => {
       content: "From: Remote Auditor <addr:lab!@auditor>\nReply-To: lab!@auditor\nTo: @research\n\nFirst line\nSecond line",
       contentBlocks: [{
         type: "peer_message",
-        relay: "addon.remote-peer",
+        relay: "addon.peer-message",
         source_chat_jid: "remote:peerInstance_1234567890",
         source_agent_name: "auditor",
         source_agent_display_name: "Remote Auditor",
@@ -90,8 +90,8 @@ describe("add-on runtime messaging handlers", () => {
       }],
       mode: "queue",
       threadId: 7,
-      source: "addon.remote-peer",
-      queuedBy: { source: "addon.remote-peer", clientId: "peerInstance_1234567890" },
+      source: "addon.peer-message",
+      queuedBy: { source: "addon.peer-message", clientId: "peerInstance_1234567890" },
     }]);
   });
 

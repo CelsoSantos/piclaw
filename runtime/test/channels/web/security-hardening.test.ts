@@ -457,6 +457,12 @@ describe("CSRF origin checks", () => {
     }
   }
 
+  test("removed core remote routes return normal not-found", async () => {
+    const router = new RequestRouterService(new StubChannel() as any);
+    const response = await router.handle(new Request("http://localhost/api/remote/ping"));
+    expect(response.status).toBe(404);
+  });
+
   test("blocks mismatched Origin/Host", async () => {
     const router = new RequestRouterService(new StubChannel() as any);
     const req = new Request("http://localhost/post", {

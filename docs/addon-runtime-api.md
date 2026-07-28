@@ -100,7 +100,7 @@ const receipt = await messaging.deliverPeerMessage({
 
 Call this only after the add-on has authenticated the peer. Piclaw validates bounded peer fields, resolves the local target, constructs the reserved `peer_message` content block, and delivers through the normal timeline/queue path. The add-on cannot supply content blocks or a source chat JID.
 
-Message bodies are limited to 32 KiB. Unknown modes default to `queue`. Peer delivery metadata uses `source: "addon.remote-peer"` so queued and persisted messages remain attributable.
+Message bodies are limited to 32 KiB. Unknown modes default to `queue`. Peer delivery metadata uses `source: "addon.peer-message"` so queued and persisted messages remain attributable.
 
 ## External routes API v1
 
