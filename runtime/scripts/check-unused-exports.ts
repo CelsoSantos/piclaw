@@ -63,6 +63,8 @@ const ALLOWED_UNUSED_EXPORTS = new Map<string, string>([
   ["src/extensions/azure-openai-api.ts - resolveCacheSessionId", "extension entrypoint/runtime-discovered API for azure-openai-api.ts packaged integration consumers"],
   ["src/extensions/bun-runner.ts - bunRunner", "extension entrypoint/runtime-discovered API for bun-runner.ts packaged integration consumers"],
   ["src/extensions/chat-tool-runtime.ts - __chatToolRuntimeInternals", "internal diagnostic surface for extensions/chat-tool-runtime.ts focused tests and debugging"],
+  ["src/extensions/chat-transport-registry.ts - registerChatTransport", "public chat transport registration seam consumed dynamically by installed add-ons starting with #816 Core PR 2"],
+  ["src/extensions/chat-transport-registry.ts - resetChatTransportRegistryForTests", "test-only API for focused chat transport registry lifecycle coverage"],
   ["src/extensions/context-mode-api.ts - buildPreview", "context-mode compatibility bridge consumed by packaged context-mode extension imports"],
   ["src/extensions/context-mode-api.ts - createBatchExecTool", "context-mode compatibility bridge consumed by packaged context-mode extension imports"],
   ["src/extensions/context-mode-api.ts - createToolOutputSearchTool", "context-mode compatibility bridge consumed by packaged context-mode extension imports"],
