@@ -52,7 +52,7 @@ function normalizeGeneralSettings(data: Record<string, any> = {}) {
         workspaceUploadLimitMb: data.workspaceUploadLimitMb ?? 256,
         automaticRecoveryEnabled: data.automaticRecoveryEnabled ?? true,
         automaticRecoveryMaxAttempts: data.automaticRecoveryMaxAttempts ?? 0,
-        automaticRecoveryTotalBudgetMs: data.automaticRecoveryTotalBudgetMs ?? 30000,
+        automaticRecoveryTotalBudgetMs: data.automaticRecoveryTotalBudgetMs ?? 360000,
     };
 }
 
@@ -102,7 +102,7 @@ export function GeneralSection({ settingsData, setStatus, mergeSettingsData }) {
     const [workspaceUploadLimitMb, setWorkspaceUploadLimitMb] = useState(256);
     const [automaticRecoveryEnabled, setAutomaticRecoveryEnabled] = useState(true);
     const [automaticRecoveryMaxAttempts, setAutomaticRecoveryMaxAttempts] = useState(0);
-    const [automaticRecoveryTotalBudgetMs, setAutomaticRecoveryTotalBudgetMs] = useState(30000);
+    const [automaticRecoveryTotalBudgetMs, setAutomaticRecoveryTotalBudgetMs] = useState(360000);
     const [widgetToken, setWidgetToken] = useState('');
     const [widgetTokenRevealed, setWidgetTokenRevealed] = useState(false);
     const [widgetTokenCopied, setWidgetTokenCopied] = useState(false);
@@ -336,7 +336,7 @@ export function GeneralSection({ settingsData, setStatus, mergeSettingsData }) {
                     value=${automaticRecoveryTotalBudgetMs}
                     min=${1}
                     step=${1000}
-                    fallback=${30000}
+                    fallback=${360000}
                     width="110px"
                     onChange=${setAutomaticRecoveryTotalBudgetMs}
                 />

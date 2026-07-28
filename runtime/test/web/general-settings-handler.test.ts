@@ -148,7 +148,7 @@ test('getGeneralSettingsData exposes recovery defaults without writing configura
     expect(handler.getGeneralSettingsData()).toMatchObject({
       automaticRecoveryEnabled: true,
       automaticRecoveryMaxAttempts: 0,
-      automaticRecoveryTotalBudgetMs: 30000,
+      automaticRecoveryTotalBudgetMs: 360000,
     });
     expect(existsSync(configPath)).toBe(false);
   });

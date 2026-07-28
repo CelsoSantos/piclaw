@@ -38,6 +38,10 @@ test("honors explicit turn auto-recovery env disable", () => {
   }
 });
 
+test("automatic recovery default budget accommodates long compaction", () => {
+  expect(DEFAULT_AUTOMATIC_RECOVERY_CONFIG.totalBudgetMs).toBe(360_000);
+});
+
 test("turn auto-recovery numeric env rejects malformed suffixes", () => {
   const previousAttempts = process.env.PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS;
   const previousBudget = process.env.PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS;
