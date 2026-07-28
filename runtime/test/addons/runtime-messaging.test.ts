@@ -58,6 +58,25 @@ describe("add-on runtime messaging handlers", () => {
       .toThrow("exactly one");
   });
 
+  test("resolves and delivers the canonical default target on an empty workspace", async () => {
+    const { handlers, requests } = createFixture({
+      listKnownChats: () => [],
+      findChatByAgentName: () => null,
+    });
+    expect(await handlers.resolveLocalTarget({ target_agent_name: "default" })).toEqual({
+      status: "resolved",
+      target_agent_name: "default",
+      active: false,
+    });
+    await expect(handlers.deliverPeerMessage({
+      target_agent_name: "default",
+      content: "fresh inbox",
+      source: peerSource,
+    })).resolves.toMatchObject({ status: "ok", chat_jid: "web:default" });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ chatJid: "web:default", mode: "queue" });
+  });
+
   test("delivers a core-owned peer message block through the normal runtime queue", async () => {
     const { handlers, requests } = createFixture();
     await expect(handlers.deliverPeerMessage({

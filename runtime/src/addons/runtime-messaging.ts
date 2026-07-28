@@ -89,6 +89,10 @@ function resolveTarget(
   const found = targetChatJid
     ? known.find((chat) => chat.chat_jid === targetChatJid) ?? null
     : (() => {
+      if (targetAgentName === "default") {
+        return known.find((chat) => chat.chat_jid === "web:default")
+          ?? { chat_jid: "web:default", agent_name: "default", is_active: false };
+      }
       const resolved = options.findChatByAgentName(targetAgentName);
       if (!resolved?.chat_jid?.startsWith("web:")) return null;
       return known.find((chat) => chat.chat_jid === resolved.chat_jid)
