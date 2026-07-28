@@ -1164,6 +1164,7 @@
           "helperReaders": 0,
           "semanticReaders": 3,
           "files": [
+            "docs/addon-runtime-api.md",
             "docs/azure/README.md",
             "docs/configuration.md",
             "skel/.pi/skills/graphite-power-chart/graphite-power-chart.ts",
