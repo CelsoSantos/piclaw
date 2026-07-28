@@ -6,6 +6,8 @@ import { spawnSync } from "bun";
 const ALLOWED_UNUSED_EXPORTS = new Map<string, string>([
   ["src/addons/addon-api-health.ts - resetAddonApiHealthForTests", "test-only API for focused addons/addon-api-health.ts regression harnesses"],
   ["src/addons/runtime-contributions.ts - resetAddonRuntimeContributionsForTests", "test-only API for focused addons/runtime-contributions.ts regression harnesses"],
+  ["src/addons/external-routes.ts - getRegisteredExternalAddonRoutes", "external add-on route diagnostics surface retained for startup/security tests and future operator status"],
+  ["src/addons/external-routes.ts - isExternalAddonRouteRegistryFrozen", "test/debug API for startup-only external add-on route registration lifecycle"],
   ["src/agent-control/handlers/control.ts - setKillTrackedProcessesForRestartForTests", "test-only API for focused agent-control/handlers/control.ts regression harnesses"],
   ["src/agent-memory/daily-notes.ts - DAILY_NOTES_DIR", "Dream daily-notes directory contract retained for memory maintenance"],
   ["src/agent-pool.ts - TurnOutput", "AgentPool public type export retained for runtime composition imports"],

@@ -10,6 +10,13 @@ import {
   type ChatTransport,
 } from "../extensions/chat-transport-registry.js";
 import { resetRuntimeStreamSessionsForTests, runtimeStreamSessions } from "./runtime-stream-sessions.js";
+import {
+  freezeExternalAddonRoutes,
+  registerExternalAddonRoute,
+  resetExternalAddonRoutesForTests,
+  withExternalAddonRegistrationContext,
+  type ExternalAddonRouteRegistration,
+} from "./external-routes.js";
 
 export interface AddonStatusPanelProvider {
   key: string;
@@ -77,11 +84,17 @@ export interface PiclawRuntimeMessagingApiV1 {
   getAddonDataDir(addonId: string): string;
 }
 
+export interface PiclawRuntimeExternalRoutesApiV1 {
+  version: 1;
+  register(registration: ExternalAddonRouteRegistration): () => void;
+}
+
 export interface PiclawRuntimeAddonApi {
   registerStatusPanelProvider: (provider: AddonStatusPanelProvider) => () => void;
   registerAdaptiveCardIntentHandler: (intent: string, handler: AddonAdaptiveCardIntentHandler) => () => void;
   enqueueAgentMessage: AddonAgentMessageEnqueuer;
   messaging: PiclawRuntimeMessagingApiV1;
+  externalRoutes: PiclawRuntimeExternalRoutesApiV1;
   createMedia: typeof createMedia;
   postMessage: typeof postMessagesToolMessage;
   streamSessions: typeof runtimeStreamSessions;
@@ -286,6 +299,10 @@ export function installAddonRuntimeApi(): PiclawRuntimeAddonApi {
       deliverPeerMessage,
       getAddonDataDir,
     },
+    externalRoutes: {
+      version: 1,
+      register: registerExternalAddonRoute,
+    },
     createMedia,
     postMessage: postMessagesToolMessage,
     streamSessions: runtimeStreamSessions,
@@ -308,7 +325,14 @@ export async function initializeStartupAddonRuntime(options: {
 
 async function importAddonRuntimeEntries(entries: InstalledAddonRuntimeEntry[]): Promise<void> {
   for (const entry of entries) {
-    await import(pathToFileURL(entry.path).href);
+    if (entry.load === "startup") {
+      await withExternalAddonRegistrationContext(
+        { packageName: entry.packageName, entryPath: entry.path },
+        async () => await import(pathToFileURL(entry.path).href),
+      );
+    } else {
+      await import(pathToFileURL(entry.path).href);
+    }
   }
 }
 
@@ -338,6 +362,7 @@ export async function ensureStartupAddonRuntimeEntriesLoaded(): Promise<void> {
   });
 
   await startupRuntimeEntriesLoadPromise;
+  freezeExternalAddonRoutes();
 }
 
 export async function getAddonStatusPanelPayload(key: string, chatJid: string): Promise<unknown | null> {
@@ -375,6 +400,7 @@ export function resetAddonRuntimeContributionsForTests(): void {
   for (const unregister of [...addonChatTransportUnregisters]) unregister();
   addonChatTransportUnregisters.clear();
   resetRuntimeStreamSessionsForTests();
+  resetExternalAddonRoutesForTests();
   lazyRuntimeEntriesLoadPromise = null;
   startupRuntimeEntriesLoadPromise = null;
   runtimeApiInstalled = false;

@@ -43,6 +43,7 @@ import "./http/video-viewer-route.js";
 import "./http/pdf-viewer-route.js";
 import "./http/html-viewer-route.js";
 import { handleExtensionRoutes } from "./http/extension-routes.js";
+import { handleExternalAddonRoutes } from "../../addons/external-routes.js";
 import { enforceRequestGuards } from "./http/request-guards.js";
 import { getRouteFlags } from "./http/route-flags.js";
 import { withSecurityHeaders } from "./http/security.js";
@@ -117,6 +118,11 @@ export class RequestRouterService {
   private async route(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const pathname = url.pathname;
+
+    if (pathname.startsWith("/api/addons/")) {
+      const response = await handleExternalAddonRoutes(req, pathname);
+      return response ?? this.channel.json({ error: "Not found" }, 404);
+    }
 
     if (pathname.startsWith("/api/remote/")) {
       try {

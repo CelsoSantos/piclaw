@@ -14,6 +14,11 @@ import {
 } from "../../src/addons/runtime-contributions.js";
 import { withTempWorkspaceEnv } from "../helpers.js";
 import { getChatTransport } from "../../src/extensions/chat-transport-registry.js";
+import {
+  getRegisteredExternalAddonRoutes,
+  handleExternalAddonRoutes,
+  isExternalAddonRouteRegistryFrozen,
+} from "../../src/addons/external-routes.js";
 
 test("installed addon runtime entries register status panel, card-intent, and stream-session handlers", async () => {
   resetAddonRuntimeContributionsForTests();
@@ -112,7 +117,7 @@ test("startup and lazy add-on runtime entries load independently", async () => {
   await withTempWorkspaceEnv("piclaw-addon-runtime-load-", {}, async (workspace) => {
     const modulesDir = join(workspace.workspace, ".pi", "extensions", "node_modules");
     const lazyDir = join(modulesDir, "piclaw-addon-lazy");
-    const startupDir = join(modulesDir, "piclaw-addon-startup");
+    const startupDir = join(modulesDir, "piclaw-addon-startup-test");
     mkdirSync(lazyDir, { recursive: true });
     mkdirSync(startupDir, { recursive: true });
     writeFileSync(join(lazyDir, "package.json"), JSON.stringify({
@@ -122,7 +127,7 @@ test("startup and lazy add-on runtime entries load independently", async () => {
     }));
     writeFileSync(join(lazyDir, "runtime.ts"), `globalThis.__piclaw_lazy_runtime_loaded = true; export {};\n`);
     writeFileSync(join(startupDir, "package.json"), JSON.stringify({
-      name: "piclaw-addon-startup",
+      name: "piclaw-addon-startup-test",
       type: "module",
       pi: { runtime: { entries: ["runtime.ts"], load: "startup" } },
     }));
@@ -133,6 +138,15 @@ api.messaging.registerChatTransport({
   kind: "bang",
   async send(request) { return { status: "ok", source_chat_jid: request.source_chat_jid }; },
 });
+api.externalRoutes.register({
+  addonId: "startup-test",
+  prefix: "/api/addons/startup-test/v1",
+  methods: ["GET"],
+  maxBodyBytes: 1024,
+  handler(_req, pathname, context) {
+    return new Response(JSON.stringify({ pathname, context }), { headers: { "Content-Type": "application/json" } });
+  },
+});
 globalThis.__piclaw_startup_agents = await api.messaging.listAdvertisableAgents();
 globalThis.__piclaw_startup_runtime_loaded = true;
 export {};
@@ -140,7 +154,7 @@ export {};
 
     expect(getInstalledAddonRuntimeEntries(workspace.workspace)).toEqual([
       { packageName: "piclaw-addon-lazy", path: join(lazyDir, "runtime.ts"), load: "lazy" },
-      { packageName: "piclaw-addon-startup", path: join(startupDir, "runtime.ts"), load: "startup" },
+      { packageName: "piclaw-addon-startup-test", path: join(startupDir, "runtime.ts"), load: "startup" },
     ]);
 
     await initializeStartupAddonRuntime({
@@ -155,6 +169,23 @@ export {};
     expect((globalThis as any).__piclaw_startup_agents).toEqual([]);
     expect((globalThis as any).__piclaw_lazy_runtime_loaded).toBeUndefined();
     expect(getChatTransport("bang")?.id).toBe("startup-test");
+    expect(isExternalAddonRouteRegistryFrozen()).toBe(true);
+    expect(getRegisteredExternalAddonRoutes()).toMatchObject([{
+      addonId: "startup-test",
+      packageName: "piclaw-addon-startup-test",
+      entryPath: join(startupDir, "runtime.ts"),
+      prefix: "/api/addons/startup-test/v1",
+      methods: ["GET"],
+      maxBodyBytes: 1024,
+    }]);
+    const externalResponse = await handleExternalAddonRoutes(
+      new Request("http://localhost/api/addons/startup-test/v1/ping"),
+      "/api/addons/startup-test/v1/ping",
+    );
+    expect(await externalResponse?.json()).toMatchObject({
+      pathname: "/api/addons/startup-test/v1/ping",
+      context: { addonId: "startup-test", packageName: "piclaw-addon-startup-test" },
+    });
 
     expect(await getAddonStatusPanelPayload("missing", "web:test")).toBeNull();
     expect((globalThis as any).__piclaw_lazy_runtime_loaded).toBe(true);
@@ -166,6 +197,8 @@ export {};
   });
   resetAddonRuntimeContributionsForTests();
   expect(getChatTransport("bang")).toBeNull();
+  expect(getRegisteredExternalAddonRoutes()).toEqual([]);
+  expect(isExternalAddonRouteRegistryFrozen()).toBe(false);
 });
 
 test("startup entry loading fails clearly when concrete messaging handlers were not wired", async () => {
