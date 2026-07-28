@@ -102,6 +102,46 @@ Call this only after the add-on has authenticated the peer. Piclaw validates bou
 
 Message bodies are limited to 32 KiB. Unknown modes default to `queue`. Peer delivery metadata uses `source: "addon.remote-peer"` so queued and persisted messages remain attributable.
 
+## External routes API v1
+
+Startup runtime entries can register signed/non-browser transport endpoints through:
+
+```ts
+const externalRoutes = globalThis.__piclaw_runtime?.externalRoutes;
+if (externalRoutes?.version !== 1) {
+  throw new Error("Piclaw external routes API v1 is required.");
+}
+
+const unregister = externalRoutes.register({
+  addonId: "remote-peer",
+  prefix: "/api/addons/remote-peer/v1",
+  methods: ["GET", "POST"],
+  maxBodyBytes: 32 * 1024,
+  async handler(req, pathname, context) {
+    return new Response(JSON.stringify({ ok: true }));
+  }
+});
+```
+
+External routes are reserved for installed startup add-ons that authenticate their own transport requests. Piclaw dispatches `/api/addons/<id>/...` before browser session and CSRF guards, so these routes must not rely on browser authentication.
+
+Core enforces:
+
+- package ownership: `@scope/piclaw-addon-<id>` or `piclaw-addon-<id>` may claim only `/api/addons/<id>`;
+- registration only during the owning package's `load: "startup"` import;
+- startup freeze, duplicate/overlapping prefix rejection, and reset on process restart;
+- `GET`/`POST` method allowlists;
+- declared and streamed body caps, with a 1 MiB registration ceiling;
+- a coarse 120 requests/minute source bucket per add-on;
+- standard Piclaw request IDs, server timing and security headers;
+- generic 500 responses when handlers throw.
+
+The add-on remains responsible for protocol authentication, signatures, nonce/replay checks, trust state, endpoint-specific limits, payload validation, and response schemas.
+
+Unknown paths within `/api/addons/` return JSON 404 without redirecting to browser login. Generic extension routes registered through `__piclaw_registerRoute` remain browser-authenticated and CSRF-protected.
+
+The unregister callback is idempotent. Add-on install/uninstall already requires a Piclaw restart; the registry is rebuilt from installed startup entries on the new process.
+
 ## Scoped data directory
 
 ```ts
