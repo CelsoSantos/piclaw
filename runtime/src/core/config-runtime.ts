@@ -721,6 +721,39 @@ export function getRecoveryPolicyConfig(): Readonly<RecoveryPolicyConfig> {
   return readDomainConfig(recoveryPolicyDomainSchema, getDomainConfigOptions());
 }
 
+export type AutomaticRecoveryPolicyPatch = Partial<Pick<RecoveryPolicyConfig,
+  "automaticRecoveryEnabled" | "automaticRecoveryMaxAttempts" | "automaticRecoveryTotalBudgetMs"
+>>;
+
+/** Persist automatic-recovery policy without rewriting compatibility environment variables. */
+export function setAutomaticRecoveryPolicyConfig(patch: AutomaticRecoveryPolicyPatch): Readonly<RecoveryPolicyConfig> {
+  const current = getRecoveryPolicyConfig();
+  const nextEnabled = patch.automaticRecoveryEnabled === undefined
+    ? current.automaticRecoveryEnabled
+    : patch.automaticRecoveryEnabled;
+  if (typeof nextEnabled !== "boolean") throw new Error("automaticRecoveryEnabled must be boolean");
+
+  const nextMaxAttempts = patch.automaticRecoveryMaxAttempts === undefined
+    ? current.automaticRecoveryMaxAttempts
+    : patch.automaticRecoveryMaxAttempts;
+  if (!Number.isInteger(nextMaxAttempts) || nextMaxAttempts < 0) {
+    throw new Error("automaticRecoveryMaxAttempts must be a non-negative integer");
+  }
+
+  const nextTotalBudgetMs = patch.automaticRecoveryTotalBudgetMs === undefined
+    ? current.automaticRecoveryTotalBudgetMs
+    : patch.automaticRecoveryTotalBudgetMs;
+  if (!Number.isInteger(nextTotalBudgetMs) || nextTotalBudgetMs < 1) {
+    throw new Error("automaticRecoveryTotalBudgetMs must be a positive integer");
+  }
+
+  return writeDomainConfig(recoveryPolicyDomainSchema, getDomainConfigOptions(), {
+    automaticRecoveryEnabled: nextEnabled,
+    automaticRecoveryMaxAttempts: nextMaxAttempts,
+    automaticRecoveryTotalBudgetMs: nextTotalBudgetMs,
+  });
+}
+
 export interface WebRecoveryConfig {
   stalePreflightRecoveryMs: number;
   stalePreflightBackoffMs: number;
