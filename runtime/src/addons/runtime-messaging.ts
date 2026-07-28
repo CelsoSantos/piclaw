@@ -142,7 +142,7 @@ function buildPeerMessageBlock(input: {
   const labels = buildPeerSourceLabel(input.source);
   return {
     type: "peer_message",
-    relay: "addon.remote-peer",
+    relay: "addon.peer-message",
     source_chat_jid: `remote:${peerInstanceId}`,
     source_agent_name: labels.sourceAgentName,
     source_agent_display_name: labels.sourceDisplayName,
@@ -199,9 +199,9 @@ export function createAddonMessagingRuntimeHandlers(options: AddonMessagingRunti
         contentBlocks: [block],
         mode: normalizeMode(input.mode),
         ...(input.thread_id !== undefined ? { threadId: input.thread_id } : {}),
-        source: "addon.remote-peer",
+        source: "addon.peer-message",
         queuedBy: {
-          source: "addon.remote-peer",
+          source: "addon.peer-message",
           clientId: identifier(input.source.peer_instance_id, "source.peer_instance_id", /^[A-Za-z0-9_-]{16,128}$/),
         },
       });
