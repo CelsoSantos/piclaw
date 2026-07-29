@@ -4045,11 +4045,11 @@ test("runAgentPrompt continues after a committed tool-use lead-in when closing p
   }
 });
 
-test("runAgentPrompt honors the tools-disabled transient recovery opt-out", async () => {
+test("runAgentPrompt disables tools by default during transient recovery", async () => {
   initDatabase();
   const restoreEnv = setEnv({
     PICLAW_TURN_AUTO_RECOVERY_ENABLED: "1",
-    PICLAW_TURN_TRANSIENT_RECOVERY_TOOLS_ENABLED: "0",
+    PICLAW_TURN_TRANSIENT_RECOVERY_TOOLS_ENABLED: undefined,
     PICLAW_TURN_AUTO_RECOVERY_MAX_ATTEMPTS: "2",
     PICLAW_TURN_AUTO_RECOVERY_TOTAL_BUDGET_MS: "30000",
   });
